@@ -4,33 +4,48 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const crypto = require('crypto');
+const fs = require('fs');
+
 const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '5mb' }));
+const port = process.env.PORT || 10000;
 
-// Initialise Firebase Admin
-const fs = require('fs');
+// 1. Bulletproof Firebase Initialization
 try {
-  let credential;
+  let serviceAccount;
+
+  // Radar Check 1: Are we on Render?
   if (fs.existsSync('/etc/secrets/firebase-service-account.json')) {
-    // Render Secret Files path
-    credential = admin.credential.cert(require('/etc/secrets/firebase-service-account.json'));
-    console.log('Firebase Admin loaded from Render Secret File.');
-  } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    // Render Environment Variable fallback
-    credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
-    console.log('Firebase Admin loaded from Environment Variable.');
-  } else {
-    // Local development fallback
-    credential = admin.credential.cert(require('./firebase-service-account.json'));
-    console.log('Firebase Admin loaded from local file.');
+    console.log("✅ Radar: Found Firebase key in Render secrets!");
+    serviceAccount = require('/etc/secrets/firebase-service-account.json');
+  } 
+  // Radar Check 2: Are we testing locally on your computer?
+  else if (fs.existsSync('./firebase-service-account.json')) {
+    console.log("✅ Radar: Found Firebase key locally!");
+    serviceAccount = require('./firebase-service-account.json');
+  } 
+  // Radar Check 3: Environment Variable
+  else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    console.log("✅ Radar: Found Firebase key in Environment Variable!");
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
   }
-  admin.initializeApp({ credential });
-} catch (e) {
-  console.warn('Firebase Admin init failed (Missing credentials). Mocking for development.', e.message);
+  // Radar Check 4: Total Failure
+  else {
+    throw new Error("❌ Radar: Could NOT find the Firebase JSON file anywhere!");
+  }
+
+  // Boot up Firebase
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  console.log("🚀 Firebase initialized successfully!");
+
+} catch (error) {
+  console.error("🔥 Firebase Setup FAILED:", error.message);
 }
 
-const db = admin.firestore ? admin.firestore() : null;
+const db = admin.apps.length ? admin.firestore() : null;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'MOCK_KEY');
 
 // -- Auth Middleware --
@@ -64,6 +79,11 @@ const rateLimit = async (uid, isPro, limit = 3) => {
     return true;
   });
 };
+
+// -- Test route --
+app.get('/', (req, res) => {
+  res.send('ATS Resume Backend is Live and Firebase is connected!');
+});
 
 // -- AI: Improve Bullet --
 app.post('/api/ai/improve-bullet', auth, async (req, res) => {
@@ -164,8 +184,10 @@ app.post('/api/share-link', auth, async (req, res) => {
       expiry: admin.firestore.Timestamp.fromDate(expiry)
     });
   }
-  res.json({ link: `${process.env.BACKEND_URL || 'http://localhost:3000'}/r/${token}`, expiry });
+  res.json({ link: `${process.env.BACKEND_URL || 'http://localhost:10000'}/r/${token}`, expiry });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`ATS Resume Builder backend running on port ${PORT}`));
+// 3. Start the Server
+app.listen(port, () => {
+  console.log(`🌐 Server is wide awake and running on port ${port}`);
+});
