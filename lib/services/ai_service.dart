@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 final aiServiceProvider = Provider<AIService>((ref) => AIService(
-  backendUrl: dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:3000',
+  backendUrl: dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:10000',
 ));
 
 class AIService {
