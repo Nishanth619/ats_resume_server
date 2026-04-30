@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../providers/resume_provider.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/widgets/shared_widgets.dart';
 
 import 'sections/personal_info_section.dart';
 import 'sections/experience_section.dart';
@@ -52,36 +54,69 @@ class _State extends ConsumerState<ResumeEditorScreen> {
     final resumeAsync = ref.watch(resumeStreamProvider(widget.resumeId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: resumeAsync.whenData((r) => r.title).value != null
-            ? Text(resumeAsync.value!.title) : const Text('Edit Resume'),
+      backgroundColor: AppColors.bgDark,
+      appBar: GradientAppBar(
+        title: resumeAsync.whenData((r) => r.title).value ?? 'Edit Resume',
         actions: [
           Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Text(_saveStatus, style: TextStyle(
-                  color: _dirty ? Colors.orange : Colors.green, fontSize: 12)),
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _dirty 
+                    ? AppColors.scoreOrange.withOpacity(0.15) 
+                    : AppColors.scoreGreen.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _dirty 
+                      ? AppColors.scoreOrange.withOpacity(0.3) 
+                      : AppColors.scoreGreen.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _dirty ? Icons.pending_outlined : Icons.check_circle_outline,
+                    size: 14,
+                    color: _dirty ? AppColors.scoreOrange : AppColors.scoreGreen,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(_saveStatus, style: TextStyle(
+                      color: _dirty ? AppColors.scoreOrange : AppColors.scoreGreen, 
+                      fontSize: 11, fontWeight: FontWeight.w700)),
+                ],
+              ),
             ),
           ),
-          IconButton(icon: const Icon(Icons.save), onPressed: _save),
-          IconButton(icon: const Icon(Icons.visibility),
-              onPressed: () => context.push('/preview/${widget.resumeId}')),
-          PopupMenuButton(itemBuilder: (_) => [
-            const PopupMenuItem(value: 'ats', child: Text('Check ATS Score')),
-            const PopupMenuItem(value: 'jd', child: Text('Match Job Description')),
-            const PopupMenuItem(value: 'cover', child: Text('Generate Cover Letter')),
-          ], onSelected: (val) {
-            if (val == 'ats') context.push('/ats/${widget.resumeId}');
-            if (val == 'jd') context.push('/jd/${widget.resumeId}');
-            if (val == 'cover') context.push('/cover-letter/${widget.resumeId}');
-          }),
+          IconButton(
+            icon: const Icon(Icons.visibility_outlined, color: AppColors.textPrimary, size: 22),
+            onPressed: () => context.push('/preview/${widget.resumeId}')
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
+            color: AppColors.cardDark,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            itemBuilder: (_) => [
+              _buildPopupItem('ats', Icons.analytics_outlined, 'Check ATS Score'),
+              _buildPopupItem('jd', Icons.work_outline_rounded, 'Match Job Description'),
+              _buildPopupItem('cover', Icons.mail_outline_rounded, 'Generate Cover Letter'),
+            ],
+            onSelected: (val) {
+              if (val == 'ats') context.push('/ats/${widget.resumeId}');
+              if (val == 'jd') context.push('/jd/${widget.resumeId}');
+              if (val == 'cover') context.push('/cover-letter/${widget.resumeId}');
+            }
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: resumeAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e')),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primaryLight)),
+        error: (e, _) => Center(
+          child: Text('Error: $e', style: const TextStyle(color: AppColors.textSecondary))),
         data: (resume) => ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
           children: [
             PersonalInfoSection(
               resumeId: widget.resumeId,
@@ -91,7 +126,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                     .updateSection('personal', d);
                 _onChanged();
               }),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             ExperienceSection(
               data: List<Map<String,dynamic>>.from(resume.sections['experience'] ?? []),
               targetRole: resume.targetRole,
@@ -100,7 +135,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                     .updateSection('experience', d);
                 _onChanged();
               }),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             EducationSection(
               data: List<Map<String,dynamic>>.from(resume.sections['education'] ?? []),
               onChanged: (d) {
@@ -108,7 +143,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                     .updateSection('education', d);
                 _onChanged();
               }),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             SkillsSection(
               data: List<String>.from(resume.sections['skills'] ?? []),
               onChanged: (d) {
@@ -116,7 +151,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                     .updateSection('skills', d);
                 _onChanged();
               }),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             ProjectsSection(
               data: List<Map<String,dynamic>>.from(resume.sections['projects'] ?? []),
               onChanged: (d) {
@@ -124,7 +159,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                     .updateSection('projects', d);
                 _onChanged();
               }),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             CertificationsSection(
               data: List<Map<String,dynamic>>.from(resume.sections['certifications'] ?? []),
               onChanged: (d) {
@@ -132,13 +167,40 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                     .updateSection('certifications', d);
                 _onChanged();
               }),
-            const SizedBox(height: 80),
           ]),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/ats/${widget.resumeId}'),
-        icon: const Icon(Icons.analytics),
-        label: const Text('ATS Score'),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: AppColors.primaryGradient,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () => context.push('/ats/${widget.resumeId}'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          icon: const Icon(Icons.analytics_rounded, color: Colors.white),
+          label: const Text('ATS Score', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildPopupItem(String value, IconData icon, String text) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.textPrimary),
+          const SizedBox(width: 12),
+          Text(text, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+        ],
       ),
     );
   }
