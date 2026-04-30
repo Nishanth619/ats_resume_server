@@ -67,6 +67,7 @@ const auth = async (req, res, next) => {
 
 // -- Rate Limiter --
 const rateLimit = async (uid, isPro, limit = 3) => {
+  return true; // TEMPORARY BYPASS FOR TESTING
   if (isPro) return true;
   if (!db) return true; // Bypass in dev
   const today = new Date().toISOString().split('T')[0];
