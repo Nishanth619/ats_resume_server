@@ -13,7 +13,7 @@ class ATSResumeApp extends ConsumerWidget {
       title: 'ATS Resume Builder',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.dark,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );

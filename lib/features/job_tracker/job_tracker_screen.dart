@@ -4,23 +4,27 @@ import '../../services/firestore_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/resume_provider.dart';
 import '../../models/application_model.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/widgets/shared_widgets.dart';
 
-// Status config
-// ignore: library_private_types_in_public_api
 const Map<ApplicationStatus, _ColConfig> kColConfig = {
-  ApplicationStatus.applied: _ColConfig('Applied', Color(0xFF6366F1), Color(0xFFEEF2FF)),
-  ApplicationStatus.interview: _ColConfig('Interview', Color(0xFFF59E0B), Color(0xFFFFFBEB)),
-  ApplicationStatus.offer: _ColConfig('Offer', Color(0xFF10B981), Color(0xFFECFDF5)),
-  ApplicationStatus.rejected: _ColConfig('Rejected', Color(0xFFEF4444), Color(0xFFFEF2F2)),
+  ApplicationStatus.applied: _ColConfig(
+      'Applied', AppColors.primaryLight, Color(0xFF1E1B33), '📤'),
+  ApplicationStatus.interview: _ColConfig(
+      'Interview', AppColors.accentGold, Color(0xFF1E1A10), '🎤'),
+  ApplicationStatus.offer: _ColConfig(
+      'Offer', AppColors.scoreGreen, Color(0xFF0E1F18), '🎉'),
+  ApplicationStatus.rejected: _ColConfig(
+      'Rejected', AppColors.scoreRed, Color(0xFF1F0E0E), '❌'),
 };
 
 class _ColConfig {
   final String label;
   final Color accent, bg;
-  const _ColConfig(this.label, this.accent, this.bg);
+  final String emoji;
+  const _ColConfig(this.label, this.accent, this.bg, this.emoji);
 }
 
-// Screen
 class JobTrackerScreen extends ConsumerWidget {
   const JobTrackerScreen({super.key});
 
@@ -30,48 +34,98 @@ class JobTrackerScreen extends ConsumerWidget {
     final appsAsync = ref.watch(applicationsStreamProvider(uid));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Job Tracker'),
-        actions: [
-          IconButton(
-              icon: const Icon(Icons.add),
-              tooltip: 'Add Application',
-              onPressed: () => _showAddDialog(context, ref, uid)),
-        ],
-      ),
-      body: appsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (rawList) {
-          // Convert raw maps to ApplicationModel
-          final apps = rawList
-              .map((m) => ApplicationModel.fromMap(m['id'] as String, m))
-              .toList();
-
-          return Column(children: [
-            // Stats bar
-            _StatsBar(apps: apps),
-            // Kanban board
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: ApplicationStatus.values
-                      .map((status) => _KanbanColumn(
-                            uid: uid,
-                            status: status,
-                            apps: apps.where((a) => a.status == status).toList(),
-                            allApps: apps,
-                            ref: ref,
-                          ))
-                      .toList(),
-                ),
-              ),
+      backgroundColor: AppColors.bgDark,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            backgroundColor: AppColors.surfaceDark,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 18, color: AppColors.textPrimary),
+              onPressed: () => Navigator.of(context).maybePop(),
             ),
-          ]);
-        },
+            title: ShaderMask(
+              shaderCallback: (b) => AppColors.accentGradient.createShader(b),
+              child: const Text('Job Tracker',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800)),
+            ),
+            actions: [
+              appsAsync.whenOrNull(
+                    data: (list) => Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      child: GradientBadge(
+                          text: '${list.length} jobs',
+                          gradient: AppColors.accentGradient),
+                    ),
+                  ) ??
+                  const SizedBox(),
+              IconButton(
+                icon: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.add_rounded,
+                      color: Colors.white, size: 20),
+                ),
+                onPressed: () => _showAddDialog(context, ref, uid),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+          SliverToBoxAdapter(
+            child: appsAsync.when(
+              loading: () => const SizedBox(
+                height: 400,
+                child: Center(
+                    child: CircularProgressIndicator(
+                        color: AppColors.primaryLight)),
+              ),
+              error: (e, _) => Center(
+                  child: Text('Error: $e',
+                      style:
+                          const TextStyle(color: AppColors.textSecondary))),
+              data: (rawList) {
+                final apps = rawList
+                    .map((m) =>
+                        ApplicationModel.fromMap(m['id'] as String, m))
+                    .toList();
+                return Column(
+                  children: [
+                    _StatsBar(apps: apps),
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height - 180,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: ApplicationStatus.values
+                              .map((status) => _KanbanColumn(
+                                    uid: uid,
+                                    status: status,
+                                    apps: apps
+                                        .where((a) => a.status == status)
+                                        .toList(),
+                                    ref: ref,
+                                  ))
+                              .toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -82,65 +136,130 @@ class JobTrackerScreen extends ConsumerWidget {
     final urlCtrl = TextEditingController();
     ApplicationStatus status = ApplicationStatus.applied;
 
-    showDialog(
+    showModalBottomSheet(
       context: ctx,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => StatefulBuilder(
-          builder: (ctx2, setState2) => AlertDialog(
-                title: const Text('Add Application'),
-                content: Column(mainAxisSize: MainAxisSize.min, children: [
-                  TextField(
-                      controller: compCtrl,
-                      decoration: const InputDecoration(
-                          labelText: 'Company *', border: OutlineInputBorder())),
-                  const SizedBox(height: 10),
-                  TextField(
-                      controller: roleCtrl,
-                      decoration: const InputDecoration(
-                          labelText: 'Role / Job Title *',
-                          border: OutlineInputBorder())),
-                  const SizedBox(height: 10),
-                  TextField(
-                      controller: urlCtrl,
-                      decoration: const InputDecoration(
-                          labelText: 'Job URL (optional)',
-                          border: OutlineInputBorder())),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<ApplicationStatus>(
-                      initialValue: status,
-                      decoration: const InputDecoration(
-                          labelText: 'Stage', border: OutlineInputBorder()),
-                      items: ApplicationStatus.values
-                          .map((s) => DropdownMenuItem(
-                              value: s, child: Text(kColConfig[s]!.label)))
-                          .toList(),
-                      onChanged: (v) => setState2(() => status = v!)),
-                ]),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(ctx2),
-                      child: const Text('Cancel')),
-                  ElevatedButton(
-                      onPressed: () {
-                        if (compCtrl.text.trim().isEmpty ||
-                            roleCtrl.text.trim().isEmpty) { return; }
-                        ref.read(firestoreServiceProvider).addApplication(uid, {
-                          'company': compCtrl.text.trim(),
-                          'role': roleCtrl.text.trim(),
-                          'status': status.value,
-                          'notes': '',
-                          if (urlCtrl.text.trim().isNotEmpty)
-                            'jobUrl': urlCtrl.text.trim(),
-                        });
-                        Navigator.pop(ctx2);
-                      },
-                      child: const Text('Add')),
-                ],
-              )),
+        builder: (ctx2, setState2) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              24, 20, 24, MediaQuery.of(ctx2).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: AppColors.borderDark,
+                        borderRadius: BorderRadius.circular(2))),
+              ),
+              const SizedBox(height: 20),
+              const Text('Add Application',
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(height: 20),
+              _DarkField(controller: compCtrl, label: 'Company *',
+                  icon: Icons.business_outlined),
+              const SizedBox(height: 12),
+              _DarkField(controller: roleCtrl, label: 'Role / Job Title *',
+                  icon: Icons.work_outline_rounded),
+              const SizedBox(height: 12),
+              _DarkField(controller: urlCtrl, label: 'Job URL (optional)',
+                  icon: Icons.link_rounded),
+              const SizedBox(height: 12),
+              // Status picker
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: ApplicationStatus.values.map((s) {
+                    final cfg = kColConfig[s]!;
+                    final selected = status == s;
+                    return GestureDetector(
+                      onTap: () => setState2(() => status = s),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? cfg.accent.withOpacity(0.15)
+                              : AppColors.cardDark2,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: selected
+                                  ? cfg.accent
+                                  : AppColors.borderDark,
+                              width: selected ? 1.5 : 1),
+                        ),
+                        child: Text('${cfg.emoji} ${cfg.label}',
+                            style: TextStyle(
+                                color: selected
+                                    ? cfg.accent
+                                    : AppColors.textSecondary,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                fontSize: 12)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 24),
+              GradientButton(
+                label: 'Add to Tracker',
+                onPressed: () {
+                  if (compCtrl.text.trim().isEmpty ||
+                      roleCtrl.text.trim().isEmpty) return;
+                  ref.read(firestoreServiceProvider).addApplication(uid, {
+                    'company': compCtrl.text.trim(),
+                    'role': roleCtrl.text.trim(),
+                    'status': status.value,
+                    'notes': '',
+                    if (urlCtrl.text.trim().isNotEmpty)
+                      'jobUrl': urlCtrl.text.trim(),
+                  });
+                  Navigator.pop(ctx2);
+                },
+                icon: const Icon(Icons.add_rounded,
+                    color: Colors.white, size: 18),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
 
-// Stats bar
+class _DarkField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  const _DarkField(
+      {required this.controller, required this.label, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 18, color: AppColors.textMuted),
+      ),
+    );
+  }
+}
+
 class _StatsBar extends StatelessWidget {
   final List<ApplicationModel> apps;
   const _StatsBar({required this.apps});
@@ -148,44 +267,50 @@ class _StatsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: const Color(0xFFF8FAFC),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderDark),
+      ),
       child: Row(
-          children: ApplicationStatus.values.map((s) {
-        final count = apps.where((a) => a.status == s).length;
-        final cfg = kColConfig[s]!;
-        return Expanded(
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(
-              width: 10,
-              height: 10,
-              margin: const EdgeInsets.only(right: 5),
-              decoration: BoxDecoration(
-                  color: cfg.accent, shape: BoxShape.circle)),
-          Text('${cfg.label}: $count',
-              style: TextStyle(
-                  fontSize: 12,
-                  color: cfg.accent,
-                  fontWeight: FontWeight.w600)),
-        ]));
-      }).toList()),
+        children: ApplicationStatus.values.map((s) {
+          final count = apps.where((a) => a.status == s).length;
+          final cfg = kColConfig[s]!;
+          return Expanded(
+            child: Column(
+              children: [
+                Text('$count',
+                    style: TextStyle(
+                        color: cfg.accent,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text(cfg.label,
+                    style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }
 
-// Kanban Column with DragTarget
 class _KanbanColumn extends StatefulWidget {
   final String uid;
   final ApplicationStatus status;
   final List<ApplicationModel> apps;
-  final List<ApplicationModel> allApps;
   final WidgetRef ref;
 
   const _KanbanColumn({
     required this.uid,
     required this.status,
     required this.apps,
-    required this.allApps,
     required this.ref,
   });
 
@@ -218,63 +343,71 @@ class _KanbanColumnState extends State<_KanbanColumn> {
         setState(() => _isDragOver = false);
         _onAccept(details.data);
       },
-      builder: (ctx, candidateData, rejectedData) {
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 210,
-          margin: const EdgeInsets.symmetric(horizontal: 6),
-          decoration: BoxDecoration(
-            color: _isDragOver
-                ? cfg.accent.withValues(alpha: 0.08)
-                : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: _isDragOver ? cfg.accent : Colors.grey.shade200,
-                width: _isDragOver ? 2 : 1),
-            boxShadow: _isDragOver
-                ? [BoxShadow(color: cfg.accent.withValues(alpha: 0.2), blurRadius: 12)]
-                : null,
-          ),
-          child: Column(children: [
+      builder: (ctx, _, __) => AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 220,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: _isDragOver
+              ? cfg.accent.withOpacity(0.08)
+              : AppColors.cardDark,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: _isDragOver ? cfg.accent : AppColors.borderDark,
+              width: _isDragOver ? 2 : 1),
+          boxShadow: _isDragOver
+              ? [
+                  BoxShadow(
+                      color: cfg.accent.withOpacity(0.2),
+                      blurRadius: 16)
+                ]
+              : null,
+        ),
+        child: Column(
+          children: [
             // Column header
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
               decoration: BoxDecoration(
-                  color: cfg.accent,
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(11))),
+                color: cfg.accent.withOpacity(0.12),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(19)),
+                border: Border(
+                    bottom: BorderSide(
+                        color: cfg.accent.withOpacity(0.3), width: 1)),
+              ),
               child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(cfg.label,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13)),
-                    Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 1),
-                        decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(10)),
-                        child: Text('${widget.apps.length}',
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 11))),
-                  ]),
+                children: [
+                  Text(cfg.emoji,
+                      style: const TextStyle(fontSize: 16)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(cfg.label,
+                        style: TextStyle(
+                            color: cfg.accent,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: cfg.accent.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('${widget.apps.length}',
+                        style: TextStyle(
+                            color: cfg.accent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
             ),
-            // Drop hint when dragging over
-            if (_isDragOver)
-              Container(
-                  margin: const EdgeInsets.all(8),
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: cfg.accent.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(2))),
-            // Cards
+            // Cards list
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   children: widget.apps
                       .map((app) => _DraggableCard(
@@ -283,24 +416,19 @@ class _KanbanColumnState extends State<_KanbanColumn> {
                 ),
               ),
             ),
-          ]),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }
 
-// Draggable Card
 class _DraggableCard extends StatefulWidget {
   final ApplicationModel app;
   final String uid;
   final WidgetRef ref;
-
-  const _DraggableCard({
-    required this.app,
-    required this.uid,
-    required this.ref,
-  });
+  const _DraggableCard(
+      {required this.app, required this.uid, required this.ref});
 
   @override
   State<_DraggableCard> createState() => _DraggableCardState();
@@ -316,157 +444,163 @@ class _DraggableCardState extends State<_DraggableCard> {
       delay: const Duration(milliseconds: 150),
       onDragStarted: () => setState(() => _isDragging = true),
       onDragEnd: (_) => setState(() => _isDragging = false),
-      onDraggableCanceled: (velocity, offset) => setState(() => _isDragging = false),
-      // Ghost left in column while dragging
+      onDraggableCanceled: (_, __) => setState(() => _isDragging = false),
       childWhenDragging: Opacity(
-          opacity: 0.35,
+          opacity: 0.3,
           child: _CardContent(
-              app: widget.app, uid: widget.uid, ref: widget.ref, isDragging: true)),
-      // The dragged widget (floating above)
+              app: widget.app, uid: widget.uid, ref: widget.ref)),
       feedback: Material(
-        elevation: 10,
-        borderRadius: BorderRadius.circular(10),
+        color: Colors.transparent,
         child: SizedBox(
-            width: 195,
+            width: 200,
             child: _CardContent(
                 app: widget.app,
                 uid: widget.uid,
                 ref: widget.ref,
-                isDragging: true,
                 isFloating: true)),
       ),
       child: AnimatedScale(
-          scale: _isDragging ? 0.97 : 1.0,
-          duration: const Duration(milliseconds: 150),
-          child: _CardContent(
-              app: widget.app, uid: widget.uid, ref: widget.ref, isDragging: _isDragging)),
+        scale: _isDragging ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        child: _CardContent(
+            app: widget.app, uid: widget.uid, ref: widget.ref),
+      ),
     );
   }
 }
 
-// Card Content
-class _CardContent extends StatefulWidget {
+class _CardContent extends StatelessWidget {
   final ApplicationModel app;
   final String uid;
   final WidgetRef ref;
-  final bool isDragging;
   final bool isFloating;
+  const _CardContent(
+      {required this.app,
+      required this.uid,
+      required this.ref,
+      this.isFloating = false});
 
-  const _CardContent({
-    required this.app,
-    required this.uid,
-    required this.ref,
-    this.isDragging = false,
-    this.isFloating = false,
-  });
-
-  @override
-  State<_CardContent> createState() => _CardContentState();
-}
-
-class _CardContentState extends State<_CardContent> {
   @override
   Widget build(BuildContext context) {
-    final cfg = kColConfig[widget.app.status]!;
-
+    final cfg = kColConfig[app.status]!;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        color: AppColors.cardDark2,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: widget.isDragging && !widget.isFloating
-                ? cfg.accent.withValues(alpha: 0.4)
-                : Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-              color: widget.isDragging
-                  ? Colors.black26
-                  : Colors.black.withValues(alpha: 0.05),
-              blurRadius: widget.isDragging ? 8 : 4,
-              offset: const Offset(0, 2))
-        ],
+            color: isFloating ? cfg.accent : AppColors.borderDark, width: 1),
+        boxShadow: isFloating
+            ? [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6))
+              ]
+            : null,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Drag handle hint
-          Center(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Drag handle
+            Center(
               child: Container(
-                  width: 24,
-                  height: 3,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2)))),
-          Text(widget.app.company,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          const SizedBox(height: 2),
-          Text(widget.app.role,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-          const SizedBox(height: 8),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(
-                '${widget.app.appliedAt.day}/${widget.app.appliedAt.month}/${widget.app.appliedAt.year}',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 10)),
-            if (!widget.isFloating)
-              PopupMenuButton<String>(
-                iconSize: 16,
-                padding: EdgeInsets.zero,
-                itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'notes', child: Text('Edit Notes')),
-                  const PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete', style: TextStyle(color: Colors.red))),
-                ],
-                onSelected: (val) {
-                  if (val == 'delete') {
-                    widget.ref
-                        .read(firestoreServiceProvider)
-                        .deleteApplication(widget.uid, widget.app.id);
-                  }
-                  if (val == 'notes') _editNotes(context);
-                },
+                width: 28,
+                height: 3,
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                    color: AppColors.borderDark,
+                    borderRadius: BorderRadius.circular(2)),
               ),
-          ]),
-          if (widget.app.notes.isNotEmpty) ...[
-            const Divider(height: 12),
-            Text(widget.app.notes,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 10),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis),
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(app.company,
+                          style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13)),
+                      const SizedBox(height: 3),
+                      Text(app.role,
+                          style: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                if (!isFloating)
+                  PopupMenuButton<String>(
+                    iconSize: 16,
+                    padding: EdgeInsets.zero,
+                    iconColor: AppColors.textMuted,
+                    color: AppColors.cardDark,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(children: [
+                            Icon(Icons.delete_outline,
+                                color: AppColors.error, size: 16),
+                            SizedBox(width: 8),
+                            Text('Delete',
+                                style: TextStyle(
+                                    color: AppColors.error, fontSize: 13)),
+                          ])),
+                    ],
+                    onSelected: (val) {
+                      if (val == 'delete') {
+                        ref
+                            .read(firestoreServiceProvider)
+                            .deleteApplication(uid, app.id);
+                      }
+                    },
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today_outlined,
+                    size: 10, color: AppColors.textMuted),
+                const SizedBox(width: 4),
+                Text(
+                    '${app.appliedAt.day}/${app.appliedAt.month}/${app.appliedAt.year}',
+                    style: const TextStyle(
+                        color: AppColors.textMuted, fontSize: 10)),
+                if (app.notes.isNotEmpty) ...[
+                  const Spacer(),
+                  const Icon(Icons.note_outlined,
+                      size: 10, color: AppColors.textMuted),
+                ],
+              ],
+            ),
+            if (app.notes.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.bgDark,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(app.notes,
+                    style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                        height: 1.5),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+              ),
+            ],
           ],
-        ]),
+        ),
       ),
     );
-  }
-
-  void _editNotes(BuildContext ctx) {
-    final ctrl = TextEditingController(text: widget.app.notes);
-    showDialog(
-        context: ctx,
-        builder: (_) => AlertDialog(
-              title: const Text('Notes'),
-              content: TextField(
-                  controller: ctrl,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Add notes about this application...')),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Cancel')),
-                ElevatedButton(
-                    onPressed: () {
-                      widget.ref
-                          .read(firestoreServiceProvider)
-                          .updateApplicationStatus(widget.uid, widget.app.id, widget.app.status.value);
-                      // Also save notes - add updateApplicationNotes to FirestoreService
-                      Navigator.pop(ctx);
-                    },
-                    child: const Text('Save')),
-              ],
-            ));
   }
 }

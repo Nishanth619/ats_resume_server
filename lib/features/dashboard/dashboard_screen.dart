@@ -6,6 +6,8 @@ import '../../providers/auth_provider.dart';
 import '../../models/resume_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/admob_service.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/widgets/shared_widgets.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -13,124 +15,496 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final resumes = ref.watch(resumeListProvider);
-    
+    final user = ref.watch(authStateProvider).value;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Resumes'),
+      backgroundColor: AppColors.bgDark,
+      body: CustomScrollView(
+        slivers: [
+          // ─── Premium SliverAppBar ───
+          SliverAppBar(
+            expandedHeight: 160,
+            floating: false,
+            pinned: true,
+            backgroundColor: AppColors.surfaceDark,
+            elevation: 0,
+            leading: Builder(
+              builder: (ctx) => IconButton(
+                icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary),
+                onPressed: () => Scaffold.of(ctx).openDrawer(),
+              ),
+            ),
+            actions: [
+              GradientBadge(text: 'PRO'),
+              const SizedBox(width: 12),
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.primary,
+                child: Text(
+                  (user?.displayName?.isNotEmpty == true
+                          ? user!.displayName![0]
+                          : user?.email?[0] ?? 'U')
+                      .toUpperCase(),
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w800),
+                ),
+              ),
+              const SizedBox(width: 16),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.surfaceDark, AppColors.bgDark],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(24, 80, 24, 20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (b) =>
+                          AppColors.primaryGradient.createShader(b),
+                      child: Text(
+                        'Hello, ${user?.displayName?.split(' ').first ?? 'there'} 👋',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Your career toolkit is ready.',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // ─── Quick Actions ───
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SectionHeader(
+                      title: 'Quick Actions', subtitle: 'Boost your career'),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _QuickAction(
+                        icon: Icons.work_outline_rounded,
+                        label: 'Job\nTracker',
+                        gradient: AppColors.accentGradient,
+                        onTap: () => context.push('/job-tracker'),
+                      ),
+                      const SizedBox(width: 12),
+                      _QuickAction(
+                        icon: Icons.analytics_outlined,
+                        label: 'ATS\nChecker',
+                        gradient: AppColors.primaryGradient,
+                        onTap: () {},
+                      ),
+                      const SizedBox(width: 12),
+                      _QuickAction(
+                        icon: Icons.settings_outlined,
+                        label: 'Settings',
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF374151), Color(0xFF1F2937)],
+                        ),
+                        onTap: () => context.push('/settings'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  SectionHeader(
+                    title: 'My Resumes',
+                    subtitle: 'Tap to edit, hold for options',
+                    trailing: resumes.whenOrNull(
+                      data: (list) => list.isNotEmpty
+                          ? GradientBadge(text: '${list.length}')
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+
+          // ─── Resume List ───
+          resumes.when(
+            loading: () => const SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: AppColors.primary),
+                    SizedBox(height: 16),
+                    Text('Loading your resumes...',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+            ),
+            error: (e, _) => SliverFillRemaining(
+              child: Center(
+                child: Text('Error: $e',
+                    style:
+                        const TextStyle(color: AppColors.textSecondary)),
+              ),
+            ),
+            data: (list) => list.isEmpty
+                ? SliverFillRemaining(child: _buildEmptyState(context))
+                : SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (ctx, i) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: _ResumeCard(resume: list[i]),
+                        ),
+                        childCount: list.length,
+                      ),
+                    ),
+                  ),
+          ),
+        ],
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+      drawer: _buildDrawer(context, ref),
+      floatingActionButton: _buildFAB(context),
+      bottomNavigationBar: ref.watch(bannerAdProvider) != null
+          ? Container(
+              color: AppColors.surfaceDark,
+              padding: const EdgeInsets.only(top: 4),
+              child: ref.watch(bannerAdProvider)!,
+            )
+          : null,
+    );
+  }
+
+  Widget _buildFAB(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: FloatingActionButton.extended(
+        onPressed: () => context.push('/templates'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: const Text('New Resume',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Color(0xFF6366F1)),
-              child: Text('ATS Resume Builder', style: TextStyle(color: Colors.white, fontSize: 24)),
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 30,
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Text('📄', style: TextStyle(fontSize: 44)),
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.work_outline),
-              title: const Text('Job Tracker'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/job-tracker');
-              },
+            const SizedBox(height: 28),
+            const Text('No resumes yet',
+                style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800)),
+            const SizedBox(height: 10),
+            const Text(
+              'Create your first ATS-optimised resume\nand land your dream job.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: AppColors.textSecondary, fontSize: 14, height: 1.6),
             ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Settings'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/settings');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Sign Out'),
-              onTap: () {
-                Navigator.pop(context);
-                ref.read(authServiceProvider).signOut();
-              },
+            const SizedBox(height: 32),
+            GradientButton(
+              label: 'Create My First Resume',
+              onPressed: () => context.push('/templates'),
+              width: 260,
+              icon: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
             ),
           ],
         ),
       ),
-      body: resumes.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (list) => list.isEmpty
-            ? _buildEmptyState(context)
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: list.length,
-                itemBuilder: (ctx, i) => _ResumeCard(resume: list[i]),
-              ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/templates'),
-        icon: const Icon(Icons.add),
-        label: const Text('New Resume'),
-      ),
-      bottomNavigationBar: ref.watch(bannerAdProvider) ?? const SizedBox(height: 50),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) => Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.description_outlined, size: 72, color: Colors.grey),
-          const SizedBox(height: 16),
-          const Text('No resumes yet',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          const Text('Create your first ATS-optimised resume',
-              style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 24),
-          ElevatedButton(
-              onPressed: () => context.push('/templates'),
-              child: const Text('Create Resume')),
-        ]),
-      );
+  Widget _buildDrawer(BuildContext context, WidgetRef ref) {
+    return Drawer(
+      backgroundColor: AppColors.surfaceDark,
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 60, 24, 28),
+            decoration: const BoxDecoration(
+              gradient: AppColors.primaryGradient,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(
+                    child: Text('📄', style: TextStyle(fontSize: 26)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('ATS.ai',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800)),
+                const Text('Career Intelligence Platform',
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _DrawerItem(
+              icon: Icons.work_outline_rounded,
+              label: 'Job Tracker',
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/job-tracker');
+              }),
+          _DrawerItem(
+              icon: Icons.settings_outlined,
+              label: 'Settings',
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/settings');
+              }),
+          const Spacer(),
+          const Divider(color: AppColors.borderDark),
+          _DrawerItem(
+              icon: Icons.logout_rounded,
+              label: 'Sign Out',
+              isDestructive: true,
+              onTap: () {
+                Navigator.pop(context);
+                ref.read(authServiceProvider).signOut();
+              }),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isDestructive;
+
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isDestructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive ? AppColors.error : AppColors.textSecondary;
+    return ListTile(
+      leading: Icon(icon, color: color, size: 22),
+      title: Text(label,
+          style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      horizontalTitleGap: 12,
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final LinearGradient gradient;
+  final VoidCallback onTap;
+
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.gradient,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 86,
+          decoration: BoxDecoration(
+            gradient: gradient,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 24),
+              const SizedBox(height: 6),
+              Text(label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      height: 1.3)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ResumeCard extends ConsumerWidget {
   final ResumeModel resume;
   const _ResumeCard({required this.resume});
 
-  Color _scoreColor(int score) => score >= 80
-      ? Colors.green
-      : score >= 60
-          ? Colors.orange
-          : Colors.red;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        title: Text(resume.title,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SizedBox(height: 4),
-          Text('Last edited: \${_formatDate(resume.lastEdited)}',
-              style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          Text('Downloads: ${resume.downloadCount}',
-              style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        ]),
-        trailing: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-                color: _scoreColor(resume.atsScore).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _scoreColor(resume.atsScore))),
-            child: Text('${resume.atsScore}',
-                style: TextStyle(
-                    color: _scoreColor(resume.atsScore), fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(height: 4),
-          const Text('ATS', style: TextStyle(fontSize: 10, color: Colors.grey)),
-        ]),
-        onTap: () => context.push('/editor/${resume.id}'),
-        onLongPress: () => _showOptions(context, ref),
+    final score = resume.atsScore;
+    final scoreColor = AppColors.scoreColor(score);
+
+    return GestureDetector(
+      onTap: () => context.push('/editor/${resume.id}'),
+      onLongPress: () => _showOptions(context, ref),
+      child: GlassCard(
+        padding: const EdgeInsets.all(18),
+        showGlow: score >= 80,
+        glowColor: scoreColor,
+        child: Row(
+          children: [
+            // Score ring
+            SizedBox(
+              width: 64,
+              height: 64,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    value: score / 100,
+                    strokeWidth: 5,
+                    backgroundColor: AppColors.borderDark,
+                    valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
+                    strokeCap: StrokeCap.round,
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('$score',
+                          style: TextStyle(
+                              color: scoreColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800)),
+                      Text('ATS',
+                          style: TextStyle(
+                              color: scoreColor.withOpacity(0.7),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(resume.title,
+                      style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time_rounded,
+                          size: 12, color: AppColors.textMuted),
+                      const SizedBox(width: 4),
+                      Text(_formatDate(resume.lastEdited),
+                          style: const TextStyle(
+                              color: AppColors.textMuted, fontSize: 12)),
+                      const SizedBox(width: 12),
+                      const Icon(Icons.download_outlined,
+                          size: 12, color: AppColors.textMuted),
+                      const SizedBox(width: 4),
+                      Text('${resume.downloadCount}',
+                          style: const TextStyle(
+                              color: AppColors.textMuted, fontSize: 12)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _ScoreBar(score: score, color: scoreColor),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.textMuted, size: 20),
+          ],
+        ),
       ),
     );
   }
@@ -144,25 +518,99 @@ class _ResumeCard extends ConsumerWidget {
 
   void _showOptions(BuildContext ctx, WidgetRef ref) {
     showModalBottomSheet(
-        context: ctx,
-        builder: (_) => SafeArea(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                ListTile(
-                    leading: const Icon(Icons.visibility),
-                    title: const Text('Preview'),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      ctx.push('/preview/${resume.id}');
-                    }),
-                ListTile(
-                    leading: const Icon(Icons.delete, color: Colors.red),
-                    title: const Text('Delete', style: TextStyle(color: Colors.red)),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      ref.read(resumeActionsProvider).deleteResume(resume.id);
-                    }),
-              ],
+      context: ctx,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: AppColors.borderDark,
+                  borderRadius: BorderRadius.circular(2)),
             ),
-            ));
+            const SizedBox(height: 20),
+            Text(resume.title,
+                style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 20),
+            _OptionTile(
+                icon: Icons.visibility_outlined,
+                label: 'Preview Resume',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ctx.push('/preview/${resume.id}');
+                }),
+            _OptionTile(
+                icon: Icons.delete_outline_rounded,
+                label: 'Delete',
+                isDestructive: true,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ref.read(resumeActionsProvider).deleteResume(resume.id);
+                }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoreBar extends StatelessWidget {
+  final int score;
+  final Color color;
+  const _ScoreBar({required this.score, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: LinearProgressIndicator(
+        value: score / 100,
+        backgroundColor: AppColors.borderDark,
+        valueColor: AlwaysStoppedAnimation<Color>(color),
+        minHeight: 4,
+      ),
+    );
+  }
+}
+
+class _OptionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isDestructive;
+  const _OptionTile(
+      {required this.icon,
+      required this.label,
+      required this.onTap,
+      this.isDestructive = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive ? AppColors.error : AppColors.textPrimary;
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(label,
+          style: TextStyle(
+              color: color, fontWeight: FontWeight.w600, fontSize: 15)),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    );
   }
 }

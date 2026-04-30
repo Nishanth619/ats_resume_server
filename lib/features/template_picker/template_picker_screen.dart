@@ -2,118 +2,447 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/widgets/shared_widgets.dart';
 
 const List<Map<String, dynamic>> kTemplates = [
-  {'id': 'classic', 'name': 'Classic', 'premium': false, 'ats': 98, 'color': 0xFF475569},
-  {'id': 'modern', 'name': 'Modern', 'premium': false, 'ats': 97, 'color': 0xFF6366F1},
-  {'id': 'clean', 'name': 'Clean', 'premium': false, 'ats': 99, 'color': 0xFF059669},
-  {'id': 'professional', 'name': 'Professional', 'premium': false, 'ats': 96, 'color': 0xFF2563EB},
-  {'id': 'minimal', 'name': 'Minimal', 'premium': false, 'ats': 98, 'color': 0xFF111827},
-  {'id': 'executive', 'name': 'Executive', 'premium': false, 'ats': 97, 'color': 0xFF7C3AED},
-  {'id': 'tech', 'name': 'Tech', 'premium': false, 'ats': 96, 'color': 0xFF0369A1},
-  {'id': 'creative_safe', 'name': 'Creative Safe', 'premium': false, 'ats': 95, 'color': 0xFFEA580C},
-  {'id': 'academic', 'name': 'Academic', 'premium': false, 'ats': 98, 'color': 0xFF166534},
-  {'id': 'simple', 'name': 'Simple', 'premium': false, 'ats': 99, 'color': 0xFF374151},
-  {'id': 'pro_elite', 'name': 'Elite', 'premium': true, 'ats': 99, 'color': 0xFF6366F1},
-  {'id': 'pro_bold', 'name': 'Bold', 'premium': true, 'ats': 97, 'color': 0xFFDC2626},
-  {'id': 'pro_ivy', 'name': 'Ivy League', 'premium': true, 'ats': 98, 'color': 0xFF1E3A5F},
-  {'id': 'pro_startup', 'name': 'Startup', 'premium': true, 'ats': 96, 'color': 0xFF7C3AED},
-  {'id': 'pro_global', 'name': 'Global', 'premium': true, 'ats': 97, 'color': 0xFF0F766E},
+  {'id': 'classic', 'name': 'Classic', 'premium': false, 'ats': 98, 'emoji': '📋', 'desc': 'Timeless & trusted',
+    'gradient': [0xFF475569, 0xFF334155]},
+  {'id': 'modern', 'name': 'Modern', 'premium': false, 'ats': 97, 'emoji': '⚡', 'desc': 'Clean & contemporary',
+    'gradient': [0xFF6366F1, 0xFF4F46E5]},
+  {'id': 'clean', 'name': 'Clean', 'premium': false, 'ats': 99, 'emoji': '✨', 'desc': 'Minimal & elegant',
+    'gradient': [0xFF059669, 0xFF047857]},
+  {'id': 'professional', 'name': 'Professional', 'premium': false, 'ats': 96, 'emoji': '💼', 'desc': 'Corporate ready',
+    'gradient': [0xFF2563EB, 0xFF1D4ED8]},
+  {'id': 'minimal', 'name': 'Minimal', 'premium': false, 'ats': 98, 'emoji': '🎯', 'desc': 'Less is more',
+    'gradient': [0xFF374151, 0xFF1F2937]},
+  {'id': 'executive', 'name': 'Executive', 'premium': false, 'ats': 97, 'emoji': '👔', 'desc': 'Senior-level impact',
+    'gradient': [0xFF7C3AED, 0xFF6D28D9]},
+  {'id': 'tech', 'name': 'Tech', 'premium': false, 'ats': 96, 'emoji': '💻', 'desc': 'Built for engineers',
+    'gradient': [0xFF0369A1, 0xFF075985]},
+  {'id': 'creative_safe', 'name': 'Creative', 'premium': false, 'ats': 95, 'emoji': '🎨', 'desc': 'Stands out safely',
+    'gradient': [0xFFEA580C, 0xFFC2410C]},
+  {'id': 'academic', 'name': 'Academic', 'premium': false, 'ats': 98, 'emoji': '🎓', 'desc': 'Research & academia',
+    'gradient': [0xFF166534, 0xFF14532D]},
+  {'id': 'simple', 'name': 'Simple', 'premium': false, 'ats': 99, 'emoji': '📄', 'desc': 'Always gets the job done',
+    'gradient': [0xFF374151, 0xFF111827]},
+  {'id': 'pro_elite', 'name': 'Elite', 'premium': true, 'ats': 99, 'emoji': '👑', 'desc': 'Top 1% candidates',
+    'gradient': [0xFF7C3AED, 0xFF06B6D4]},
+  {'id': 'pro_bold', 'name': 'Bold', 'premium': true, 'ats': 97, 'emoji': '🔥', 'desc': 'Make an entrance',
+    'gradient': [0xFFDC2626, 0xFF9F1239]},
+  {'id': 'pro_ivy', 'name': 'Ivy League', 'premium': true, 'ats': 98, 'emoji': '🏛️', 'desc': 'Prestige & authority',
+    'gradient': [0xFF1E3A5F, 0xFF0F2942]},
+  {'id': 'pro_startup', 'name': 'Startup', 'premium': true, 'ats': 96, 'emoji': '🚀', 'desc': 'Built for builders',
+    'gradient': [0xFF7C3AED, 0xFF4F46E5]},
+  {'id': 'pro_global', 'name': 'Global', 'premium': true, 'ats': 97, 'emoji': '🌍', 'desc': 'International appeal',
+    'gradient': [0xFF0F766E, 0xFF134E4A]},
 ];
 
 class TemplatePickerScreen extends ConsumerStatefulWidget {
   const TemplatePickerScreen({super.key});
   @override
-  ConsumerState<TemplatePickerScreen> createState() => _TemplatePickerScreenState();
+  ConsumerState<TemplatePickerScreen> createState() => _TemplatePickerState();
 }
 
-class _TemplatePickerScreenState extends ConsumerState<TemplatePickerScreen> {
+class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
+    with SingleTickerProviderStateMixin {
   String? _selectedId;
+  late TabController _tabCtrl;
 
-  void _select(Map<String, dynamic> template, bool isPro) {
-    if (template['premium'] == true && !isPro) {
-      showDialog(context: context, builder: (_) => AlertDialog(
-        title: const Text('Pro Template'),
-        content: const Text('This template is available with Pro subscription.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () {
-            Navigator.pop(context); context.push('/pro');
-          }, child: const Text('Upgrade to Pro')),
-        ],
-      ));
+  @override
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> get _freeTemplates =>
+      kTemplates.where((t) => t['premium'] == false).toList();
+  List<Map<String, dynamic>> get _proTemplates =>
+      kTemplates.where((t) => t['premium'] == true).toList();
+
+  void _select(Map<String, dynamic> t, bool isPro) {
+    if (t['premium'] == true && !isPro) {
+      _showProSheet();
       return;
     }
-    setState(() => _selectedId = template['id']);
+    setState(() => _selectedId = t['id']);
+  }
+
+  void _showProSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: AppColors.borderDark,
+                      borderRadius: BorderRadius.circular(2))),
+            ),
+            const SizedBox(height: 24),
+            const Text('👑', textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 52)),
+            const SizedBox(height: 16),
+            const Text('Pro Template',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            const Text(
+                'Unlock all Pro templates with a Pro subscription.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: AppColors.textSecondary, fontSize: 14, height: 1.5)),
+            const SizedBox(height: 28),
+            GradientButton(
+              label: 'Upgrade to Pro',
+              onPressed: () {
+                Navigator.pop(context);
+                context.push('/pro');
+              },
+              gradient: AppColors.goldGradient,
+              icon: const Icon(Icons.star_rounded, color: Colors.white, size: 18),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Maybe later',
+                  style: TextStyle(color: AppColors.textMuted)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(userDataProvider).value;
     final isPro = user?.plan == 'pro';
-    
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Choose Template'),
-      actions: [
-        if (_selectedId != null)
-          TextButton(onPressed: () => context.push('/editor/new?template=$_selectedId'),
-          child: const Text('Use This')),
-      ]),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12,
-          childAspectRatio: 0.72),
-        itemCount: kTemplates.length,
-        itemBuilder: (ctx, i) {
-          final t = kTemplates[i];
-          final isSelected = _selectedId == t['id'];
-          return GestureDetector(
-            onTap: () => _select(t, isPro),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected ? const Color(0xFF6366F1) : Colors.grey.shade200,
-                  width: isSelected ? 3 : 1),
-                boxShadow: isSelected ? [BoxShadow(
-                  color: const Color(0xFF6366F1).withOpacity(0.3),
-                  blurRadius: 12)] : null),
-              child: Column(children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Color(t['color']).withOpacity(0.1),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(11))),
-                    child: Center(child: Icon(Icons.description,
-                      size: 48, color: Color(t['color']))),
+      backgroundColor: AppColors.bgDark,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            backgroundColor: AppColors.surfaceDark,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 18, color: AppColors.textPrimary),
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+            title: ShaderMask(
+              shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
+              child: const Text('Choose Template',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800)),
+            ),
+            actions: [
+              if (_selectedId != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: GestureDetector(
+                    onTap: () =>
+                        context.push('/editor/new?template=$_selectedId'),
+                    child: GradientBadge(text: 'Use This →'),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(t['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Row(children: [
-                        if (t['premium'] == true)
-                          Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.amber,
-                          borderRadius: BorderRadius.circular(4)),
-                          child: const Text('PRO', style: TextStyle(fontSize: 9,
-                          fontWeight: FontWeight.bold))),
-                        if (t['premium'] != true) ...[
-                          const Icon(Icons.verified, size: 12, color: Colors.green),
-                          const SizedBox(width: 2),
-                          Text('ATS ${t['ats']}', style: const TextStyle(fontSize: 10, color: Colors.green)),
-                        ],
-                      ]),
-                  ]),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(50),
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                decoration: BoxDecoration(
+                  color: AppColors.cardDark,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.borderDark),
                 ),
-              ]),
+                child: TabBar(
+                  controller: _tabCtrl,
+                  indicator: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: AppColors.textSecondary,
+                  labelStyle: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 13),
+                  dividerColor: Colors.transparent,
+                  tabs: const [
+                    Tab(text: '🎁  Free (10)'),
+                    Tab(text: '👑  Pro (5)'),
+                  ],
+                ),
+              ),
             ),
-          );
-        }),
+          ),
+          SliverFillRemaining(
+            child: TabBarView(
+              controller: _tabCtrl,
+              children: [
+                _TemplateGrid(
+                    templates: _freeTemplates,
+                    selectedId: _selectedId,
+                    isPro: isPro,
+                    onSelect: _select),
+                _TemplateGrid(
+                    templates: _proTemplates,
+                    selectedId: _selectedId,
+                    isPro: isPro,
+                    onSelect: _select),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TemplateGrid extends StatelessWidget {
+  final List<Map<String, dynamic>> templates;
+  final String? selectedId;
+  final bool isPro;
+  final void Function(Map<String, dynamic>, bool) onSelect;
+
+  const _TemplateGrid({
+    required this.templates,
+    required this.selectedId,
+    required this.isPro,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.78),
+      itemCount: templates.length,
+      itemBuilder: (_, i) {
+        final t = templates[i];
+        final isSelected = selectedId == t['id'];
+        final isLocked = t['premium'] == true && !isPro;
+        final gradColors = (t['gradient'] as List)
+            .map((c) => Color(c as int))
+            .toList();
+
+        return GestureDetector(
+          onTap: () => onSelect(t, isPro),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            decoration: BoxDecoration(
+              color: AppColors.cardDark,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isSelected ? AppColors.primaryLight : AppColors.borderDark,
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.35),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+            ),
+            child: Column(
+              children: [
+                // Preview area
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: gradColors,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(17)),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(t['emoji'],
+                                style: const TextStyle(fontSize: 36)),
+                            const SizedBox(height: 12),
+                            // Mini resume preview lines
+                            _PreviewLines(color: gradColors[0]),
+                          ],
+                        ),
+                      ),
+                      // Lock overlay
+                      if (isLocked)
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.45),
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(17)),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.lock_rounded,
+                                color: Colors.white, size: 28),
+                          ),
+                        ),
+                      // Selected checkmark
+                      if (isSelected)
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: const BoxDecoration(
+                              gradient: AppColors.primaryGradient,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check_rounded,
+                                color: Colors.white, size: 16),
+                          ),
+                        ),
+                      // ATS badge
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text('ATS ${t['ats']}%',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Info row
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t['name'],
+                                style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13)),
+                            Text(t['desc'],
+                                style: const TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontSize: 10)),
+                          ],
+                        ),
+                      ),
+                      if (t['premium'] == true)
+                        GradientBadge(
+                            text: 'PRO', gradient: AppColors.goldGradient)
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.scoreGreen.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: AppColors.scoreGreen.withOpacity(0.3)),
+                          ),
+                          child: const Text('FREE',
+                              style: TextStyle(
+                                  color: AppColors.scoreGreen,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PreviewLines extends StatelessWidget {
+  final Color color;
+  const _PreviewLines({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          _line(color, 0.8, 4),
+          const SizedBox(height: 5),
+          _line(color, 0.5, 3),
+          const SizedBox(height: 8),
+          _line(color, 1.0, 2),
+          const SizedBox(height: 3),
+          _line(color, 0.9, 2),
+          const SizedBox(height: 3),
+          _line(color, 0.7, 2),
+        ],
+      ),
+    );
+  }
+
+  Widget _line(Color c, double w, double h) {
+    return FractionallySizedBox(
+      widthFactor: w,
+      child: Container(
+        height: h,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
     );
   }
 }
