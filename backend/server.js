@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 const crypto = require('crypto');
 const fs = require('fs');
 
@@ -47,6 +48,7 @@ try {
 
 const db = admin.apps.length ? admin.firestore() : null;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'MOCK_KEY');
+const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 // -- Auth Middleware --
 const auth = async (req, res, next) => {
@@ -89,13 +91,27 @@ app.post('/api/ai/improve-bullet', auth, async (req, res) => {
   if (!process.env.GEMINI_API_KEY) {
     return res.json({ bullet: `Optimised ${role} duty: Increased efficiency by 20% in ${rawDuty}` });
   }
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const prompt = `You are an expert resume writer. Rewrite as strong, quantified, action-verb-led bullet. Past tense. Under 20 words. Role: ${role}. Duty: ${rawDuty}. Return ONLY the bullet.`;
   try {
-    const result = await model.generateContent(
-      `You are an expert resume writer. Rewrite as strong, quantified, action-verb-led bullet. Past tense. Under 20 words. Role: ${role}. Duty: ${rawDuty}. Return ONLY the bullet.`
-    );
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
+    const result = await model.generateContent(prompt);
     res.json({ bullet: result.response.text().trim() });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    if (groq) {
+      try {
+        console.log("Gemini failed for improve-bullet, falling back to Groq Llama3...");
+        const result = await groq.chat.completions.create({
+          messages: [{ role: "user", content: prompt }],
+          model: "llama3-70b-8192"
+        });
+        res.json({ bullet: result.choices[0]?.message?.content?.trim() || rawDuty });
+        return;
+      } catch (groqErr) {
+        console.error("Groq fallback failed:", groqErr);
+      }
+    }
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 // -- AI: ATS Check with Rate Limiting --
@@ -122,20 +138,40 @@ app.post('/api/ai/ats-check', auth, async (req, res) => {
     });
   }
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   const jdSection = targetJD ? `Target JD: ${targetJD}` : '';
+  const prompt = `Analyse this resume as an ATS expert. Return ONLY valid JSON: {"score":0-100,"issues":[],"fixes":[],"keywords":[],"missing_keywords":[]}. Resume: ${resumeText} ${jdSection}`;
+
   try {
-    const result = await model.generateContent(
-      `Analyse this resume as an ATS expert. Return ONLY valid JSON: {"score":0-100,"issues":[],"fixes":[],"keywords":[],"missing_keywords":[]}. Resume: ${resumeText} ${jdSection}`
-    );
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
+    const result = await model.generateContent(prompt);
     const text = result.response.text().replace(/```json|```/g, '').trim();
     res.json(JSON.parse(text));
   } catch (e) {
-    console.error("AI Error:", e);
+    console.error("Gemini AI Error:", e);
+    
+    // GROQ FALLBACK
+    if (groq) {
+      try {
+        console.log("Falling back to Groq (Llama 3 70B) for ATS Check...");
+        const result = await groq.chat.completions.create({
+          messages: [
+            { role: "system", content: "You must return ONLY a raw JSON object and nothing else. No markdown wrappers." },
+            { role: "user", content: prompt }
+          ],
+          model: "llama3-70b-8192"
+        });
+        const text = (result.choices[0]?.message?.content || "").replace(/```json|```/g, '').trim();
+        res.json(JSON.parse(text));
+        return; // Success!
+      } catch (groqErr) {
+        console.error("Groq fallback also failed:", groqErr);
+      }
+    }
+
     res.json({
       score: 1,
-      issues: ["Backend Error: " + e.message],
-      fixes: ["Wait a minute and try again", "Check Render backend logs"],
+      issues: ["Backend Error: " + e.message, "Groq fallback was also unavailable or not configured."],
+      fixes: ["Wait a minute and try again", "Ensure GROQ_API_KEY is set in Render"],
       keywords: [],
       missing_keywords: []
     });
@@ -146,37 +182,71 @@ app.post('/api/ai/ats-check', auth, async (req, res) => {
 app.post('/api/ai/summary', auth, async (req, res) => {
   const { name, targetRole, experiences, skills } = req.body;
   if (!process.env.GEMINI_API_KEY) return res.json({ summary: 'Mock summary for testing.' });
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const prompt = `Write a 3-4 sentence professional resume summary for ${name} targeting role ${targetRole}. Experience: ${experiences.join(", ")}. Skills: ${skills.join(", ")}. No "I". Professional tone. Return ONLY the summary.`;
+  
   try {
-    const prompt = `Write a 3-4 sentence professional resume summary for ${name} targeting role ${targetRole}. Experience: ${experiences.join(", ")}. Skills: ${skills.join(", ")}. No "I". Professional tone. Return ONLY the summary.`;
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
     const result = await model.generateContent(prompt);
     res.json({ summary: result.response.text().trim() });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    if (groq) {
+      try {
+        const result = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama3-70b-8192" });
+        res.json({ summary: result.choices[0]?.message?.content?.trim() || "Generated fallback summary." });
+        return;
+      } catch (err) {}
+    }
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 // -- AI: Match JD --
 app.post('/api/ai/match-jd', auth, async (req, res) => {
   const { resumeText, jd } = req.body;
   if (!process.env.GEMINI_API_KEY) return res.json({ required_keywords: [], matched: [], missing: [], match_percentage: 50 });
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const prompt = `Extract top 15 keywords from JD, check which are in resume. Return ONLY valid JSON: {"required_keywords":[],"matched":[],"missing":[],"match_percentage":0} JD: ${jd} Resume: ${resumeText}`;
+  
   try {
-    const prompt = `Extract top 15 keywords from JD, check which are in resume. Return ONLY valid JSON: {"required_keywords":[],"matched":[],"missing":[],"match_percentage":0} JD: ${jd} Resume: ${resumeText}`;
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
     const result = await model.generateContent(prompt);
     const text = result.response.text().replace(/```json|```/g, '').trim();
     res.json(JSON.parse(text));
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    if (groq) {
+      try {
+        const result = await groq.chat.completions.create({
+          messages: [{ role: "system", content: "Return ONLY JSON" }, { role: "user", content: prompt }],
+          model: "llama3-70b-8192"
+        });
+        const text = (result.choices[0]?.message?.content || "").replace(/```json|```/g, '').trim();
+        res.json(JSON.parse(text));
+        return;
+      } catch (err) {}
+    }
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 // -- AI: Cover Letter --
 app.post('/api/ai/cover-letter', auth, async (req, res) => {
   const { resumeText, jd, company, name } = req.body;
   if (!process.env.GEMINI_API_KEY) return res.json({ letter: 'Mock cover letter.' });
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const prompt = `Write a professional cover letter for ${name} applying to ${company}. 3 paragraphs, under 300 words, first person, match resume tone. Do not invent facts. Resume: ${resumeText} JD: ${jd}. Return ONLY the letter.`;
+  
   try {
-    const prompt = `Write a professional cover letter for ${name} applying to ${company}. 3 paragraphs, under 300 words, first person, match resume tone. Do not invent facts. Resume: ${resumeText} JD: ${jd}. Return ONLY the letter.`;
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
     const result = await model.generateContent(prompt);
     res.json({ letter: result.response.text().trim() });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    if (groq) {
+      try {
+        const result = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama3-70b-8192" });
+        res.json({ letter: result.choices[0]?.message?.content?.trim() || "Generated fallback cover letter." });
+        return;
+      } catch (err) {}
+    }
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 // -- Share Link Generator --
