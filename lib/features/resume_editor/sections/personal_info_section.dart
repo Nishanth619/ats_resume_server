@@ -14,13 +14,25 @@ class PersonalInfoSection extends ConsumerStatefulWidget {
   ConsumerState<PersonalInfoSection> createState() => _PersonalInfoState();
 }
 
-class _PersonalInfoState extends ConsumerState<PersonalInfoSection> {
+class _PersonalInfoState extends ConsumerState<PersonalInfoSection> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   late Map<String, dynamic> _data;
+  late TextEditingController _summaryController;
+  bool _isGeneratingSummary = false;
 
   @override
   void initState() {
     super.initState();
     _data = Map.from(widget.data);
+    _summaryController = TextEditingController(text: _data['summary'] ?? '');
+  }
+
+  @override
+  void dispose() {
+    _summaryController.dispose();
+    super.dispose();
   }
 
   void _update(String key, String value) {
@@ -36,19 +48,33 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection> {
         .map((e) => "\${e['title']} at \${e['company']}").toList();
     final skills = List<String>.from(resume.sections['skills'] ?? []);
     
-    final summary = await ref.read(aiServiceProvider).generateSummary(
-      name: _data['name'] ?? '',
-      targetRole: resume.targetRole,
-      experiences: exps.cast<String>(),
-      skills: skills,
-    );
+    setState(() => _isGeneratingSummary = true);
     
-    setState(() => _data['summary'] = summary);
-    widget.onChanged(_data);
+    try {
+      final summary = await ref.read(aiServiceProvider).generateSummary(
+        name: _data['name'] ?? '',
+        targetRole: resume.targetRole,
+        experiences: exps.cast<String>(),
+        skills: skills,
+      );
+      
+      _data['summary'] = summary;
+      _summaryController.text = summary;
+      widget.onChanged(_data);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate summary: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGeneratingSummary = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Card(
       child: ExpansionTile(
         title: const Text('Personal Information',
@@ -98,15 +124,24 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection> {
               ]),
               const SizedBox(height: 8),
               TextFormField(
-                initialValue: _data['summary'] ?? '',
+                controller: _summaryController,
                 decoration: InputDecoration(
                   labelText: 'Professional Summary',
                   border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.auto_awesome, color: Color(0xFF6366F1)),
-                    tooltip: 'Improve with AI',
-                    onPressed: _generateSummary,
-                  ),
+                  suffixIcon: _isGeneratingSummary 
+                    ? const Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: SizedBox(
+                          width: 20, 
+                          height: 20, 
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6366F1))
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.auto_awesome, color: Color(0xFF6366F1)),
+                        tooltip: 'Improve with AI',
+                        onPressed: _generateSummary,
+                      ),
                 ),
                 maxLines: 4,
                 onChanged: (v) => _update('summary', v),

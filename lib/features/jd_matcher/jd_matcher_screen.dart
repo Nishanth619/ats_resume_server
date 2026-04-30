@@ -17,6 +17,8 @@ class _JDState extends ConsumerState<JDMatcherScreen>
   final _jdCtrl = TextEditingController();
   KeywordMatchResult? _result;
   bool _loading = false;
+  bool _tailoring = false;
+  bool _tailored = false;
   late AnimationController _pulseCtrl;
   late Animation<double> _pulse;
 
@@ -75,12 +77,42 @@ class _JDState extends ConsumerState<JDMatcherScreen>
     }
   }
 
+  Future<void> _tailorResume() async {
+    final jd = _jdCtrl.text.trim();
+    if (jd.isEmpty) return;
+    setState(() => _tailoring = true);
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      await ref
+          .read(resumeNotifierProvider(widget.resumeId).notifier)
+          .tailorToJD(jd, aiService);
+      if (mounted) {
+        setState(() { _tailoring = false; _tailored = true; });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✅ Resume tailored and saved! Go back to review changes.'),
+          backgroundColor: AppColors.scoreGreen,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 4),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _tailoring = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error tailoring resume: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       appBar: GradientAppBar(title: 'JD Matcher'),
-      body: _loading ? _buildLoading() : _buildContent(),
+      body: (_loading || _tailoring) ? _buildLoading() : _buildContent(),
     );
   }
 
@@ -105,22 +137,28 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                       blurRadius: 30)
                 ],
               ),
-              child:
-                  const Center(child: Text('🔍', style: TextStyle(fontSize: 40))),
+              child: Center(child: Text(
+                _tailoring ? '✨' : '🔍',
+                style: const TextStyle(fontSize: 40))),
             ),
           ),
           const SizedBox(height: 28),
           ShaderMask(
             shaderCallback: (b) => AppColors.accentGradient.createShader(b),
-            child: const Text('Matching Keywords...',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              _tailoring ? 'Tailoring Your Resume...' : 'Matching Keywords...',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700)),
           ),
           const SizedBox(height: 10),
-          const Text('Comparing your resume to the job description',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          Text(
+            _tailoring 
+              ? 'AI is rewriting your summary, experience\n& skills to match the job description'
+              : 'Comparing your resume to the job description',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           const SizedBox(height: 32),
           const SizedBox(
             width: 200,
@@ -404,6 +442,83 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                 ),
               ),
             ],
+
+            // ── Tailor My Resume CTA ──
+            const SizedBox(height: 24),
+            if (_tailored)
+              GlassCard(
+                showGlow: true,
+                glowColor: AppColors.scoreGreen,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.scoreGreen.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(child: Text('✅', style: TextStyle(fontSize: 22))),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Resume Tailored!',
+                              style: TextStyle(color: AppColors.scoreGreen,
+                                  fontWeight: FontWeight.w700, fontSize: 14)),
+                          SizedBox(height: 2),
+                          Text('Go back to the editor to review your AI-improved resume.',
+                              style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              GlassCard(
+                showGlow: true,
+                glowColor: AppColors.primary,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(child: Text('🪄', style: TextStyle(fontSize: 22))),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Auto-Tailor Resume',
+                                  style: TextStyle(color: AppColors.textPrimary,
+                                      fontWeight: FontWeight.w700, fontSize: 15)),
+                              SizedBox(height: 2),
+                              Text('AI rewrites your summary, experience & skills to match this JD',
+                                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    GradientButton(
+                      label: 'Tailor My Resume to this JD  🪄',
+                      onPressed: _tailorResume,
+                      gradient: AppColors.primaryGradient,
+                      icon: const Icon(Icons.auto_fix_high_rounded, color: Colors.white, size: 18),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ],
       ),

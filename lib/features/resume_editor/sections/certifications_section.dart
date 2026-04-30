@@ -10,7 +10,10 @@ class CertificationsSection extends StatefulWidget {
   State<CertificationsSection> createState() => _CertificationsState();
 }
 
-class _CertificationsState extends State<CertificationsSection> {
+class _CertificationsState extends State<CertificationsSection> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   late List<Map<String, dynamic>> _items;
 
   @override
@@ -38,6 +41,7 @@ class _CertificationsState extends State<CertificationsSection> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Card(
       child: ExpansionTile(
         title: const Text('Certifications',
@@ -47,6 +51,7 @@ class _CertificationsState extends State<CertificationsSection> {
           ..._items.asMap().entries.map((e) {
             final i = e.key;
             return Padding(
+              key: ObjectKey(_items[i]),
               padding: const EdgeInsets.all(12),
               child: Column(children: [
                 Row(children: [

@@ -13,24 +13,43 @@ class ExperienceSection extends ConsumerStatefulWidget {
   ConsumerState<ExperienceSection> createState() => _ExpState();
 }
 
-class _ExpState extends ConsumerState<ExperienceSection> {
+class _ExpState extends ConsumerState<ExperienceSection> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   late List<Map<String, dynamic>> _items;
+  late List<TextEditingController> _descControllers;
+  final Set<int> _generatingIndices = {};
 
   @override
   void initState() {
     super.initState();
     _items = List.from(widget.data);
+    _descControllers = _items.map((e) => TextEditingController(text: e['description'] ?? '')).toList();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _descControllers) {
+      c.dispose();
+    }
+    super.dispose();
   }
 
   void _addEntry() {
     setState(() {
       _items.add({'title': '', 'company': '', 'location': '', 'dates': '', 'description': ''});
+      _descControllers.add(TextEditingController(text: ''));
     });
     widget.onChanged(_items);
   }
 
   void _removeEntry(int i) {
-    setState(() => _items.removeAt(i));
+    setState(() {
+      _items.removeAt(i);
+      final c = _descControllers.removeAt(i);
+      c.dispose();
+    });
     widget.onChanged(_items);
   }
 
@@ -43,14 +62,29 @@ class _ExpState extends ConsumerState<ExperienceSection> {
     final raw = _items[i]['description'] ?? '';
     if (raw.isEmpty) return;
     
-    final improved = await ref.read(aiServiceProvider)
-        .improveBullet(raw, widget.targetRole);
-    setState(() => _items[i]['description'] = improved);
-    widget.onChanged(_items);
+    setState(() => _generatingIndices.add(i));
+    
+    try {
+      final improved = await ref.read(aiServiceProvider)
+          .improveBullet(raw, widget.targetRole);
+      
+      _items[i]['description'] = improved;
+      _descControllers[i].text = improved;
+      widget.onChanged(_items);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to improve text: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _generatingIndices.remove(i));
+    }
   }
   
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Card(
       child: ExpansionTile(
         title: const Text('Work Experience',
@@ -60,6 +94,7 @@ class _ExpState extends ConsumerState<ExperienceSection> {
           ..._items.asMap().entries.map((e) {
             final i = e.key;
             return Padding(
+              key: ObjectKey(_items[i]),
               padding: const EdgeInsets.all(12),
               child: Column(children: [
                 Row(children: [
@@ -91,14 +126,23 @@ class _ExpState extends ConsumerState<ExperienceSection> {
                 ]),
                 const SizedBox(height: 8),
                 TextFormField(
-                    initialValue: _items[i]['description'],
+                    controller: _descControllers[i],
                     decoration: InputDecoration(
                         labelText: 'Description (bullet points)',
                         border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                            icon: const Icon(Icons.auto_awesome, color: Color(0xFF6366F1)),
-                            tooltip: 'Improve with AI',
-                            onPressed: () => _improveWithAI(i))),
+                        suffixIcon: _generatingIndices.contains(i)
+                          ? const Padding(
+                              padding: EdgeInsets.all(12.0),
+                              child: SizedBox(
+                                width: 20, 
+                                height: 20, 
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6366F1))
+                              ),
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.auto_awesome, color: Color(0xFF6366F1)),
+                              tooltip: 'Improve with AI',
+                              onPressed: () => _improveWithAI(i))),
                     maxLines: 4,
                     onChanged: (v) => _update(i, 'description', v)),
                 const Divider(height: 24),

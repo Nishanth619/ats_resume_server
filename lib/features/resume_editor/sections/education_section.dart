@@ -10,7 +10,10 @@ class EducationSection extends StatefulWidget {
   State<EducationSection> createState() => _EducationState();
 }
 
-class _EducationState extends State<EducationSection> {
+class _EducationState extends State<EducationSection> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   late List<Map<String, dynamic>> _items;
 
   @override
@@ -38,6 +41,7 @@ class _EducationState extends State<EducationSection> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Card(
       child: ExpansionTile(
         title: const Text('Education',
@@ -47,6 +51,7 @@ class _EducationState extends State<EducationSection> {
           ..._items.asMap().entries.map((e) {
             final i = e.key;
             return Padding(
+              key: ObjectKey(_items[i]),
               padding: const EdgeInsets.all(12),
               child: Column(children: [
                 Row(children: [

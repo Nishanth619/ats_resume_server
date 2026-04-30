@@ -95,6 +95,22 @@ class AIService {
     if (response.statusCode != 200) throw Exception(response.body);
     return jsonDecode(response.body)['letter'];
   }
+
+  Future<TailoredResumeResult> tailorResume({
+    required Map<String, dynamic> resumeSections,
+    required String jd,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/ai/tailor-resume'),
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'resume': {'sections': resumeSections},
+        'jd': jd,
+      }),
+    );
+    if (response.statusCode != 200) throw Exception(response.body);
+    return TailoredResumeResult.fromJson(jsonDecode(response.body));
+  }
 }
 
 class ATSResult {
@@ -124,4 +140,26 @@ class KeywordMatchResult {
     matched: List<String>.from(j['matched'] ?? []),
     missing: List<String>.from(j['missing'] ?? []),
     matchPercentage: j['match_percentage'] ?? 0);
+}
+
+class TailoredResumeResult {
+  final String targetRole;
+  final String summary;
+  final List<Map<String, dynamic>> experience;
+  final List<String> skills;
+
+  TailoredResumeResult({
+    required this.targetRole,
+    required this.summary,
+    required this.experience,
+    required this.skills,
+  });
+
+  factory TailoredResumeResult.fromJson(Map<String, dynamic> j) => TailoredResumeResult(
+    targetRole: j['targetRole'] ?? '',
+    summary: j['summary'] ?? '',
+    experience: List<Map<String, dynamic>>.from(
+      (j['experience'] ?? []).map((e) => Map<String, dynamic>.from(e))),
+    skills: List<String>.from(j['skills'] ?? []),
+  );
 }

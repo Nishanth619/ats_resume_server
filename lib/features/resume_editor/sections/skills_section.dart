@@ -10,7 +10,10 @@ class SkillsSection extends StatefulWidget {
   State<SkillsSection> createState() => _SkillsState();
 }
 
-class _SkillsState extends State<SkillsSection> {
+class _SkillsState extends State<SkillsSection> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final _ctrl = TextEditingController();
   late List<String> _skills;
 
@@ -36,6 +39,7 @@ class _SkillsState extends State<SkillsSection> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Card(
       child: ExpansionTile(
         title: const Text('Skills',

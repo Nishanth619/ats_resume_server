@@ -122,6 +122,45 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
     
     await ref.read(firestoreServiceProvider).saveResume(user.uid, state!);
   }
+
+  Future<void> tailorToJD(String jd, dynamic aiService) async {
+    if (state == null) return;
+    final result = await aiService.tailorResume(
+      resumeSections: state!.sections,
+      jd: jd,
+    );
+    // Merge tailored sections back into existing resume
+    final newSections = Map<String, dynamic>.from(state!.sections);
+    
+    // Update personal summary
+    final personal = Map<String, dynamic>.from(newSections['personal'] ?? {});
+    personal['summary'] = result.summary;
+    newSections['personal'] = personal;
+
+    // Update experience descriptions
+    newSections['experience'] = result.experience;
+
+    // Merge skills (union of old + new)
+    final existingSkills = List<String>.from(newSections['skills'] ?? []);
+    final mergedSkills = {...existingSkills, ...result.skills}.toList();
+    newSections['skills'] = mergedSkills;
+
+    state = ResumeModel(
+      id: state!.id,
+      title: state!.title,
+      templateId: state!.templateId,
+      colorTheme: state!.colorTheme,
+      atsScore: state!.atsScore,
+      sections: newSections,
+      targetRole: result.targetRole.isNotEmpty ? result.targetRole : state!.targetRole,
+      targetJD: jd,
+      lastEdited: DateTime.now(),
+      downloadCount: state!.downloadCount,
+      versions: state!.versions,
+    );
+
+    await save();
+  }
 }
 
 // Actions provider for dashboard operations (delete, duplicate, etc.)

@@ -250,6 +250,71 @@ app.post('/api/ai/cover-letter', auth, async (req, res) => {
   }
 });
 
+// -- AI: Tailor Resume to JD --
+app.post('/api/ai/tailor-resume', auth, async (req, res) => {
+  const { resume, jd } = req.body;
+  if (!jd || !resume) return res.status(400).json({ error: 'Missing resume or jd' });
+
+  if (!process.env.GEMINI_API_KEY) {
+    return res.json({
+      summary: 'Mock tailored summary matching the job description.',
+      experience: resume.sections?.experience || [],
+      skills: resume.sections?.skills || [],
+      targetRole: 'Mock Role'
+    });
+  }
+
+  const resumeJson = JSON.stringify(resume.sections || {});
+  const prompt = `You are an expert resume coach. A user wants to tailor their resume to match a specific job description.
+
+Here is their current resume data in JSON:
+${resumeJson}
+
+Here is the Job Description they are targeting:
+${jd}
+
+Your task:
+1. Extract the target job title from the JD and return it as "targetRole".
+2. Rewrite the "summary" field (under personal section) to be tightly tailored to this JD. Keep it 3-4 sentences. Professional. No "I". Highlight matching skills. Do NOT invent experience they don't have.
+3. For each experience entry, improve the "description" field to emphasize responsibilities and achievements that align with the JD keywords. Keep all facts, only reframe them. Quantify where possible.
+4. Add any missing critical skills from the JD to the skills list (only genuinely applicable ones a candidate with this background would have).
+
+Return ONLY valid JSON in this exact format, no markdown:
+{
+  "targetRole": "string",
+  "summary": "string",
+  "experience": [array of experience objects same shape as input, with improved description fields],
+  "skills": [array of skill strings]
+}`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().replace(/```json|```/g, '').trim();
+    res.json(JSON.parse(text));
+  } catch (e) {
+    if (groq) {
+      try {
+        console.log("Gemini failed for tailor-resume, falling back to Groq...");
+        const result = await groq.chat.completions.create({
+          messages: [
+            { role: "system", content: "You are an expert resume coach. Return ONLY valid JSON, no markdown, no explanation." },
+            { role: "user", content: prompt }
+          ],
+          model: "llama-3.3-70b-versatile",
+          max_tokens: 4096
+        });
+        const text = (result.choices[0]?.message?.content || "").replace(/```json|```/g, '').trim();
+        res.json(JSON.parse(text));
+        return;
+      } catch (groqErr) {
+        console.error("Groq fallback failed:", groqErr);
+      }
+    }
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // -- Share Link Generator --
 app.post('/api/share-link', auth, async (req, res) => {
   const { resumeId } = req.body;

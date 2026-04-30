@@ -10,7 +10,10 @@ class ProjectsSection extends StatefulWidget {
   State<ProjectsSection> createState() => _ProjectsState();
 }
 
-class _ProjectsState extends State<ProjectsSection> {
+class _ProjectsState extends State<ProjectsSection> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   late List<Map<String, dynamic>> _items;
 
   @override
@@ -38,6 +41,7 @@ class _ProjectsState extends State<ProjectsSection> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Card(
       child: ExpansionTile(
         title: const Text('Projects',
@@ -47,6 +51,7 @@ class _ProjectsState extends State<ProjectsSection> {
           ..._items.asMap().entries.map((e) {
             final i = e.key;
             return Padding(
+              key: ObjectKey(_items[i]),
               padding: const EdgeInsets.all(12),
               child: Column(children: [
                 Row(children: [
