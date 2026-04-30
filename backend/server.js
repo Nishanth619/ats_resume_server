@@ -20,12 +20,12 @@ try {
   if (fs.existsSync('/etc/secrets/firebase-service-account.json')) {
     console.log("✅ Radar: Found Firebase key in Render secrets!");
     serviceAccount = require('/etc/secrets/firebase-service-account.json');
-  } 
+  }
   // Radar Check 2: Are we testing locally on your computer?
   else if (fs.existsSync('./firebase-service-account.json')) {
     console.log("✅ Radar: Found Firebase key locally!");
     serviceAccount = require('./firebase-service-account.json');
-  } 
+  }
   // Radar Check 3: Environment Variable
   else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     console.log("✅ Radar: Found Firebase key in Environment Variable!");
@@ -94,16 +94,16 @@ app.post('/api/ai/improve-bullet', auth, async (req, res) => {
   }
   const prompt = `You are an expert resume writer. Rewrite as strong, quantified, action-verb-led bullet. Past tense. Under 20 words. Role: ${role}. Duty: ${rawDuty}. Return ONLY the bullet.`;
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent(prompt);
     res.json({ bullet: result.response.text().trim() });
-  } catch (e) { 
+  } catch (e) {
     if (groq) {
       try {
         console.log("Gemini failed for improve-bullet, falling back to Groq Llama3...");
         const result = await groq.chat.completions.create({
           messages: [{ role: "user", content: prompt }],
-          model: "llama3-70b-8192"
+          model: "llama-3.3-70b-versatile"
         });
         res.json({ bullet: result.choices[0]?.message?.content?.trim() || rawDuty });
         return;
@@ -111,7 +111,7 @@ app.post('/api/ai/improve-bullet', auth, async (req, res) => {
         console.error("Groq fallback failed:", groqErr);
       }
     }
-    res.status(500).json({ error: e.message }); 
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -123,12 +123,12 @@ app.post('/api/ai/ats-check', auth, async (req, res) => {
     const userDoc = await db.collection('users').doc(req.user.uid).get();
     isPro = userDoc.data()?.plan === 'pro';
   }
-  
+
   const allowed = await rateLimit(req.user.uid, isPro, 3);
   if (!allowed) {
     return res.status(429).json({ error: 'Daily ATS check limit reached. Upgrade to Pro for unlimited checks.' });
   }
-  
+
   if (!process.env.GEMINI_API_KEY) {
     return res.json({
       score: 85,
@@ -143,23 +143,23 @@ app.post('/api/ai/ats-check', auth, async (req, res) => {
   const prompt = `Analyse this resume as an ATS expert. Return ONLY valid JSON: {"score":0-100,"issues":[],"fixes":[],"keywords":[],"missing_keywords":[]}. Resume: ${resumeText} ${jdSection}`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent(prompt);
     const text = result.response.text().replace(/```json|```/g, '').trim();
     res.json(JSON.parse(text));
   } catch (e) {
     console.error("Gemini AI Error:", e);
-    
+
     // GROQ FALLBACK
     if (groq) {
       try {
-        console.log("Falling back to Groq (Llama 3 70B) for ATS Check...");
+        console.log("Falling back to Groq (Llama 3) for ATS Check...");
         const result = await groq.chat.completions.create({
           messages: [
             { role: "system", content: "You must return ONLY a raw JSON object and nothing else. No markdown wrappers." },
             { role: "user", content: prompt }
           ],
-          model: "llama3-70b-8192"
+          model: "llama-3.3-70b-versatile"
         });
         const text = (result.choices[0]?.message?.content || "").replace(/```json|```/g, '').trim();
         res.json(JSON.parse(text));
@@ -184,20 +184,20 @@ app.post('/api/ai/summary', auth, async (req, res) => {
   const { name, targetRole, experiences, skills } = req.body;
   if (!process.env.GEMINI_API_KEY) return res.json({ summary: 'Mock summary for testing.' });
   const prompt = `Write a 3-4 sentence professional resume summary for ${name} targeting role ${targetRole}. Experience: ${experiences.join(", ")}. Skills: ${skills.join(", ")}. No "I". Professional tone. Return ONLY the summary.`;
-  
+
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent(prompt);
     res.json({ summary: result.response.text().trim() });
-  } catch (e) { 
+  } catch (e) {
     if (groq) {
       try {
-        const result = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama3-70b-8192" });
+        const result = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama-3.3-70b-versatile" });
         res.json({ summary: result.choices[0]?.message?.content?.trim() || "Generated fallback summary." });
         return;
-      } catch (err) {}
+      } catch (err) { }
     }
-    res.status(500).json({ error: e.message }); 
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -206,25 +206,25 @@ app.post('/api/ai/match-jd', auth, async (req, res) => {
   const { resumeText, jd } = req.body;
   if (!process.env.GEMINI_API_KEY) return res.json({ required_keywords: [], matched: [], missing: [], match_percentage: 50 });
   const prompt = `Extract top 15 keywords from JD, check which are in resume. Return ONLY valid JSON: {"required_keywords":[],"matched":[],"missing":[],"match_percentage":0} JD: ${jd} Resume: ${resumeText}`;
-  
+
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent(prompt);
     const text = result.response.text().replace(/```json|```/g, '').trim();
     res.json(JSON.parse(text));
-  } catch (e) { 
+  } catch (e) {
     if (groq) {
       try {
         const result = await groq.chat.completions.create({
           messages: [{ role: "system", content: "Return ONLY JSON" }, { role: "user", content: prompt }],
-          model: "llama3-70b-8192"
+          model: "llama-3.3-70b-versatile"
         });
         const text = (result.choices[0]?.message?.content || "").replace(/```json|```/g, '').trim();
         res.json(JSON.parse(text));
         return;
-      } catch (err) {}
+      } catch (err) { }
     }
-    res.status(500).json({ error: e.message }); 
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -233,20 +233,20 @@ app.post('/api/ai/cover-letter', auth, async (req, res) => {
   const { resumeText, jd, company, name } = req.body;
   if (!process.env.GEMINI_API_KEY) return res.json({ letter: 'Mock cover letter.' });
   const prompt = `Write a professional cover letter for ${name} applying to ${company}. 3 paragraphs, under 300 words, first person, match resume tone. Do not invent facts. Resume: ${resumeText} JD: ${jd}. Return ONLY the letter.`;
-  
+
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent(prompt);
     res.json({ letter: result.response.text().trim() });
-  } catch (e) { 
+  } catch (e) {
     if (groq) {
       try {
-        const result = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama3-70b-8192" });
+        const result = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama-3.3-70b-versatile" });
         res.json({ letter: result.choices[0]?.message?.content?.trim() || "Generated fallback cover letter." });
         return;
-      } catch (err) {}
+      } catch (err) { }
     }
-    res.status(500).json({ error: e.message }); 
+    res.status(500).json({ error: e.message });
   }
 });
 
