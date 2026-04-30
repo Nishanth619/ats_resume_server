@@ -9,20 +9,25 @@ app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '5mb' }));
 
 // Initialise Firebase Admin
+const fs = require('fs');
 try {
   let credential;
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    // Read from Render Environment Variable (Parse the JSON string)
+  if (fs.existsSync('/etc/secrets/firebase-service-account.json')) {
+    // Render Secret Files path
+    credential = admin.credential.cert(require('/etc/secrets/firebase-service-account.json'));
+    console.log('Firebase Admin loaded from Render Secret File.');
+  } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // Render Environment Variable fallback
     credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
-    console.log("Firebase Admin loaded from Environment Variable.");
+    console.log('Firebase Admin loaded from Environment Variable.');
   } else {
-    // Fallback for local development
-    credential = admin.credential.cert(require('./serviceAccountKey.json'));
-    console.log("Firebase Admin loaded from local serviceAccountKey.json.");
+    // Local development fallback
+    credential = admin.credential.cert(require('./firebase-service-account.json'));
+    console.log('Firebase Admin loaded from local file.');
   }
   admin.initializeApp({ credential });
 } catch (e) {
-  console.warn('Firebase Admin init failed (Missing credentials). Mocking for development.');
+  console.warn('Firebase Admin init failed (Missing credentials). Mocking for development.', e.message);
 }
 
 const db = admin.firestore ? admin.firestore() : null;
