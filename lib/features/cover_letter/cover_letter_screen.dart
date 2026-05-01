@@ -51,34 +51,77 @@ class _CLState extends ConsumerState<CoverLetterScreen>
       ));
       return;
     }
-    setState(() => _loading = true);
+
+    setState(() { _loading = true; _generated = false; });
+
     try {
-      final resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
+      // Wait up to 5 seconds for the stream to have a value
+      final resumeAsync = ref.read(resumeStreamProvider(widget.resumeId));
+      final resume = resumeAsync.value ??
+          await ref
+              .read(resumeStreamProvider(widget.resumeId).future)
+              .timeout(const Duration(seconds: 5));
+
       final uid = ref.read(authStateProvider).value?.uid;
-      if (resume == null || uid == null) return;
-      final p = resume.sections['personal'] ?? {};
-      final buf = StringBuffer();
-      buf.writeln('${p['summary'] ?? ''}');
-      for (final e in (resume.sections['experience'] as List? ?? [])) {
-        buf.writeln('${e['title']} at ${e['company']}: ${e['description']}');
+
+      if (uid == null) {
+        throw Exception('You are not logged in. Please sign in and try again.');
       }
+
+      // Build resume text from structured sections
+      final p = Map<String, dynamic>.from(resume.sections['personal'] ?? {});
+      final expList = resume.sections['experience'] as List? ?? [];
+      final skillList = resume.sections['skills'] as List? ?? [];
+
+      final buf = StringBuffer();
+      if ((p['summary'] as String?)?.isNotEmpty == true) {
+        buf.writeln(p['summary']);
+      }
+      for (final e in expList) {
+        final exp = e as Map<String, dynamic>;
+        buf.writeln(
+            '${exp['title'] ?? ''} at ${exp['company'] ?? ''}: ${exp['description'] ?? ''}');
+      }
+      if (skillList.isNotEmpty) {
+        buf.writeln('Skills: ${skillList.join(', ')}');
+      }
+
+      final resumeText = buf.toString().trim();
+      if (resumeText.isEmpty) {
+        throw Exception(
+            'Your resume appears empty. Please add some experience or a summary first.');
+      }
+
       final letter = await ref.read(aiServiceProvider).generateCoverLetter(
-            resumeText: buf.toString(),
-            jd: _jdCtrl.text,
-            company: _companyCtrl.text,
-            name: p['name'] ?? '',
+            resumeText: resumeText,
+            jd: _jdCtrl.text.trim(),
+            company: _companyCtrl.text.trim(),
+            name: (p['name'] as String?)?.isNotEmpty == true
+                ? p['name'] as String
+                : 'Applicant',
           );
+
+      if (letter.isEmpty) throw Exception('AI returned an empty letter. Please retry.');
+
       _letterCtrl.text = letter;
-      await ref
-          .read(firestoreServiceProvider)
-          .saveCoverLetter(uid, widget.resumeId, letter, _companyCtrl.text);
-      setState(() => _generated = true);
+
+      // Save to Firestore (non-blocking — don't let this crash the UI)
+      try {
+        await ref.read(firestoreServiceProvider).saveCoverLetter(
+              uid, widget.resumeId, letter, _companyCtrl.text.trim());
+      } catch (_) {
+        // Saving failed silently — the letter is still shown to the user
+      }
+
+      if (mounted) setState(() => _generated = true);
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().replaceFirst('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
+          content: Text('⚠️ $msg'),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
         ));
       }
     } finally {

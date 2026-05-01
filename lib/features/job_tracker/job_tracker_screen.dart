@@ -100,25 +100,36 @@ class JobTrackerScreen extends ConsumerWidget {
                 return Column(
                   children: [
                     _StatsBar(apps: apps),
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height - 180,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: ApplicationStatus.values
-                              .map((status) => _KanbanColumn(
-                                    uid: uid,
-                                    status: status,
-                                    apps: apps
-                                        .where((a) => a.status == status)
-                                        .toList(),
-                                    ref: ref,
-                                  ))
-                              .toList(),
-                        ),
-                      ),
+                    // LayoutBuilder gives us a bounded height — avoids grey
+                    // screen when keyboard opens/closes or MediaQuery shifts
+                    LayoutBuilder(
+                      builder: (ctx2, constraints) {
+                        // Remaining screen height after stats bar (~90) + appbar (~56)
+                        final columnH =
+                            MediaQuery.of(ctx2).size.height - 56 - 90 - 48;
+                        return SizedBox(
+                          height: columnH.clamp(300.0, 800.0),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: ApplicationStatus.values
+                                  .map((status) => _KanbanColumn(
+                                        uid: uid,
+                                        status: status,
+                                        apps: apps
+                                            .where((a) => a.status == status)
+                                            .toList(),
+                                        ref: ref,
+                                        columnHeight:
+                                            columnH.clamp(300.0, 800.0) - 60,
+                                      ))
+                                  .toList(),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 );
@@ -306,12 +317,14 @@ class _KanbanColumn extends StatefulWidget {
   final ApplicationStatus status;
   final List<ApplicationModel> apps;
   final WidgetRef ref;
+  final double columnHeight;
 
   const _KanbanColumn({
     required this.uid,
     required this.status,
     required this.apps,
     required this.ref,
+    required this.columnHeight,
   });
 
   @override
@@ -346,6 +359,9 @@ class _KanbanColumnState extends State<_KanbanColumn> {
       builder: (ctx, _, __) => AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: 220,
+        // Fixed height — no Flexible or Expanded inside DragTarget to avoid
+        // unbounded constraints that cause the grey screen bug
+        height: widget.columnHeight,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
           color: _isDragOver
@@ -404,8 +420,9 @@ class _KanbanColumnState extends State<_KanbanColumn> {
                 ],
               ),
             ),
-            // Cards list
-            Flexible(
+            // Cards list — Expanded is safe here because parent AnimatedContainer
+            // now has a fixed height (no more unbounded constraint crash)
+            Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(10),
                 child: Column(

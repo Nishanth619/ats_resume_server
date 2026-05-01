@@ -12,7 +12,6 @@ import 'sections/education_section.dart';
 import 'sections/skills_section.dart';
 import 'sections/projects_section.dart';
 import 'sections/certifications_section.dart';
-import 'widgets/linkedin_import_banner.dart';
 
 class ResumeEditorScreen extends ConsumerStatefulWidget {
   final String resumeId;
@@ -119,10 +118,6 @@ class _State extends ConsumerState<ResumeEditorScreen> {
         data: (resume) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
           children: [
-            LinkedInImportBanner(
-              resumeId: widget.resumeId,
-              onImported: _onChanged,
-            ),
             PersonalInfoSection(
               resumeId: widget.resumeId,
               data: Map<String,dynamic>.from(resume.sections['personal'] ?? {}),
