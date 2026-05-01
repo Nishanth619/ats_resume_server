@@ -54,20 +54,39 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
     }
   }
 
+  /// Safely converts any dynamic value to a plain String.
+  /// Guards against Map/List stored where String is expected (e.g. after AI tailor).
+  String _str(dynamic v) {
+    if (v == null) return '';
+    if (v is String) return v;
+    if (v is Map) return v.values.map(_str).join(' ');
+    if (v is List) return v.map(_str).join(', ');
+    return v.toString();
+  }
+
   String _serialize(resume) {
     final buf = StringBuffer();
-    final p = resume.sections['personal'] ?? {};
-    buf.writeln('${p['name'] ?? ''}\n${p['email'] ?? ''}\n${p['phone'] ?? ''}');
-    buf.writeln('PROFESSIONAL SUMMARY\n${p['summary'] ?? ''}');
+    final p = (resume.sections['personal'] as Map?) ?? {};
+    buf.writeln('${_str(p['name'])}\n${_str(p['email'])}\n${_str(p['phone'])}');
+    buf.writeln('PROFESSIONAL SUMMARY\n${_str(p['summary'])}');
     buf.writeln('WORK EXPERIENCE');
     for (final e in (resume.sections['experience'] as List? ?? [])) {
-      buf.writeln('${e['title']} at ${e['company']} (${e['dates']})\n${e['description']}');
+      final em = e is Map ? e : <String, dynamic>{};
+      buf.writeln(
+        '${_str(em['title'])} at ${_str(em['company'])} (${_str(em['dates'])})\n'
+        '${_str(em['description'])}',
+      );
     }
     buf.writeln('EDUCATION');
     for (final e in (resume.sections['education'] as List? ?? [])) {
-      buf.writeln('${e['degree']} - ${e['institution']} (${e['year']})');
+      final em = e is Map ? e : <String, dynamic>{};
+      buf.writeln('${_str(em['degree'])} - ${_str(em['institution'])} (${_str(em['year'])})');
     }
-    buf.writeln('SKILLS\n${(resume.sections['skills'] as List? ?? []).join(', ')}');
+    final skills = (resume.sections['skills'] as List? ?? [])
+        .map((s) => _str(s))
+        .where((s) => s.isNotEmpty)
+        .join(', ');
+    buf.writeln('SKILLS\n$skills');
     return buf.toString();
   }
 
