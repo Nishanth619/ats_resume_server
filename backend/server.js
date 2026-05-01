@@ -6,6 +6,10 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Groq = require('groq-sdk');
 const crypto = require('crypto');
 const fs = require('fs');
+const AdmZip = require('adm-zip');
+const { parse } = require('csv-parse/sync');
+const multer = require('multer');
+const axios = require('axios');
 
 const app = express();
 app.use(cors({ origin: '*' }));
@@ -458,7 +462,174 @@ Return ONLY valid JSON in this exact format, no markdown:
   }
 });
 
-// -- Share Link Generator --
+// ─── LinkedIn ZIP Import Setup ─────────────────────────────────────────────────
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/zip' ||
+        file.mimetype === 'application/x-zip-compressed' ||
+        file.originalname.endsWith('.zip')) cb(null, true);
+    else cb(new Error('Only ZIP files allowed'), false);
+  }
+});
+
+// ─── LinkedIn OAuth Config ─────────────────────────────────────────────────
+const LINKEDIN = {
+  clientId:     process.env.LINKEDIN_CLIENT_ID,
+  clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
+  redirectUri:  process.env.LINKEDIN_REDIRECT_URI || 'https://ats-resume-server.onrender.com/api/linkedin/callback',
+  scope:        'openid profile email',
+};
+
+// In-memory state store for OAuth CSRF protection (use Redis in production)
+const linkedinStateStore = new Map();
+
+// Feature 1 — LinkedIn ZIP Import
+app.post('/api/linkedin/import-zip', auth, upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const zip = new AdmZip(req.file.buffer);
+
+    const readCSV = (filename) => {
+      const entry = zip.getEntry(filename);
+      if (!entry) return [];
+      try {
+        return parse(entry.getData().toString('utf8'), {
+          columns: true,
+          skip_empty_lines: true,
+          trim: true,
+          relax_quotes: true
+        });
+      } catch { return []; }
+    };
+
+    const profile   = readCSV('Profile.csv')[0] || {};
+    const positions = readCSV('Positions.csv');
+    const education = readCSV('Education.csv');
+    const skills    = readCSV('Skills.csv');
+
+    // Validate we got something useful
+    if (!profile['First Name'] && positions.length === 0) {
+      return res.status(422).json({
+        error: 'Could not parse LinkedIn export. Make sure you uploaded the correct ZIP file.'
+      });
+    }
+
+    const resume = {
+      name:     [profile['First Name'], profile['Last Name']].filter(Boolean).join(' '),
+      email:    profile['Email Address'] || '',
+      phone:    profile['Phone Numbers'] || '',
+      summary:  profile['Summary'] || '',
+      headline: profile['Headline'] || '',
+      location: profile['Geo Location'] || '',
+
+      experience: positions.map(p => ({
+        title:       p['Title'] || '',
+        company:     p['Company Name'] || '',
+        dates:       [p['Started On'], p['Finished On'] || 'Present'].filter(Boolean).join(' - '),
+        location:    p['Location'] || '',
+        description: p['Description'] || ''
+      })).filter(e => e.title || e.company),
+
+      education: education.map(e => ({
+        degree:      [e['Degree Name'], e['Field Of Study']].filter(Boolean).join(' in '),
+        institution: e['School Name'] || '',
+        year:        e['End Date'] || e['Start Date'] || '',
+      })).filter(e => e.institution),
+
+      skills: skills
+        .map(s => s['Name'])
+        .filter(Boolean)
+        .slice(0, 50)
+    };
+
+    res.json({ success: true, resume, source: 'linkedin_zip' });
+
+  } catch (err) {
+    console.error('LinkedIn ZIP import error:', err);
+    res.status(500).json({ error: 'Failed to parse LinkedIn export file' });
+  }
+});
+
+// Feature 2, Step 1 — Generate OAuth URL
+app.get('/api/linkedin/auth-url', auth, (req, res) => {
+  if (!LINKEDIN.clientId) {
+    return res.status(503).json({ error: 'LinkedIn OAuth is not configured on this server.' });
+  }
+  const state = crypto.randomBytes(16).toString('hex');
+  // Store state keyed by uid with 10-min TTL
+  linkedinStateStore.set(state, { uid: req.user.uid, ts: Date.now() });
+  setTimeout(() => linkedinStateStore.delete(state), 10 * 60 * 1000);
+
+  const url = new URL('https://www.linkedin.com/oauth/v2/authorization');
+  url.searchParams.set('response_type', 'code');
+  url.searchParams.set('client_id', LINKEDIN.clientId);
+  url.searchParams.set('redirect_uri', LINKEDIN.redirectUri);
+  url.searchParams.set('scope', LINKEDIN.scope);
+  url.searchParams.set('state', state);
+
+  res.json({ url: url.toString() });
+});
+
+// Feature 2, Step 2 — OAuth Callback (LinkedIn redirects here)
+app.get('/api/linkedin/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+
+  if (error) {
+    return res.redirect(`atsresumebuilder://linkedin-callback?error=${encodeURIComponent(error)}`);
+  }
+
+  // CSRF guard
+  if (!state || !linkedinStateStore.has(state)) {
+    return res.redirect('atsresumebuilder://linkedin-callback?error=invalid_state');
+  }
+  linkedinStateStore.delete(state);
+
+  try {
+    // Exchange code for access token
+    const tokenRes = await axios.post(
+      'https://www.linkedin.com/oauth/v2/accessToken',
+      new URLSearchParams({
+        grant_type:    'authorization_code',
+        code,
+        redirect_uri:  LINKEDIN.redirectUri,
+        client_id:     LINKEDIN.clientId,
+        client_secret: LINKEDIN.clientSecret,
+      }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+
+    const accessToken = tokenRes.data.access_token;
+
+    // Fetch profile via OpenID Connect userinfo
+    const profileRes = await axios.get(
+      'https://api.linkedin.com/v2/userinfo',
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    const p = profileRes.data;
+    const resume = {
+      name:       p.name || `${p.given_name || ''} ${p.family_name || ''}`.trim(),
+      email:      p.email || '',
+      picture:    p.picture || '',
+      // Work history unavailable on free OAuth tier; user fills manually
+      experience: [],
+      education:  [],
+      skills:     [],
+    };
+
+    const encoded = encodeURIComponent(JSON.stringify(resume));
+    res.redirect(`atsresumebuilder://linkedin-callback?resume=${encoded}`);
+
+  } catch (err) {
+    console.error('LinkedIn OAuth error:', err.response?.data || err.message);
+    res.redirect('atsresumebuilder://linkedin-callback?error=server_error');
+  }
+});
+
+// ─── Share Link Generator ──────────────────────────────────────────────────────
 app.post('/api/share-link', auth, async (req, res) => {
   const { resumeId } = req.body;
   const token = crypto.randomBytes(16).toString('hex');

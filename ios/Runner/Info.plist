@@ -81,5 +81,16 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Deep link scheme for LinkedIn OAuth callback -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>atsresumebuilder</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
+
