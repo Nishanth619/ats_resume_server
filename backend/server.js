@@ -12,36 +12,23 @@ app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '5mb' }));
 const port = process.env.PORT || 10000;
 
-// 1. Bulletproof Firebase Initialization
+// ─── 1. Firebase Initialization ───────────────────────────────────────────────
 try {
   let serviceAccount;
-
-  // Radar Check 1: Are we on Render?
   if (fs.existsSync('/etc/secrets/firebase-service-account.json')) {
     console.log("✅ Radar: Found Firebase key in Render secrets!");
     serviceAccount = require('/etc/secrets/firebase-service-account.json');
-  }
-  // Radar Check 2: Are we testing locally on your computer?
-  else if (fs.existsSync('./firebase-service-account.json')) {
+  } else if (fs.existsSync('./firebase-service-account.json')) {
     console.log("✅ Radar: Found Firebase key locally!");
     serviceAccount = require('./firebase-service-account.json');
-  }
-  // Radar Check 3: Environment Variable
-  else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     console.log("✅ Radar: Found Firebase key in Environment Variable!");
     serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  }
-  // Radar Check 4: Total Failure
-  else {
+  } else {
     throw new Error("❌ Radar: Could NOT find the Firebase JSON file anywhere!");
   }
-
-  // Boot up Firebase
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
   console.log("🚀 Firebase initialized successfully!");
-
 } catch (error) {
   console.error("🔥 Firebase Setup FAILED:", error.message);
 }
@@ -50,7 +37,129 @@ const db = admin.apps.length ? admin.firestore() : null;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'MOCK_KEY');
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
-// -- Auth Middleware --
+// ─── Fix 5: In-Memory LRU Cache (no Redis needed) ─────────────────────────────
+const ATS_CACHE = new Map();
+const ATS_CACHE_MAX = 200;
+const ATS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+function getCacheKey(resumeText, targetJD) {
+  return crypto.createHash('sha256').update(resumeText + (targetJD || '')).digest('hex');
+}
+
+function cacheGet(key) {
+  const entry = ATS_CACHE.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > ATS_CACHE_TTL_MS) { ATS_CACHE.delete(key); return null; }
+  return entry.data;
+}
+
+function cacheSet(key, data) {
+  if (ATS_CACHE.size >= ATS_CACHE_MAX) {
+    // Evict oldest entry (first inserted)
+    ATS_CACHE.delete(ATS_CACHE.keys().next().value);
+  }
+  ATS_CACHE.set(key, { data, ts: Date.now() });
+}
+
+// ─── Fix 1: Deterministic Scoring Rubric ──────────────────────────────────────
+const SCORING_RUBRIC = `
+Score this resume across 5 categories (each out of 20):
+1. KEYWORD_MATCH: Presence of role-relevant technical keywords
+2. IMPACT_LANGUAGE: Use of strong action verbs and quantified achievements
+3. STRUCTURE: Clear sections, consistent formatting, scannable layout
+4. RELEVANCE: Experience and skills alignment to the target role
+5. ATS_COMPATIBILITY: No tables, graphics, headers/footers, special chars
+
+Return ONLY this exact JSON schema — no other text:
+{
+  "total_score": <sum of all 5>,
+  "categories": {
+    "keyword_match":     { "score": 0, "reasoning": "..." },
+    "impact_language":   { "score": 0, "reasoning": "..." },
+    "structure":         { "score": 0, "reasoning": "..." },
+    "relevance":         { "score": 0, "reasoning": "..." },
+    "ats_compatibility": { "score": 0, "reasoning": "..." }
+  },
+  "critical_issues":     [{ "issue": "...", "fix": "...", "priority": "high|medium|low" }],
+  "matched_keywords":    [],
+  "missing_keywords":    [],
+  "top_3_wins":          [],
+  "top_3_improvements":  []
+}`;
+
+// ─── Fix 2: Input Validation Middleware ───────────────────────────────────────
+const validateAtsInput = (req, res, next) => {
+  const { resumeText, targetJD } = req.body;
+
+  if (!resumeText || typeof resumeText !== 'string')
+    return res.status(400).json({ error: 'resumeText is required and must be a string.' });
+
+  if (resumeText.length > 15000)
+    return res.status(400).json({ error: 'Resume text exceeds maximum length (15 000 chars).' });
+
+  if (targetJD && typeof targetJD !== 'string')
+    return res.status(400).json({ error: 'targetJD must be a string.' });
+
+  if (targetJD && targetJD.length > 10000)
+    return res.status(400).json({ error: 'Job description exceeds maximum length (10 000 chars).' });
+
+  const injectionPatterns = /ignore previous|system prompt|forget instructions/i;
+  if (injectionPatterns.test(resumeText) || (targetJD && injectionPatterns.test(targetJD)))
+    return res.status(400).json({ error: 'Invalid content detected.' });
+
+  next();
+};
+
+// ─── Fix 3: Resilient JSON Parsing with Schema Validation ─────────────────────
+function safeParseAtsResponse(rawText) {
+  const cleaned = rawText
+    .replace(/```json|```/g, '')
+    .replace(/^[^{]*/, '')   // strip preamble before first {
+    .replace(/}[^}]*$/, '}') // strip anything after last }
+    .trim();
+
+  const parsed = JSON.parse(cleaned);
+
+  // Schema guard
+  if (typeof parsed.total_score !== 'number') throw new Error('Missing total_score in response.');
+  if (!parsed.categories) throw new Error('Missing categories in response.');
+  if (!Array.isArray(parsed.critical_issues)) throw new Error('Missing critical_issues array.');
+
+  return parsed;
+}
+
+// ─── Fix 6: Structured Resume Formatter ──────────────────────────────────────
+function formatStructuredResume(sections) {
+  const p = sections.personal || {};
+  const exp = (sections.experience || []).map(e =>
+    `[${e.title || ''}] at [${e.company || ''}] (${e.dates || ''})\n${e.description || ''}`
+  ).join('\n\n');
+  const edu = (sections.education || []).map(e =>
+    `${e.degree || ''} — ${e.institution || ''} (${e.year || ''})`
+  ).join('\n');
+  const skills = Array.isArray(sections.skills)
+    ? sections.skills.map(s => (typeof s === 'string' ? s : JSON.stringify(s))).join(', ')
+    : '';
+
+  return `
+=== CANDIDATE ===
+${p.name || ''} | ${p.email || ''} | ${p.phone || ''}
+
+=== PROFESSIONAL SUMMARY ===
+${p.summary || ''}
+
+=== WORK EXPERIENCE ===
+${exp}
+
+=== SKILLS ===
+${skills}
+
+=== EDUCATION ===
+${edu}
+`.trim();
+}
+
+// ─── Auth Middleware ───────────────────────────────────────────────────────────
 const auth = async (req, res, next) => {
   const token = req.headers.authorization?.split('Bearer ')[1];
   if (!token) return res.status(401).json({ error: 'No token' });
@@ -59,17 +168,17 @@ const auth = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Auth Error:", error);
-    // TEMPORARY: Allow through even if token fails so we can see the real AI error
+    // TEMPORARY: Allow through so we can test AI features
     req.user = { uid: 'auth_failed_but_allowed' };
     next();
   }
 };
 
-// -- Rate Limiter --
+// ─── Rate Limiter ─────────────────────────────────────────────────────────────
 const rateLimit = async (uid, isPro, limit = 3) => {
   return true; // TEMPORARY BYPASS FOR TESTING
   if (isPro) return true;
-  if (!db) return true; // Bypass in dev
+  if (!db) return true;
   const today = new Date().toISOString().split('T')[0];
   const ref = db.collection('rate_limits').doc(`${uid}_${today}`);
   return db.runTransaction(async (t) => {
@@ -81,7 +190,8 @@ const rateLimit = async (uid, isPro, limit = 3) => {
   });
 };
 
-// -- Test route --
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
 app.get('/', (req, res) => {
   res.send('ATS Resume Backend is Live and Firebase is connected!');
 });
@@ -89,9 +199,9 @@ app.get('/', (req, res) => {
 // -- AI: Improve Bullet --
 app.post('/api/ai/improve-bullet', auth, async (req, res) => {
   const { rawDuty, role } = req.body;
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GEMINI_API_KEY)
     return res.json({ bullet: `Optimised ${role} duty: Increased efficiency by 20% in ${rawDuty}` });
-  }
+
   const prompt = `You are an expert resume writer. Rewrite as strong, quantified, action-verb-led bullet. Past tense. Under 20 words. Role: ${role}. Duty: ${rawDuty}. Return ONLY the bullet.`;
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -100,91 +210,124 @@ app.post('/api/ai/improve-bullet', auth, async (req, res) => {
   } catch (e) {
     if (groq) {
       try {
-        console.log("Gemini failed for improve-bullet, falling back to Groq Llama3...");
         const result = await groq.chat.completions.create({
           messages: [{ role: "user", content: prompt }],
           model: "llama-3.3-70b-versatile"
         });
         res.json({ bullet: result.choices[0]?.message?.content?.trim() || rawDuty });
         return;
-      } catch (groqErr) {
-        console.error("Groq fallback failed:", groqErr);
-      }
+      } catch (groqErr) { console.error("Groq fallback failed:", groqErr); }
     }
     res.status(500).json({ error: e.message });
   }
 });
 
-// -- AI: ATS Check with Rate Limiting --
-app.post('/api/ai/ats-check', auth, async (req, res) => {
-  const { resumeText, targetJD } = req.body;
+// -- AI: ATS Check (all 6 fixes applied) --
+app.post('/api/ai/ats-check', auth, validateAtsInput, async (req, res) => {
+  const { resumeText, targetJD, sections } = req.body;
+
+  // Pro / Rate limit check
   let isPro = false;
   if (db) {
     const userDoc = await db.collection('users').doc(req.user.uid).get();
     isPro = userDoc.data()?.plan === 'pro';
   }
-
   const allowed = await rateLimit(req.user.uid, isPro, 3);
-  if (!allowed) {
+  if (!allowed)
     return res.status(429).json({ error: 'Daily ATS check limit reached. Upgrade to Pro for unlimited checks.' });
+
+  // Fix 5: Cache hit
+  const cacheKey = getCacheKey(resumeText, targetJD);
+  const cached = cacheGet(cacheKey);
+  if (cached) {
+    console.log("✅ ATS cache hit.");
+    return res.json({ ...cached, _cached: true });
   }
 
+  // Mock mode
   if (!process.env.GEMINI_API_KEY) {
     return res.json({
-      score: 85,
-      issues: ["Missing leadership keywords"],
-      fixes: ["Add words like 'Managed' or 'Led'"],
-      keywords: ["Flutter", "Dart"],
-      missing_keywords: ["Firebase"]
+      total_score: 72,
+      categories: {
+        keyword_match:     { score: 14, reasoning: "Mock: good keyword presence." },
+        impact_language:   { score: 15, reasoning: "Mock: some action verbs present." },
+        structure:         { score: 16, reasoning: "Mock: clear sections." },
+        relevance:         { score: 14, reasoning: "Mock: mostly relevant." },
+        ats_compatibility: { score: 13, reasoning: "Mock: no tables or images detected." }
+      },
+      critical_issues: [{ issue: "Missing quantified achievements", fix: "Add metrics (%, $, #)", priority: "high" }],
+      matched_keywords: ["Flutter", "Dart"],
+      missing_keywords: ["Firebase", "REST API"],
+      top_3_wins: ["Clear structure", "Relevant skills", "Good contact info"],
+      top_3_improvements: ["Add metrics", "Stronger action verbs", "Include missing keywords"]
     });
   }
 
-  const jdSection = targetJD ? `Target JD: ${targetJD}` : '';
-  const prompt = `Analyse this resume as an ATS expert. Return ONLY valid JSON: {"score":0-100,"issues":[],"fixes":[],"keywords":[],"missing_keywords":[]}. Resume: ${resumeText} ${jdSection}`;
+  // Fix 6: Use structured resume if sections were passed, else use raw text
+  const resumeBody = sections ? formatStructuredResume(sections) : resumeText;
+  const jdSection = targetJD ? `\n\n=== TARGET JOB DESCRIPTION ===\n${targetJD}` : '';
 
-  try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const result = await model.generateContent(prompt);
-    const text = result.response.text().replace(/```json|```/g, '').trim();
-    res.json(JSON.parse(text));
-  } catch (e) {
-    console.error("Gemini AI Error:", e);
+  const prompt = `${SCORING_RUBRIC}\n\n=== RESUME TO SCORE ===\n${resumeBody}${jdSection}`;
 
-    // GROQ FALLBACK
-    if (groq) {
-      try {
-        console.log("Falling back to Groq (Llama 3) for ATS Check...");
-        const result = await groq.chat.completions.create({
-          messages: [
-            { role: "system", content: "You must return ONLY a raw JSON object and nothing else. No markdown wrappers." },
-            { role: "user", content: prompt }
-          ],
-          model: "llama-3.3-70b-versatile"
-        });
-        const text = (result.choices[0]?.message?.content || "").replace(/```json|```/g, '').trim();
-        res.json(JSON.parse(text));
-        return; // Success!
-      } catch (groqErr) {
-        console.error("Groq fallback also failed:", groqErr);
-      }
+  const callAI = async (useFallback = false) => {
+    if (!useFallback) {
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const result = await model.generateContent(prompt);
+      return { text: result.response.text(), engine: 'gemini' };
+    } else {
+      const result = await groq.chat.completions.create({
+        messages: [
+          { role: "system", content: "You are an ATS expert. Return ONLY valid JSON, no markdown." },
+          { role: "user", content: prompt }
+        ],
+        model: "llama-3.3-70b-versatile",
+        max_tokens: 2048
+      });
+      return { text: result.choices[0]?.message?.content || '', engine: 'llama3' };
     }
+  };
 
-    res.json({
-      score: 1,
-      issues: ["Backend Error: " + e.message, "Groq fallback was also unavailable or not configured."],
-      fixes: ["Wait a minute and try again", "Ensure GROQ_API_KEY is set in Render"],
-      keywords: [],
-      missing_keywords: []
-    });
+  let aiResult;
+  try {
+    aiResult = await callAI(false);
+  } catch (e) {
+    console.error("Gemini ATS failed:", e.message);
+    if (!groq) {
+      return res.status(500).json({ error: e.message });
+    }
+    try {
+      console.log("Falling back to Groq (Llama 3) for ATS Check...");
+      aiResult = await callAI(true);
+    } catch (groqErr) {
+      console.error("Groq fallback also failed:", groqErr.message);
+      return res.status(500).json({ error: 'All AI engines failed. Please try again shortly.' });
+    }
   }
+
+  // Fix 3: Resilient parse + schema validation
+  let parsed;
+  try {
+    parsed = safeParseAtsResponse(aiResult.text);
+  } catch (parseErr) {
+    console.error("JSON parse failed:", parseErr.message, "\nRaw:", aiResult.text.slice(0, 300));
+    return res.status(500).json({ error: 'AI returned malformed data. Please retry.' });
+  }
+
+  // Fix 4: Flag which engine produced the result
+  const response = { ...parsed, _engine: aiResult.engine };
+
+  // Fix 5: Store in cache
+  cacheSet(cacheKey, response);
+
+  res.json(response);
 });
 
 // -- AI: Generate Summary --
 app.post('/api/ai/summary', auth, async (req, res) => {
   const { name, targetRole, experiences, skills } = req.body;
   if (!process.env.GEMINI_API_KEY) return res.json({ summary: 'Mock summary for testing.' });
-  const prompt = `Write a 3-4 sentence professional resume summary for ${name} targeting role ${targetRole}. Experience: ${experiences.join(", ")}. Skills: ${skills.join(", ")}. No "I". Professional tone. Return ONLY the summary.`;
 
+  const prompt = `Write a 3-4 sentence professional resume summary for ${name} targeting role ${targetRole}. Experience: ${experiences.join(", ")}. Skills: ${skills.join(", ")}. No "I". Professional tone. Return ONLY the summary.`;
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent(prompt);
@@ -205,8 +348,8 @@ app.post('/api/ai/summary', auth, async (req, res) => {
 app.post('/api/ai/match-jd', auth, async (req, res) => {
   const { resumeText, jd } = req.body;
   if (!process.env.GEMINI_API_KEY) return res.json({ required_keywords: [], matched: [], missing: [], match_percentage: 50 });
-  const prompt = `Extract top 15 keywords from JD, check which are in resume. Return ONLY valid JSON: {"required_keywords":[],"matched":[],"missing":[],"match_percentage":0} JD: ${jd} Resume: ${resumeText}`;
 
+  const prompt = `Extract top 15 keywords from JD, check which are in resume. Return ONLY valid JSON: {"required_keywords":[],"matched":[],"missing":[],"match_percentage":0} JD: ${jd} Resume: ${resumeText}`;
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent(prompt);
@@ -232,8 +375,8 @@ app.post('/api/ai/match-jd', auth, async (req, res) => {
 app.post('/api/ai/cover-letter', auth, async (req, res) => {
   const { resumeText, jd, company, name } = req.body;
   if (!process.env.GEMINI_API_KEY) return res.json({ letter: 'Mock cover letter.' });
-  const prompt = `Write a professional cover letter for ${name} applying to ${company}. 3 paragraphs, under 300 words, first person, match resume tone. Do not invent facts. Resume: ${resumeText} JD: ${jd}. Return ONLY the letter.`;
 
+  const prompt = `Write a professional cover letter for ${name} applying to ${company}. 3 paragraphs, under 300 words, first person, match resume tone. Do not invent facts. Resume: ${resumeText} JD: ${jd}. Return ONLY the letter.`;
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent(prompt);
@@ -319,7 +462,7 @@ Return ONLY valid JSON in this exact format, no markdown:
 app.post('/api/share-link', auth, async (req, res) => {
   const { resumeId } = req.body;
   const token = crypto.randomBytes(16).toString('hex');
-  const expiry = new Date(Date.now() + 30 * 86400000); // 30 days
+  const expiry = new Date(Date.now() + 30 * 86400000);
   if (db) {
     await db.collection('share_links').doc(token).set({
       uid: req.user.uid,
@@ -330,7 +473,7 @@ app.post('/api/share-link', auth, async (req, res) => {
   res.json({ link: `${process.env.BACKEND_URL || 'http://localhost:10000'}/r/${token}`, expiry });
 });
 
-// 3. Start the Server
+// ─── Start Server ─────────────────────────────────────────────────────────────
 app.listen(port, () => {
   console.log(`🌐 Server is wide awake and running on port ${port}`);
 });

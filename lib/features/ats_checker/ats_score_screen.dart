@@ -43,8 +43,11 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
       final resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
       if (resume == null) throw Exception('Resume not loaded');
       final text = _serialize(resume);
-      final result = await ref.read(aiServiceProvider).checkATS(text,
-          targetJD: resume.targetJD.isNotEmpty ? resume.targetJD : null);
+      final result = await ref.read(aiServiceProvider).checkATS(
+        text,
+        targetJD: resume.targetJD.isNotEmpty ? resume.targetJD : null,
+        sections: resume.sections, // Fix 6: send structured sections
+      );
       await ref
           .read(resumeNotifierProvider(widget.resumeId).notifier)
           .updateATSScore(result.score);
@@ -203,18 +206,34 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
             ? 'Good — Minor Fixes Needed'
             : 'Needs Work — Fix Issues First';
 
+    // Category labels for display
+    const catLabels = {
+      'keyword_match':     'Keyword Match',
+      'impact_language':   'Impact Language',
+      'structure':         'Structure',
+      'relevance':         'Relevance',
+      'ats_compatibility': 'ATS Compatibility',
+    };
+    const catIcons = {
+      'keyword_match':     '🔑',
+      'impact_language':   '⚡',
+      'structure':         '📊',
+      'relevance':         '🎯',
+      'ats_compatibility': '🤖',
+    };
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
       child: Column(
         children: [
-          // Score card
+          // ─── Score card ───
           GlassCard(
             showGlow: true,
             glowColor: color,
             child: Column(
               children: [
                 ScoreRing(score: score, radius: 72),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
@@ -228,17 +247,96 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                           fontWeight: FontWeight.w700,
                           fontSize: 14)),
                 ),
+                // Engine + cache badge
+                if (_result!.engine.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_result!.cached)
+                        _badge('⚡ Cached', AppColors.scoreGreen),
+                      if (_result!.cached) const SizedBox(width: 8),
+                      _badge(
+                        _result!.engine == 'gemini' ? '🤖 Gemini 2.5' : '🧠 Llama 3',
+                        AppColors.primary,
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 20),
 
-          // Stats row
+          // ─── 5-Category Breakdown ───
+          if (_result!.categories.isNotEmpty) ...[
+            const SectionHeader(
+              title: 'Score Breakdown',
+              subtitle: '5 categories • 20 pts each',
+            ),
+            const SizedBox(height: 14),
+            ..._result!.categories.entries.map((entry) {
+              final label = catLabels[entry.key] ?? entry.key;
+              final icon = catIcons[entry.key] ?? '📌';
+              final cat = entry.value;
+              final catColor = AppColors.scoreColor(cat.score * 5); // scale /20 -> /100
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: GlassCard(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(icon, style: const TextStyle(fontSize: 16)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(label,
+                                style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13)),
+                          ),
+                          Text('${cat.score}/20',
+                              style: TextStyle(
+                                  color: catColor,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: cat.score / 20,
+                          backgroundColor: AppColors.borderDark,
+                          valueColor: AlwaysStoppedAnimation<Color>(catColor),
+                          minHeight: 5,
+                        ),
+                      ),
+                      if (cat.reasoning.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(cat.reasoning,
+                            style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11,
+                                height: 1.4)),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 14),
+          ],
+
+          // ─── Stats row ───
           Row(
             children: [
               _StatCard(
                   label: 'Issues',
-                  value: '${_result!.issues.length}',
+                  value: '${_result!.criticalIssues.isNotEmpty ? _result!.criticalIssues.length : _result!.issues.length}',
                   icon: '⚠️',
                   color: AppColors.scoreOrange),
               const SizedBox(width: 12),
@@ -250,14 +348,151 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
               const SizedBox(width: 12),
               _StatCard(
                   label: 'Keywords Found',
-                  value: '${_result!.keywords.length}',
+                  value: '${_result!.matchedKeywords.isNotEmpty ? _result!.matchedKeywords.length : _result!.keywords.length}',
                   icon: '✅',
                   color: AppColors.scoreGreen),
             ],
           ),
 
-          // Issues
-          if (_result!.issues.isNotEmpty) ...[
+          // ─── Top 3 Wins ───
+          if (_result!.top3Wins.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const SectionHeader(
+              title: '🏆 What You\'re Doing Right',
+              subtitle: 'Keep these strong',
+            ),
+            const SizedBox(height: 14),
+            GlassCard(
+              child: Column(
+                children: _result!.top3Wins.asMap().entries.map((e) =>
+                  Padding(
+                    padding: EdgeInsets.only(bottom: e.key < _result!.top3Wins.length - 1 ? 10 : 0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 28, height: 28,
+                          decoration: BoxDecoration(
+                            color: AppColors.scoreGreen.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Center(child: Text('✅', style: TextStyle(fontSize: 13))),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(e.value,
+                              style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 13, height: 1.5)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ).toList(),
+              ),
+            ),
+          ],
+
+          // ─── Top 3 Improvements ───
+          if (_result!.top3Improvements.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const SectionHeader(
+              title: '🔧 Quick Wins',
+              subtitle: 'Fix these first for max score boost',
+            ),
+            const SizedBox(height: 14),
+            GlassCard(
+              child: Column(
+                children: _result!.top3Improvements.asMap().entries.map((e) =>
+                  Padding(
+                    padding: EdgeInsets.only(bottom: e.key < _result!.top3Improvements.length - 1 ? 10 : 0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 28, height: 28,
+                          decoration: BoxDecoration(
+                            color: AppColors.scoreOrange.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Center(child: Text('🔧', style: TextStyle(fontSize: 13))),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(e.value,
+                              style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 13, height: 1.5)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ).toList(),
+              ),
+            ),
+          ],
+
+          // ─── Critical Issues ───
+          if (_result!.criticalIssues.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            SectionHeader(
+              title: 'Critical Issues',
+              subtitle: 'Fix these to improve your score',
+              trailing: GradientBadge(
+                  text: '${_result!.criticalIssues.length}',
+                  gradient: AppColors.goldGradient),
+            ),
+            const SizedBox(height: 14),
+            ..._result!.criticalIssues.map((issue) {
+              final priorityColor = issue.priority == 'high'
+                  ? AppColors.scoreRed
+                  : issue.priority == 'medium'
+                      ? AppColors.scoreOrange
+                      : AppColors.textSecondary;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: GlassCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(issue.issue,
+                                style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13)),
+                          ),
+                          const SizedBox(width: 8),
+                          _badge(issue.priority.toUpperCase(), priorityColor),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('→ ',
+                              style: TextStyle(
+                                  color: AppColors.scoreGreen,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700)),
+                          Expanded(
+                            child: Text(issue.fix,
+                                style: const TextStyle(
+                                    color: AppColors.scoreGreen,
+                                    fontSize: 12, height: 1.4)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ] else if (_result!.issues.isNotEmpty) ...[
+            // Fallback for old schema
             const SizedBox(height: 24),
             SectionHeader(
               title: 'Issues Found',
@@ -275,15 +510,12 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          width: 36,
-                          height: 36,
+                          width: 36, height: 36,
                           decoration: BoxDecoration(
                             color: AppColors.scoreOrange.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Center(
-                            child: Text('⚠️', style: TextStyle(fontSize: 16)),
-                          ),
+                          child: const Center(child: Text('⚠️', style: TextStyle(fontSize: 16))),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -323,7 +555,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                 )),
           ],
 
-          // Missing keywords
+          // ─── Missing keywords ───
           if (_result!.missingKeywords.isNotEmpty) ...[
             const SizedBox(height: 24),
             SectionHeader(
@@ -340,28 +572,17 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                 runSpacing: 8,
                 children: _result!.missingKeywords
                     .map((k) => Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: AppColors.scoreRed.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: AppColors.scoreRed.withOpacity(0.3),
-                                width: 1),
+                            border: Border.all(color: AppColors.scoreRed.withOpacity(0.3), width: 1),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('+ ',
-                                  style: TextStyle(
-                                      color: AppColors.scoreRed,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800)),
-                              Text(k,
-                                  style: const TextStyle(
-                                      color: AppColors.scoreRed,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600)),
+                              const Text('+ ', style: TextStyle(color: AppColors.scoreRed, fontSize: 11, fontWeight: FontWeight.w800)),
+                              Text(k, style: const TextStyle(color: AppColors.scoreRed, fontSize: 12, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ))
@@ -370,35 +591,28 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
             ),
           ],
 
-          // Found keywords
-          if (_result!.keywords.isNotEmpty) ...[
+          // ─── Found keywords ───
+          if (_result!.matchedKeywords.isNotEmpty || _result!.keywords.isNotEmpty) ...[
             const SizedBox(height: 24),
             SectionHeader(
               title: 'Keywords Detected',
               subtitle: 'Already in your resume',
-              trailing: GradientBadge(text: '${_result!.keywords.length}'),
+              trailing: GradientBadge(text: '${_result!.matchedKeywords.isNotEmpty ? _result!.matchedKeywords.length : _result!.keywords.length}'),
             ),
             const SizedBox(height: 14),
             GlassCard(
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _result!.keywords
+                children: (_result!.matchedKeywords.isNotEmpty ? _result!.matchedKeywords : _result!.keywords)
                     .map((k) => Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: AppColors.scoreGreen.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: AppColors.scoreGreen.withOpacity(0.3),
-                                width: 1),
+                            border: Border.all(color: AppColors.scoreGreen.withOpacity(0.3), width: 1),
                           ),
-                          child: Text(k,
-                              style: const TextStyle(
-                                  color: AppColors.scoreGreen,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600)),
+                          child: Text(k, style: const TextStyle(color: AppColors.scoreGreen, fontSize: 12, fontWeight: FontWeight.w600)),
                         ))
                     .toList(),
               ),
@@ -406,6 +620,20 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
           ],
         ],
       ),
+    );
+  }
+
+  Widget _badge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
+      ),
+      child: Text(text,
+          style: TextStyle(
+              color: color, fontSize: 10, fontWeight: FontWeight.w700)),
     );
   }
 }
