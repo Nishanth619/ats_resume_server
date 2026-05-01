@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../models/resume_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/admob_service.dart';
+import '../../services/linkedin_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 
@@ -127,7 +128,10 @@ class DashboardScreen extends ConsumerWidget {
                       title: 'Features', subtitle: 'Everything you need to land the job'),
                   const SizedBox(height: 16),
                   _FeatureGrid(),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 12),
+                  // ─── LinkedIn Import Banner ───
+                  _LinkedInImportCard(),
+                  const SizedBox(height: 20),
                   SectionHeader(
                     title: 'My Resumes',
                     subtitle: 'Tap to edit · Long press for options',
@@ -1064,6 +1068,446 @@ class _OptionTile extends StatelessWidget {
               color: color, fontWeight: FontWeight.w600, fontSize: 15)),
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+}
+
+// ─── LinkedIn Import Card (homepage) ──────────────────────────────────────────
+class _LinkedInImportCard extends StatelessWidget {
+  const _LinkedInImportCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const _LinkedInImportSheet(),
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0077B5), Color(0xFF004471)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0077B5).withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // LinkedIn "in" logo box
+            Container(
+              width: 52, height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Center(
+                child: Text(
+                  'in',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 22,
+                    letterSpacing: -1,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Import from LinkedIn',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Auto-build your resume from LinkedIn data',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.75),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: const Text(
+                'Import →',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── LinkedIn Import Bottom Sheet ─────────────────────────────────────────────
+class _LinkedInImportSheet extends ConsumerStatefulWidget {
+  const _LinkedInImportSheet();
+
+  @override
+  ConsumerState<_LinkedInImportSheet> createState() => _LinkedInImportSheetState();
+}
+
+class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
+  bool _loading = false;
+  String _status = '';
+
+  // ── ZIP import ──────────────────────────────────────────────────────────────
+  Future<void> _importZip() async {
+    Navigator.pop(context); // close sheet
+    setState(() { _loading = true; _status = 'Reading ZIP…'; });
+
+    try {
+      final service = ref.read(linkedInImportServiceProvider);
+      final data = await service.importFromZip();
+      if (data == null) return; // user cancelled
+
+      _setState('Creating resume…');
+
+      // Create a new blank resume
+      final newId = await ref.read(resumeActionsProvider).createNewResume('modern');
+
+      if (newId.isEmpty) throw Exception('Failed to create resume');
+
+      _setState('Filling in your data…');
+
+      final notifier = ref.read(resumeNotifierProvider(newId).notifier);
+
+      // Personal info
+      notifier.updateSection('personal', {
+        'name':     data['name'] ?? '',
+        'email':    data['email'] ?? '',
+        'phone':    data['phone'] ?? '',
+        'summary':  data['summary'] ?? '',
+        'headline': data['headline'] ?? '',
+        'location': data['location'] ?? '',
+      });
+
+      // Experience
+      if (data['experience'] is List && (data['experience'] as List).isNotEmpty) {
+        notifier.updateSection(
+          'experience',
+          List<Map<String, dynamic>>.from(
+            (data['experience'] as List).map((e) => {
+              'title':       e['title'] ?? '',
+              'company':     e['company'] ?? '',
+              'dates':       e['dates'] ?? '',
+              'location':    e['location'] ?? '',
+              'description': e['description'] ?? '',
+            }),
+          ),
+        );
+      }
+
+      // Education
+      if (data['education'] is List && (data['education'] as List).isNotEmpty) {
+        notifier.updateSection(
+          'education',
+          List<Map<String, dynamic>>.from(
+            (data['education'] as List).map((e) => {
+              'degree':      e['degree'] ?? '',
+              'institution': e['institution'] ?? '',
+              'year':        e['year'] ?? '',
+            }),
+          ),
+        );
+      }
+
+      // Skills
+      if (data['skills'] is List && (data['skills'] as List).isNotEmpty) {
+        notifier.updateSection('skills', List<String>.from(data['skills'] as List));
+      }
+
+      await notifier.save();
+
+      if (mounted) {
+        _showSnack('✅ Resume built from LinkedIn! Review and edit it.', success: true);
+        // Navigate straight to editor
+        if (context.mounted) context.push('/editor/$newId');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnack(e.toString().replaceFirst('Exception: ', ''), success: false);
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _setState(String msg) {
+    if (mounted) setState(() => _status = msg);
+  }
+
+  void _showSnack(String msg, {required bool success}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: success ? const Color(0xFF0077B5) : AppColors.scoreRed,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
+  }
+
+  // ── OAuth (placeholder — requires LinkedIn app setup) ──────────────────────
+  void _importOAuth() {
+    Navigator.pop(context);
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.cardDark,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('LinkedIn OAuth',
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+        content: const Text(
+          'To enable "Sign in with LinkedIn", you need to:\n\n'
+          '1. Create a LinkedIn app at linkedin.com/developers\n'
+          '2. Add LINKEDIN_CLIENT_ID & LINKEDIN_CLIENT_SECRET to your Render env vars\n'
+          '3. Set redirect URI to:\nhttps://ats-resume-server.onrender.com/api/linkedin/callback\n\n'
+          'Until then, use the ZIP import — it gives you the most complete data.',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.6),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it', style: TextStyle(color: AppColors.primary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surfaceDark,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+          20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            width: 44, height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.borderDark,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 22),
+
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 46, height: 46,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0077B5).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Center(
+                  child: Text('in',
+                      style: TextStyle(
+                          color: Color(0xFF0077B5),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 20)),
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Import from LinkedIn',
+                        style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 17)),
+                    SizedBox(height: 2),
+                    Text('Choose how to import your profile',
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // ── Option 1: LinkedIn Login (OAuth) ──
+          _SheetOption(
+            icon: Icons.person_rounded,
+            iconBg: const Color(0xFF0077B5),
+            title: 'Sign in with LinkedIn',
+            subtitle: 'Quick login — imports name & email',
+            badge: 'Requires Setup',
+            badgeColor: AppColors.scoreOrange,
+            onTap: _importOAuth,
+          ),
+          const SizedBox(height: 12),
+
+          // ── Option 2: ZIP Upload ──
+          _SheetOption(
+            icon: Icons.upload_file_rounded,
+            iconBg: AppColors.primary,
+            title: 'Upload LinkedIn Data ZIP',
+            subtitle: 'Full import — work history, education, skills & more',
+            badge: 'Recommended',
+            badgeColor: AppColors.scoreGreen,
+            onTap: _importZip,
+          ),
+          const SizedBox(height: 16),
+
+          // Info box
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.cardDark,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.borderDark),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('💡', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'To get your ZIP: LinkedIn → Me → Settings & Privacy → Data Privacy → Get a copy of your data → Select "Want something in particular?" → Profile data → Request archive',
+                    style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                        height: 1.55),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Sheet Option Row ──────────────────────────────────────────────────────────
+class _SheetOption extends StatelessWidget {
+  final IconData icon;
+  final Color iconBg;
+  final String title;
+  final String subtitle;
+  final String badge;
+  final Color badgeColor;
+  final VoidCallback onTap;
+
+  const _SheetOption({
+    required this.icon,
+    required this.iconBg,
+    required this.title,
+    required this.subtitle,
+    required this.badge,
+    required this.badgeColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.cardDark,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        splashColor: iconBg.withOpacity(0.08),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(
+                  color: iconBg.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, color: iconBg, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(title,
+                            style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: badgeColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                                color: badgeColor.withOpacity(0.3), width: 1),
+                          ),
+                          child: Text(badge,
+                              style: TextStyle(
+                                  fontSize: 9,
+                                  color: badgeColor,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                            height: 1.4)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textMuted, size: 20),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
