@@ -120,7 +120,7 @@ class FirestoreService {
           throw Exception(
               'Could not save — no connection. Your letter is still shown above.');
         default:
-          throw Exception('Failed to save cover letter: \${e.message}');
+          throw Exception('Failed to save cover letter: ${e.message}');
       }
     }
   }
@@ -143,14 +143,14 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
-      throw Exception('Failed to update cover letter: \${e.message}');
+      throw Exception('Failed to update cover letter: ${e.message}');
     }
   }
 
 
   Stream<List<Map<String,dynamic>>> coverLettersStream(String uid) =>
       _db.collection('users').doc(uid).collection('coverLetters')
-          .orderBy('generatedAt', descending: true)
+          .orderBy('createdAt', descending: true)
           .snapshots()
           .map((s) => s.docs.map((d) => {...d.data(), 'id': d.id}).toList());
 

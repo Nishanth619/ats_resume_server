@@ -360,7 +360,7 @@ class _CLState extends ConsumerState<CoverLetterScreen>
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.15),
+                              color: AppColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text('$_wordCount words',
@@ -371,7 +371,7 @@ class _CLState extends ConsumerState<CoverLetterScreen>
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: AppColors.accent.withOpacity(0.12),
+                                color: AppColors.accent.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(_engineBadge,
@@ -472,9 +472,9 @@ class _ErrorBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.1),
+        color: AppColors.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.error.withOpacity(0.3)),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -493,9 +493,9 @@ class _ErrorBanner extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.15),
+                      color: AppColors.error.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.error.withOpacity(0.4)),
+                      border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
                     ),
                     child: const Text('Try Again',
                         style: TextStyle(color: AppColors.error, fontSize: 12, fontWeight: FontWeight.w700)),

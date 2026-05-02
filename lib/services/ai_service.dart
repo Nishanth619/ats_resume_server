@@ -105,7 +105,7 @@ class AIService {
       body: jsonEncode({
         'resumeText': resumeText,
         'targetJD': targetJD,
-        if (sections != null) 'sections': sections,
+        ...?((sections != null) ? {'sections': sections} : null),
       }),
     );
     if (response.statusCode == 429) {
@@ -177,7 +177,7 @@ class AIService {
           'No internet connection. Check your network and try again.');
     } catch (e) {
       if (e is AiServiceException) rethrow;
-      throw CoverLetterNetworkException('Network error: \${e.toString()}');
+      throw CoverLetterNetworkException('Network error: ${e.toString()}');
     }
 
     // Safe JSON decode
@@ -200,13 +200,13 @@ class AIService {
     }
     if (response.statusCode != 200) {
       throw CoverLetterServerException(
-          'Server error (\${response.statusCode}). Please try again.');
+          'Server error (${response.statusCode}). Please try again.');
     }
 
     try {
       return CoverLetterResult.fromJson(body);
     } on FormatException catch (e) {
-      throw CoverLetterServerException('Could not parse cover letter: \${e.message}');
+      throw CoverLetterServerException('Could not parse cover letter: ${e.message}');
     }
   }
 
