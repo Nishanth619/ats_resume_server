@@ -248,7 +248,7 @@ class JobTrackerScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
