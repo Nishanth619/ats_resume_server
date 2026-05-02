@@ -375,27 +375,118 @@ app.post('/api/ai/match-jd', auth, async (req, res) => {
   }
 });
 
-// -- AI: Cover Letter --
-app.post('/api/ai/cover-letter', auth, async (req, res) => {
-  const { resumeText, jd, company, name } = req.body;
-  if (!process.env.GEMINI_API_KEY) return res.json({ letter: 'Mock cover letter.' });
+// ─── Cover Letter: Constants ──────────────────────────────────────────────────
+const COVER_LETTER_MAX_RESUME_LEN  = 12000;
+const COVER_LETTER_MAX_JD_LEN      = 8000;
+const COVER_LETTER_MAX_COMPANY_LEN = 200;
 
-  const prompt = `Write a professional cover letter for ${name} applying to ${company}. 3 paragraphs, under 300 words, first person, match resume tone. Do not invent facts. Resume: ${resumeText} JD: ${jd}. Return ONLY the letter.`;
+// Cover Letter: Validation middleware
+const validateCoverLetterInput = (req, res, next) => {
+  const { resumeText, jd, company, name } = req.body;
+
+  if (!resumeText || typeof resumeText !== 'string' || resumeText.trim().length < 50)
+    return res.status(400).json({ error: 'Resume text is required (min 50 chars)' });
+
+  if (!company || typeof company !== 'string' || company.trim().length < 2)
+    return res.status(400).json({ error: 'Company name is required' });
+
+  if (!name || typeof name !== 'string' || name.trim().length < 2)
+    return res.status(400).json({ error: 'Applicant name is required' });
+
+  if (resumeText.length > COVER_LETTER_MAX_RESUME_LEN)
+    return res.status(400).json({ error: 'Resume text too long (max 12 000 chars)' });
+
+  if (jd && jd.length > COVER_LETTER_MAX_JD_LEN)
+    return res.status(400).json({ error: 'Job description too long (max 8 000 chars)' });
+
+  if (company.length > COVER_LETTER_MAX_COMPANY_LEN)
+    return res.status(400).json({ error: 'Company name too long' });
+
+  const injectionRe = /ignore (previous|all) instructions|system prompt|forget everything/i;
+  if (injectionRe.test(resumeText) || injectionRe.test(jd || ''))
+    return res.status(400).json({ error: 'Invalid content detected' });
+
+  next();
+};
+
+// Cover Letter: Strip markdown fences, verify minimum length
+function extractLetterText(rawText) {
+  const cleaned = rawText.replace(/```[\w]*\n?/g, '').replace(/```/g, '').trim();
+  if (cleaned.length < 100) throw new Error('Response too short to be a valid letter');
+  return cleaned;
+}
+
+// Cover Letter: Deterministic structured prompt
+function buildCoverLetterPrompt(name, company, resumeText, jd) {
+  const jdSection = jd?.trim()
+    ? `\n\nTARGET JOB DESCRIPTION:\n${jd.trim()}`
+    : '\n\n(No job description provided — write a compelling general application.)';
+
+  return `You are an expert cover letter writer. Write a professional, personalised cover letter.
+
+STRICT RULES:
+- 3 paragraphs: (1) opening hook + role interest, (2) 2-3 specific achievements from resume, (3) closing with call to action
+- Maximum 350 words
+- Do NOT use phrases like "I am writing to express my interest" or "Please find attached"
+- Flowing prose only — no bullet points
+- Do NOT add subject line, date, or address block — start directly with "Dear Hiring Team,"
+- End with "Sincerely,\\n${name}"
+- Output ONLY the letter — no explanations, no commentary, no markdown
+
+CANDIDATE NAME: ${name}
+TARGET COMPANY: ${company}
+
+CANDIDATE RESUME:
+${resumeText}${jdSection}`;
+}
+
+// -- AI: Cover Letter (hardened) --
+app.post('/api/ai/cover-letter', auth, validateCoverLetterInput, async (req, res) => {
+  const { resumeText, jd, company, name } = req.body;
+
+  // Mock mode (no API key)
+  if (!process.env.GEMINI_API_KEY) {
+    const mock = `Dear Hiring Team,\n\nI am excited to apply for a position at ${company}. My background in ${resumeText.slice(0, 80)}... makes me an excellent candidate.\n\nThroughout my career I have consistently delivered results. I look forward to contributing to your team.\n\nSincerely,\n${name}`;
+    return res.json({ letter: mock, engine: 'mock', wordCount: mock.split(/\s+/).length });
+  }
+
+  const prompt = buildCoverLetterPrompt(name.trim(), company.trim(), resumeText.trim(), jd?.trim());
+
+  // Attempt 1: Gemini
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: { maxOutputTokens: 600, temperature: 0.7, topP: 0.9 },
+    });
     const result = await model.generateContent(prompt);
-    res.json({ letter: result.response.text().trim() });
-  } catch (e) {
-    if (groq) {
-      try {
-        const result = await groq.chat.completions.create({ messages: [{ role: "user", content: prompt }], model: "llama-3.3-70b-versatile" });
-        res.json({ letter: result.choices[0]?.message?.content?.trim() || "Generated fallback cover letter." });
-        return;
-      } catch (err) { }
-    }
-    res.status(500).json({ error: e.message });
+    const letter = extractLetterText(result.response.text());
+    return res.json({ letter, engine: 'gemini', wordCount: letter.split(/\s+/).length });
+  } catch (geminiErr) {
+    console.error('[Cover Letter] Gemini failed:', geminiErr.message);
+  }
+
+  // Attempt 2: Groq fallback
+  if (!groq) {
+    return res.status(503).json({ error: 'AI service temporarily unavailable. Please try again.' });
+  }
+  try {
+    const result = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 600,
+      temperature: 0.7,
+      messages: [
+        { role: 'system', content: 'You are an expert cover letter writer. Output ONLY the letter text — no preamble, no markdown.' },
+        { role: 'user', content: prompt },
+      ],
+    });
+    const letter = extractLetterText(result.choices[0]?.message?.content || '');
+    return res.json({ letter, engine: 'groq', wordCount: letter.split(/\s+/).length });
+  } catch (groqErr) {
+    console.error('[Cover Letter] Groq fallback failed:', groqErr.message);
+    return res.status(503).json({ error: 'Both AI engines are temporarily unavailable. Please try again shortly.' });
   }
 });
+
 
 // -- AI: Tailor Resume to JD --
 app.post('/api/ai/tailor-resume', auth, async (req, res) => {

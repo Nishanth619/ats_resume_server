@@ -1,8 +1,54 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+// ─── Cover Letter Result ───────────────────────────────────────────────────────
+class CoverLetterResult {
+  final String letter;
+  final String engine; // 'gemini' | 'groq' | 'mock'
+  final int wordCount;
+
+  const CoverLetterResult({
+    required this.letter,
+    required this.engine,
+    required this.wordCount,
+  });
+
+  factory CoverLetterResult.fromJson(Map<String, dynamic> json) {
+    final letter = (json['letter'] as String?) ?? '';
+    if (letter.trim().isEmpty) throw const FormatException('Empty letter in response');
+    return CoverLetterResult(
+      letter:    letter,
+      engine:    (json['engine'] as String?) ?? 'unknown',
+      wordCount: (json['wordCount'] as int?) ?? letter.trim().split(RegExp(r'\s+')).length,
+    );
+  }
+}
+
+// ─── Sealed AI Exception hierarchy ────────────────────────────────────────────
+sealed class AiServiceException implements Exception {
+  final String message;
+  const AiServiceException(this.message);
+  @override
+  String toString() => message;
+}
+
+class CoverLetterNetworkException    extends AiServiceException {
+  const CoverLetterNetworkException(super.m);
+}
+class CoverLetterServerException     extends AiServiceException {
+  const CoverLetterServerException(super.m);
+}
+class CoverLetterValidationException extends AiServiceException {
+  const CoverLetterValidationException(super.m);
+}
+class CoverLetterTimeoutException    extends AiServiceException {
+  const CoverLetterTimeoutException(super.m);
+}
+
 
 final aiServiceProvider = Provider<AIService>((ref) => AIService(
   backendUrl: dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:10000',
@@ -88,19 +134,80 @@ class AIService {
     return {};
   }
 
-  Future<String> generateCoverLetter({required String resumeText,
-      required String jd, required String company,
-      required String name}) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/ai/cover-letter'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'resumeText': resumeText, 'jd': jd, 
-        'company': company, 'name': name
-      }),
-    );
-    if (response.statusCode != 200) throw Exception(response.body);
-    return jsonDecode(response.body)['letter'];
+  Future<CoverLetterResult> generateCoverLetter({
+    required String resumeText,
+    required String company,
+    required String name,
+    String? jd,
+  }) async {
+    // Client-side validation before burning an API call
+    if (resumeText.trim().length < 50) {
+      throw const CoverLetterValidationException(
+          'Resume is too short to generate a cover letter. Please add more content first.');
+    }
+    if (company.trim().isEmpty) {
+      throw const CoverLetterValidationException('Company name is required.');
+    }
+    if (name.trim().isEmpty) {
+      throw const CoverLetterValidationException('Your name is required.');
+    }
+
+    late http.Response response;
+    try {
+      response = await http
+          .post(
+            Uri.parse('\$_baseUrl/api/ai/cover-letter'),
+            headers: await _getHeaders(),
+            body: jsonEncode({
+              'resumeText': resumeText.trim(),
+              'company': company.trim(),
+              'name': name.trim(),
+              if (jd != null && jd.trim().isNotEmpty) 'jd': jd.trim(),
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 45),
+            onTimeout: () => throw const CoverLetterTimeoutException(
+                'The AI is taking too long. Please try again.'),
+          );
+    } on CoverLetterTimeoutException {
+      rethrow;
+    } on SocketException {
+      throw const CoverLetterNetworkException(
+          'No internet connection. Check your network and try again.');
+    } catch (e) {
+      if (e is AiServiceException) rethrow;
+      throw CoverLetterNetworkException('Network error: \${e.toString()}');
+    }
+
+    // Safe JSON decode
+    Map<String, dynamic> body;
+    try {
+      body = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw const CoverLetterServerException(
+          'Received an invalid response from the server.');
+    }
+
+    // Per-status error handling
+    if (response.statusCode == 400) {
+      throw CoverLetterValidationException(
+          (body['error'] as String?) ?? 'Invalid request');
+    }
+    if (response.statusCode == 503 || response.statusCode == 502) {
+      throw CoverLetterServerException(
+          (body['error'] as String?) ?? 'AI service unavailable. Please try again shortly.');
+    }
+    if (response.statusCode != 200) {
+      throw CoverLetterServerException(
+          'Server error (\${response.statusCode}). Please try again.');
+    }
+
+    try {
+      return CoverLetterResult.fromJson(body);
+    } on FormatException catch (e) {
+      throw CoverLetterServerException('Could not parse cover letter: \${e.message}');
+    }
   }
 
   Future<TailoredResumeResult> tailorResume({

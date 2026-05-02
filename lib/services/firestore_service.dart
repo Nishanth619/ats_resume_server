@@ -88,14 +88,65 @@ class FirestoreService {
           .doc(appId).delete();
 
   // -- COVER LETTERS --
-  Future<String> saveCoverLetter(String uid, String resumeId, String content, String company) async {
-    final ref = await _db.collection('users').doc(uid)
-        .collection('coverLetters').add({
-      'resumeId': resumeId, 'content': content,
-      'targetCompany': company, 'generatedAt': FieldValue.serverTimestamp()
-    });
-    return ref.id;
+
+  /// Saves a generated cover letter. Never overwrites — always creates a new doc.
+  /// Returns the new Firestore document ID.
+  Future<String> saveCoverLetter({
+    required String uid,
+    required String letter,
+    required String company,
+    String engine  = 'unknown',
+    int    wordCount = 0,
+  }) async {
+    try {
+      final ref = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('coverLetters')
+          .add({
+        'letter':    letter,
+        'company':   company,
+        'engine':    engine,
+        'wordCount': wordCount,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return ref.id;
+    } on FirebaseException catch (e) {
+      switch (e.code) {
+        case 'permission-denied':
+          throw Exception('Permission denied. Please log in again.');
+        case 'unavailable':
+          throw Exception(
+              'Could not save — no connection. Your letter is still shown above.');
+        default:
+          throw Exception('Failed to save cover letter: \${e.message}');
+      }
+    }
   }
+
+  /// Updates the letter text (e.g. after user edits) without creating a new doc.
+  Future<void> updateCoverLetter({
+    required String uid,
+    required String docId,
+    required String letter,
+  }) async {
+    try {
+      await _db
+          .collection('users')
+          .doc(uid)
+          .collection('coverLetters')
+          .doc(docId)
+          .update({
+        'letter':    letter,
+        'wordCount': letter.trim().split(RegExp(r'\s+')).length,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      throw Exception('Failed to update cover letter: \${e.message}');
+    }
+  }
+
 
   Stream<List<Map<String,dynamic>>> coverLettersStream(String uid) =>
       _db.collection('users').doc(uid).collection('coverLetters')
