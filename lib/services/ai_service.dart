@@ -156,7 +156,7 @@ class AIService {
     try {
       response = await http
           .post(
-            Uri.parse('\$_baseUrl/api/ai/cover-letter'),
+            Uri.parse('$_baseUrl/api/ai/cover-letter'),
             headers: await _getHeaders(),
             body: jsonEncode({
               'resumeText': resumeText.trim(),
