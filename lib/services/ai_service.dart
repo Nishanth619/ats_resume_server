@@ -112,7 +112,10 @@ class AIService {
       throw Exception(jsonDecode(response.body)['error']);
     }
     if (response.statusCode != 200) {
-      return ATSResult.empty();
+      // Try to extract a readable error from the server body
+      String msg = 'Analysis failed (server error ${response.statusCode}). Please retry.';
+      try { msg = jsonDecode(response.body)['error'] ?? msg; } catch (_) {}
+      throw Exception(msg);
     }
     return ATSResult.fromJson(jsonDecode(response.body));
   }

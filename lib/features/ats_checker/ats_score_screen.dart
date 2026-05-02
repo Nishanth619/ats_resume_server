@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/ai_service.dart';
+import '../../models/resume_model.dart';
 import '../../providers/resume_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
@@ -40,20 +41,29 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
   Future<void> _run() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
-      if (resume == null) throw Exception('Resume not loaded');
+      // Wait up to 8s for Firestore stream to provide resume data
+      ResumeModel? resume;
+      for (var i = 0; i < 16; i++) {
+        resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
+        if (resume != null) break;
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      if (resume == null) throw Exception('Could not load resume. Please go back and try again.');
       final text = _serialize(resume);
       final result = await ref.read(aiServiceProvider).checkATS(
         text,
         targetJD: resume.targetJD.isNotEmpty ? resume.targetJD : null,
-        sections: resume.sections, // Fix 6: send structured sections
+        sections: resume.sections,
       );
-      await ref
-          .read(resumeNotifierProvider(widget.resumeId).notifier)
-          .updateATSScore(result.score);
+      // Only save score if it is meaningful (> 0)
+      if (result.score > 0) {
+        await ref
+            .read(resumeNotifierProvider(widget.resumeId).notifier)
+            .updateATSScore(result.score);
+      }
       setState(() { _result = result; _loading = false; });
     } catch (e) {
-      setState(() { _error = '$e'; _loading = false; });
+      if (mounted) setState(() { _error = '$e'; _loading = false; });
     }
   }
 
