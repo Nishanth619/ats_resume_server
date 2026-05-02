@@ -155,13 +155,14 @@ class JobTrackerScreen extends ConsumerWidget {
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => StatefulBuilder(
         builder: (ctx2, setState2) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              24, 20, 24, MediaQuery.of(ctx2).viewInsets.bottom + 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx2).viewInsets.bottom),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
                 child: Container(
                     width: 40,
                     height: 4,
