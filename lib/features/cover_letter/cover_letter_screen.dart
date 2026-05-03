@@ -83,8 +83,19 @@ class _CLState extends ConsumerState<CoverLetterScreen>
     });
 
     try {
-      // Wait for resume data
-      final resume = ref.read(resumeNotifierProvider(widget.resumeId));
+      // Wait for resume data robustly
+      ResumeModel? resume = ref.read(resumeNotifierProvider(widget.resumeId));
+      if (resume == null) resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
+      if (resume == null) {
+        if (widget.resumeId == 'new') {
+          throw const CoverLetterValidationException('Cannot generate cover letter for an empty resume. Please save first.');
+        } else {
+          resume = await ref.read(resumeStreamProvider(widget.resumeId).future).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw const CoverLetterValidationException('Resume took too long to load from cloud. Please check your connection.'),
+          );
+        }
+      }
       if (resume == null) {
         throw const CoverLetterValidationException('Could not load resume. Please go back to the editor and try again.');
       }

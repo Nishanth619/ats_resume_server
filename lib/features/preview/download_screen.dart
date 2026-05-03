@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/admob_service.dart';
 import '../../services/pdf_service.dart';
 import '../../providers/resume_provider.dart';
+import '../../models/resume_model.dart';
 
 class DownloadScreen extends ConsumerStatefulWidget {
   final String resumeId;
@@ -37,7 +38,14 @@ class _DLState extends ConsumerState<DownloadScreen> {
     await adSvc.showRewardedAd(
       onRewarded: () async {
         try {
-          final resume = ref.read(resumeNotifierProvider(widget.resumeId));
+          ResumeModel? resume = ref.read(resumeNotifierProvider(widget.resumeId));
+          if (resume == null) resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
+          if (resume == null) {
+            resume = await ref.read(resumeStreamProvider(widget.resumeId).future).timeout(
+              const Duration(seconds: 10),
+              onTimeout: () => throw Exception('Resume took too long to load from cloud.'),
+            );
+          }
           if (resume == null) throw Exception('Could not load resume. Please save and try again.');
           final file = await PDFService().generatePDF(resume);
           

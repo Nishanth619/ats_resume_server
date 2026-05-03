@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/resume_provider.dart';
 import '../../services/pdf_service.dart';
+import '../../models/resume_model.dart';
 
 class ResumePreviewScreen extends ConsumerWidget {
   final String resumeId;
@@ -13,7 +14,14 @@ class ResumePreviewScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Get local state from the editor instantly (includes unsaved changes)
-    final resume = ref.watch(resumeNotifierProvider(resumeId));
+    ResumeModel? resume = ref.watch(resumeNotifierProvider(resumeId));
+    if (resume == null) {
+      final asyncVal = ref.watch(resumeStreamProvider(resumeId));
+      if (asyncVal.isLoading) {
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
+      resume = asyncVal.value;
+    }
 
     if (resume == null) {
       return Scaffold(
