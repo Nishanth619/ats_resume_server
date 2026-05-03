@@ -37,7 +37,8 @@ class _DLState extends ConsumerState<DownloadScreen> {
     await adSvc.showRewardedAd(
       onRewarded: () async {
         try {
-          final resume = ref.read(resumeStreamProvider(widget.resumeId)).value!;
+          final resume = ref.read(resumeNotifierProvider(widget.resumeId));
+          if (resume == null) throw Exception('Could not load resume. Please save and try again.');
           final file = await PDFService().generatePDF(resume);
           
           // Try to increment download count

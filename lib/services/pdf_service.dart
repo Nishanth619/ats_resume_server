@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
@@ -250,6 +251,12 @@ class PDFService {
     final file = File('${dir.path}/${name}_${DateTime.now().millisecondsSinceEpoch}.pdf');
     await file.writeAsBytes(bytes);
     return file;
+  }
+
+  Future<Uint8List> generatePDFBytes(ResumeModel resume) async {
+    final color = _colors[resume.colorTheme] ?? PdfColor.fromInt(0xFF4F46E5);
+    final pdf = _buildNativePdf(resume, color);
+    return await pdf.save();
   }
 
   Future<void> printResume(ResumeModel resume) async {
