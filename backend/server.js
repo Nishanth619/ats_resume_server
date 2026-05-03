@@ -422,11 +422,14 @@ function buildCoverLetterPrompt(name, company, resumeText, jd) {
     ? `\n\nTARGET JOB DESCRIPTION:\n${jd.trim()}`
     : '\n\n(No job description provided — write a compelling general application.)';
 
-  return `You are an expert cover letter writer. Write a professional, personalised cover letter.
+  return `You are an expert cover letter writer. Write a professional, highly detailed, and compelling cover letter.
 
 STRICT RULES:
-- 3 paragraphs: (1) opening hook + role interest, (2) 2-3 specific achievements from resume, (3) closing with call to action
-- Maximum 350 words
+- MUST be exactly 3 well-developed paragraphs. Do not write a short summary.
+- Length: Aim for 250 to 350 words. It MUST NOT be shorter than 200 words.
+- Paragraph 1: Opening hook + strong interest in the role (at least 3 sentences).
+- Paragraph 2: Highlight 2-3 specific, quantified achievements from the resume (at least 4 sentences).
+- Paragraph 3: Closing with a clear call to action (at least 2 sentences).
 - Do NOT use phrases like "I am writing to express my interest" or "Please find attached"
 - Flowing prose only — no bullet points
 - Do NOT add subject line, date, or address block — start directly with "Dear Hiring Team,"
@@ -446,7 +449,16 @@ app.post('/api/ai/cover-letter', auth, validateCoverLetterInput, async (req, res
 
   // Mock mode (no API key)
   if (!process.env.GEMINI_API_KEY) {
-    const mock = `Dear Hiring Team,\n\nI am excited to apply for a position at ${company}. My background in ${resumeText.slice(0, 80)}... makes me an excellent candidate.\n\nThroughout my career I have consistently delivered results. I look forward to contributing to your team.\n\nSincerely,\n${name}`;
+    const mock = `Dear Hiring Team,
+
+I am writing to enthusiastically apply for the position at ${company}. With a strong background and a proven track record of delivering high-quality results, I am confident in my ability to make an immediate and positive impact on your team. I have long admired ${company}’s commitment to innovation and excellence, and I am eager to bring my expertise to support your strategic goals.
+
+Throughout my career, I have consistently demonstrated a commitment to excellence. As highlighted in my resume, I have successfully managed complex projects, collaborated with cross-functional teams, and implemented solutions that significantly improved efficiency. For example, my recent work involved streamlining processes that reduced turnaround times and increased overall productivity. These experiences have equipped me with the technical skills and the problem-solving mindset required to thrive in this role and drive meaningful results for your organization.
+
+I would welcome the opportunity to discuss how my background, skills, and enthusiasm align with the needs of ${company}. Thank you for your time and consideration. I look forward to the possibility of contributing to your continued success.
+
+Sincerely,
+${name}`;
     return res.json({ letter: mock, engine: 'mock', wordCount: mock.split(/\s+/).length });
   }
 
