@@ -12,7 +12,15 @@ class ResumePreviewScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final resumeAsync = ref.watch(resumeStreamProvider(resumeId));
+    // Get local state from the editor instantly (includes unsaved changes)
+    final resume = ref.watch(resumeNotifierProvider(resumeId));
+
+    if (resume == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Preview')),
+        body: const Center(child: Text('Could not load resume. Please save first.')),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -20,24 +28,20 @@ class ResumePreviewScreen extends ConsumerWidget {
         actions: [
           IconButton(icon: const Icon(Icons.print),
             onPressed: () async {
-              final resume = resumeAsync.value;
-              if (resume != null) await PDFService().printResume(resume);
+              await PDFService().printResume(resume);
             }),
           IconButton(icon: const Icon(Icons.share),
             onPressed: () { /* generate share link */ }),
         ],
       ),
-      body: resumeAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e')),
-        data: (resume) => FutureBuilder<File>(
-          future: Future.microtask(() => PDFService().generatePDF(resume)).timeout(const Duration(seconds: 10)),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
+      body: FutureBuilder<File>(
+        future: Future.microtask(() => PDFService().generatePDF(resume)).timeout(const Duration(seconds: 10)),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
                   SizedBox(height: 16),
                   Text('Generating PDF preview...'),
                 ],
@@ -58,8 +62,7 @@ class ResumePreviewScreen extends ConsumerWidget {
                 border: Border.all(color: Colors.grey.shade300),
                 boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)]),
             );
-          },
-        ),
+        },
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(

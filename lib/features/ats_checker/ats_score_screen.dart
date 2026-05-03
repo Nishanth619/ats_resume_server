@@ -40,15 +40,11 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
   Future<void> _run() async {
     setState(() { _loading = true; _error = null; });
     try {
-      // Use .future to properly await the first stream value (with 10s timeout)
-      final resume = ref.read(resumeStreamProvider(widget.resumeId)).value ??
-          await ref
-              .read(resumeStreamProvider(widget.resumeId).future)
-              .timeout(
-                const Duration(seconds: 10),
-                onTimeout: () => throw Exception(
-                    'Resume took too long to load. Please go back and try again.'),
-              );
+      // Instantly get the in-memory resume (which includes unsaved edits)
+      final resume = ref.read(resumeNotifierProvider(widget.resumeId));
+      if (resume == null) {
+        throw Exception('Could not load resume. Please go back to the editor and try again.');
+      }
 
       final text = _serialize(resume);
       final result = await ref.read(aiServiceProvider).checkATS(

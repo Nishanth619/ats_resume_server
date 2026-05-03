@@ -50,8 +50,10 @@ class _JDState extends ConsumerState<JDMatcherScreen>
     }
     setState(() => _loading = true);
     try {
-      final resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
-      if (resume == null) return;
+      final resume = ref.read(resumeNotifierProvider(widget.resumeId));
+      if (resume == null) {
+        throw Exception('Could not load resume. Please go back to the editor and try again.');
+      }
       await ref
           .read(resumeNotifierProvider(widget.resumeId).notifier)
           .updateTargetJD(_jdCtrl.text.trim());

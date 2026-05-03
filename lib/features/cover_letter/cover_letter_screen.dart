@@ -83,12 +83,11 @@ class _CLState extends ConsumerState<CoverLetterScreen>
     });
 
     try {
-      // Wait for resume data (with timeout)
-      final resumeAsync = ref.read(resumeStreamProvider(widget.resumeId));
-      final resume = resumeAsync.value ??
-          await ref
-              .read(resumeStreamProvider(widget.resumeId).future)
-              .timeout(const Duration(seconds: 5));
+      // Wait for resume data
+      final resume = ref.read(resumeNotifierProvider(widget.resumeId));
+      if (resume == null) {
+        throw const CoverLetterValidationException('Could not load resume. Please go back to the editor and try again.');
+      }
 
       final uid  = ref.read(authStateProvider).value?.uid;
       if (uid == null) {
