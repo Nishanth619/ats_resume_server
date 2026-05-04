@@ -412,7 +412,7 @@ const validateCoverLetterInput = (req, res, next) => {
 // Cover Letter: Strip markdown fences, verify minimum length
 function extractLetterText(rawText) {
   const cleaned = rawText.replace(/```[\w]*\n?/g, '').replace(/```/g, '').trim();
-  if (cleaned.length < 100) throw new Error('Response too short to be a valid letter');
+  if (cleaned.length < 500) throw new Error('Response too short. It must be at least 500 characters to be a valid letter.');
   return cleaned;
 }
 
@@ -424,17 +424,17 @@ function buildCoverLetterPrompt(name, company, resumeText, jd) {
 
   return `You are an expert cover letter writer. Write a professional, highly detailed, and compelling cover letter.
 
-STRICT RULES:
-- MUST be exactly 3 well-developed paragraphs. Do not write a short summary.
-- Length: Aim for 250 to 350 words. It MUST NOT be shorter than 200 words.
-- Paragraph 1: Opening hook + strong interest in the role (at least 3 sentences).
-- Paragraph 2: Highlight 2-3 specific, quantified achievements from the resume (at least 4 sentences).
-- Paragraph 3: Closing with a clear call to action (at least 2 sentences).
-- Do NOT use phrases like "I am writing to express my interest" or "Please find attached"
-- Flowing prose only — no bullet points
-- Do NOT add subject line, date, or address block — start directly with "Dear Hiring Team,"
-- End with "Sincerely,\\n${name}"
-- Output ONLY the letter — no explanations, no commentary, no markdown
+CRITICAL RULES:
+- MUST be exactly 3 well-developed paragraphs.
+- Length MUST be between 250 and 350 words. If you generate fewer than 200 words, you have failed.
+- Paragraph 1: Opening hook + strong interest in the role (at least 3 long sentences).
+- Paragraph 2: Highlight 2-3 specific, quantified achievements from the resume (at least 4 long sentences).
+- Paragraph 3: Closing with a clear call to action (at least 3 sentences).
+- Do NOT use phrases like "I am writing to express my interest" or "Please find attached".
+- Flowing prose only — no bullet points.
+- Start directly with "Dear Hiring Team,".
+- End directly with "Sincerely,\\n${name}".
+- Output ONLY the letter text. No explanations or markdown.
 
 CANDIDATE NAME: ${name}
 TARGET COMPANY: ${company}
