@@ -17,9 +17,15 @@ class StorageService {
 
   // Upload Profile Photo
   Future<String> uploadProfilePhoto(String uid, File imageFile) async {
-    final ref = _storage.ref('profiles/$uid.jpg');
-    final task = await ref.putFile(imageFile,
-        SettableMetadata(contentType: 'image/jpeg'));
+    // Use users/{uid}/profile.jpg path — must match Firebase Storage rules
+    final ref = _storage.ref('users/$uid/profile.jpg');
+    final task = await ref.putFile(
+      imageFile,
+      SettableMetadata(
+        contentType: 'image/jpeg',
+        customMetadata: {'uid': uid},
+      ),
+    );
     return task.ref.getDownloadURL();
   }
 

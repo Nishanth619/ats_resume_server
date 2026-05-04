@@ -72,7 +72,7 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
       _showProSheet();
       return;
     }
-    setState(() => _selectedId = t['id']);
+    _showTemplatePreview(t);
   }
 
   void _showProSheet() {
@@ -223,6 +223,130 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showTemplatePreview(Map<String, dynamic> t) {
+    final gradColors = (t['gradient'] as List).map((c) => Color(c as int)).toList();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.92,
+        maxChildSize: 0.96,
+        minChildSize: 0.6,
+        builder: (_, scrollCtrl) => Container(
+          decoration: const BoxDecoration(
+            color: AppColors.surfaceDark,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Container(
+                  width: 44, height: 4,
+                  decoration: BoxDecoration(color: AppColors.borderDark, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                child: Row(
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (b) => LinearGradient(colors: gradColors).createShader(b),
+                      child: Text(t['name'], style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.scoreGreen.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.scoreGreen.withValues(alpha: 0.3)),
+                      ),
+                      child: Text('ATS ${t['ats']}%', style: const TextStyle(color: AppColors.scoreGreen, fontSize: 11, fontWeight: FontWeight.w700)),
+                    ),
+                    const Spacer(),
+                    Text(t['desc'], style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollCtrl,
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 40, offset: const Offset(0, 12))],
+                        ),
+                        child: AspectRatio(
+                          aspectRatio: 1 / 1.414,
+                          child: Container(
+                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
+                            padding: const EdgeInsets.all(20),
+                            child: _FullTemplatePreview(templateId: t['id'], color: gradColors[0]),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textSecondary,
+                          side: const BorderSide(color: AppColors.borderDark),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('Back'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: gradColors),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [BoxShadow(color: gradColors[0].withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 4))],
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            setState(() => _selectedId = t['id']);
+                            context.push('/editor/new?template=${t['id']}');
+                          },
+                          icon: const Icon(Icons.edit_rounded, size: 18, color: Colors.white),
+                          label: const Text('Use This Template',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -517,4 +641,170 @@ class _MiniResumePreview extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Full-detail template preview (for the modal) ─────────────────────────────
+class _FullTemplatePreview extends StatelessWidget {
+  final String templateId;
+  final Color color;
+  const _FullTemplatePreview({required this.templateId, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final isModern = templateId == 'modern' || templateId == 'tech' || templateId == 'pro_startup' || templateId == 'pro_bold';
+    final isMinimal = templateId == 'minimal' || templateId == 'clean' || templateId == 'simple' || templateId == 'academic';
+    final isExec = templateId == 'executive' || templateId == 'pro_elite' || templateId == 'pro_ivy';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header section
+        if (isModern) _modernHeader() else if (isMinimal) _minimalHeader() else _classicHeader(),
+        const SizedBox(height: 10),
+        // Summary
+        _sectionLabel('PROFESSIONAL SUMMARY', isModern, isExec),
+        _textLines(3, 0.95),
+        const SizedBox(height: 8),
+        // Experience
+        _sectionLabel('EXPERIENCE', isModern, isExec),
+        _jobEntry('Senior Product Designer', 'Google Inc.', '2022 – Present'),
+        _jobEntry('UX Designer', 'Meta Platforms', '2020 – 2022'),
+        const SizedBox(height: 8),
+        // Education
+        _sectionLabel('EDUCATION', isModern, isExec),
+        _eduEntry('B.Sc Computer Science', 'Stanford University', '2020'),
+        const SizedBox(height: 8),
+        // Skills
+        _sectionLabel('SKILLS', isModern, isExec),
+        _skillChips(isModern),
+      ],
+    );
+  }
+
+  Widget _classicHeader() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _line(color, 0.55, 5),
+      const SizedBox(height: 3),
+      _line(Colors.black45, 0.4, 2.5),
+      const SizedBox(height: 3),
+      _line(Colors.black26, 0.85, 1),
+    ],
+  );
+
+  Widget _modernHeader() => Container(
+    padding: const EdgeInsets.all(6),
+    decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _line(Colors.white, 0.5, 5),
+        const SizedBox(height: 3),
+        _line(Colors.white70, 0.35, 2.5),
+        const SizedBox(height: 3),
+        _line(Colors.white54, 0.7, 1.5),
+      ],
+    ),
+  );
+
+  Widget _minimalHeader() => Center(
+    child: Column(
+      children: [
+        _line(Colors.black87, 0.45, 5),
+        const SizedBox(height: 3),
+        _line(Colors.black45, 0.6, 2),
+        const SizedBox(height: 3),
+        _line(Colors.black26, 0.8, 1),
+      ],
+    ),
+  );
+
+  Widget _sectionLabel(String label, bool isModern, bool isExec) {
+    if (isModern) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+        child: Text(label, style: TextStyle(color: Colors.white, fontSize: 5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(color: isExec ? color : Colors.black87, fontSize: 5.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          Container(height: 0.5, color: isExec ? color : Colors.black26, margin: const EdgeInsets.only(top: 1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _textLines(int count, double w) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: List.generate(count, (i) => Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: _line(Colors.black26, i == count - 1 ? w * 0.7 : w, 1.5),
+    )),
+  );
+
+  Widget _jobEntry(String title, String company, String dates) => Padding(
+    padding: const EdgeInsets.only(bottom: 5),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(title, style: TextStyle(fontSize: 5.5, fontWeight: FontWeight.bold, color: Colors.black87))),
+            Text(dates, style: TextStyle(fontSize: 4.5, color: Colors.black45)),
+          ],
+        ),
+        const SizedBox(height: 1),
+        Text(company, style: TextStyle(fontSize: 5, color: color, fontStyle: FontStyle.italic)),
+        const SizedBox(height: 2),
+        _line(Colors.black26, 0.9, 1.5),
+        const SizedBox(height: 1.5),
+        _line(Colors.black26, 0.75, 1.5),
+      ],
+    ),
+  );
+
+  Widget _eduEntry(String degree, String school, String year) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(
+      children: [
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(degree, style: TextStyle(fontSize: 5.5, fontWeight: FontWeight.bold, color: Colors.black87)),
+            Text(school, style: TextStyle(fontSize: 5, color: Colors.black54)),
+          ],
+        )),
+        Text(year, style: TextStyle(fontSize: 4.5, color: Colors.black45)),
+      ],
+    ),
+  );
+
+  Widget _skillChips(bool isModern) => Wrap(
+    spacing: 3,
+    runSpacing: 3,
+    children: ['Flutter', 'Dart', 'Firebase', 'UI/UX', 'Figma'].map((s) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: isModern ? color.withAlpha(25) : Colors.black.withAlpha(10),
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: isModern ? color.withAlpha(80) : Colors.black26, width: 0.5),
+      ),
+      child: Text(s, style: TextStyle(fontSize: 5, color: isModern ? color : Colors.black54)),
+    )).toList(),
+  );
+
+  Widget _line(Color c, double w, double h) => FractionallySizedBox(
+    alignment: Alignment.centerLeft,
+    widthFactor: w,
+    child: Container(
+      height: h,
+      decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(h / 2)),
+    ),
+  );
 }
