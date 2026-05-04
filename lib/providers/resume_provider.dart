@@ -26,6 +26,46 @@ final resumeStreamProvider = StreamProvider.family<ResumeModel, String>((ref, id
   return ref.watch(firestoreServiceProvider).resumeStream(user.uid, id);
 });
 
+Future<ResumeModel> fetchResumeRobustly(WidgetRef ref, String id) async {
+  // 1. Check local editor memory
+  ResumeModel? resume = ref.read(resumeNotifierProvider(id));
+  if (resume != null) return resume;
+
+  // 2. Check stream cache
+  resume = ref.read(resumeStreamProvider(id)).value;
+  if (resume != null) return resume;
+
+  // 3. Check dashboard list cache (fixes offline timeout for existing resumes)
+  final list = ref.read(resumeListProvider).value;
+  if (list != null) {
+    try {
+      resume = list.firstWhere((r) => r.id == id);
+      
+      // 🔄 Silently refresh in background so the single-resume stream stays fresh
+      Future.microtask(() async {
+        try {
+          // Reading the future forces the stream to activate and fetch the latest from Firebase
+          await ref.read(resumeStreamProvider(id).future).timeout(const Duration(seconds: 15));
+        } catch (_) {
+          // Silently ignore — user already has their data, this is best-effort
+        }
+      });
+
+      return resume;
+    } catch (_) {}
+  }
+
+  // 4. Await network fetch
+  if (id == 'new') {
+    throw Exception('Cannot load an empty unsaved resume. Please go back and save.');
+  }
+  
+  return await ref.read(resumeStreamProvider(id).future).timeout(
+    const Duration(seconds: 10),
+    onTimeout: () => throw Exception('Resume took too long to load from cloud. Please check your connection.'),
+  );
+}
+
 final resumeNotifierProvider =
     NotifierProvider.family<ResumeNotifier, ResumeModel?, String>(
         ResumeNotifier.new);

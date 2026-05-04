@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/ai_service.dart';
 import '../../providers/resume_provider.dart';
+import '../../models/resume_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 
@@ -40,22 +41,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
   Future<void> _run() async {
     setState(() { _loading = true; _error = null; });
     try {
-      // Wait for resume data robustly
-      ResumeModel? resume = ref.read(resumeNotifierProvider(widget.resumeId));
-      if (resume == null) resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
-      if (resume == null) {
-        if (widget.resumeId == 'new') {
-          throw Exception('Cannot analyze an empty resume. Please save first.');
-        } else {
-          resume = await ref.read(resumeStreamProvider(widget.resumeId).future).timeout(
-            const Duration(seconds: 10),
-            onTimeout: () => throw Exception('Resume took too long to load from cloud. Please check your connection.'),
-          );
-        }
-      }
-      if (resume == null) {
-        throw Exception('Could not load resume. Please go back to the editor and try again.');
-      }
+      final resume = await fetchResumeRobustly(ref, widget.resumeId);
 
       final text = _serialize(resume);
       final result = await ref.read(aiServiceProvider).checkATS(

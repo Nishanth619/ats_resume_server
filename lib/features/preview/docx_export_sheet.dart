@@ -45,8 +45,7 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
     });
 
     try {
-      final resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
-      if (resume == null) throw Exception('Resume not loaded');
+      final resume = await fetchResumeRobustly(ref, widget.resumeId);
       final file = await ref.read(docxServiceProvider).exportToDocx(
         resume,
         onProgress: (p) => setState(() {

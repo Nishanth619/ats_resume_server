@@ -7,6 +7,7 @@ import '../../services/ai_service.dart';
 import '../../services/firestore_service.dart';
 import '../../providers/resume_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../models/resume_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 
@@ -84,21 +85,7 @@ class _CLState extends ConsumerState<CoverLetterScreen>
 
     try {
       // Wait for resume data robustly
-      ResumeModel? resume = ref.read(resumeNotifierProvider(widget.resumeId));
-      if (resume == null) resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
-      if (resume == null) {
-        if (widget.resumeId == 'new') {
-          throw const CoverLetterValidationException('Cannot generate cover letter for an empty resume. Please save first.');
-        } else {
-          resume = await ref.read(resumeStreamProvider(widget.resumeId).future).timeout(
-            const Duration(seconds: 10),
-            onTimeout: () => throw const CoverLetterValidationException('Resume took too long to load from cloud. Please check your connection.'),
-          );
-        }
-      }
-      if (resume == null) {
-        throw const CoverLetterValidationException('Could not load resume. Please go back to the editor and try again.');
-      }
+      final resume = await fetchResumeRobustly(ref, widget.resumeId);
 
       final uid  = ref.read(authStateProvider).value?.uid;
       if (uid == null) {

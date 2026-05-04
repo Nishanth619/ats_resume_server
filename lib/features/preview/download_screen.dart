@@ -23,51 +23,57 @@ class _DLState extends ConsumerState<DownloadScreen> {
     ref.read(adServiceProvider).loadRewardedAd();
   }
 
+  Future<void> _executeDownload() async {
+    try {
+      final resume = await fetchResumeRobustly(ref, widget.resumeId);
+      final file = await PDFService().generatePDF(resume);
+      
+      try {
+         await ref.read(resumeNotifierProvider(widget.resumeId).notifier).incrementDownload();
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() { 
+          _done = true; 
+          _loading = false;
+          _status = 'Resume saved! Check your Downloads folder.\nPath: ${file.path}'; 
+        });
+      }
+    } catch (e) { 
+      if (mounted) {
+        setState(() { _loading = false; _status = 'Error: $e'; }); 
+      }
+    }
+  }
+
   Future<void> _download() async {
     final adSvc = ref.read(adServiceProvider);
+    
+    // If ad is not ready, try loading it once
     if (!adSvc.isRewardedReady) {
-      setState(() => _status = 'Loading ad, please wait...');
+      setState(() => _status = 'Preparing download...');
       await adSvc.loadRewardedAd();
       await Future.delayed(const Duration(seconds: 2));
+      
+      // If the ad network is failing or blocked (no fill), bypass it to ensure UX.
       if (!adSvc.isRewardedReady) {
-        setState(() => _status = 'Ad not available right now. Please try again.'); 
+        setState(() { _loading = true; _status = 'Generating PDF...'; });
+        await _executeDownload();
         return;
       }
     }
+
     setState(() => _loading = true);
     await adSvc.showRewardedAd(
-      onRewarded: () async {
-        try {
-          ResumeModel? resume = ref.read(resumeNotifierProvider(widget.resumeId));
-          if (resume == null) resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
-          if (resume == null) {
-            resume = await ref.read(resumeStreamProvider(widget.resumeId).future).timeout(
-              const Duration(seconds: 10),
-              onTimeout: () => throw Exception('Resume took too long to load from cloud.'),
-            );
-          }
-          if (resume == null) throw Exception('Could not load resume. Please save and try again.');
-          final file = await PDFService().generatePDF(resume);
-          
-          // Try to increment download count
-          try {
-             // In case incrementDownload isn't implemented yet, we don't want it to break the flow
-             await ref.read(resumeNotifierProvider(widget.resumeId).notifier).incrementDownload();
-          } catch (_) {}
-
+      onRewarded: _executeDownload,
+      onFailed: () {
+        if (mounted) {
           setState(() { 
-            _done = true; 
             _loading = false;
-            _status = 'Resume saved! Check your Downloads folder.\nPath: ${file.path}'; 
+            _status = 'Please watch the complete ad to unlock download.'; 
           });
-        } catch (e) { 
-          setState(() { _loading = false; _status = 'Error: $e'; }); 
         }
       },
-      onFailed: () => setState(() { 
-        _loading = false;
-        _status = 'Please watch the complete ad to unlock download.'; 
-      }),
     );
   }
 
