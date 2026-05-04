@@ -120,7 +120,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.primary.withOpacity(0.4),
+                                  color: AppColors.primary.withValues(alpha: 0.4),
                                   blurRadius: 24,
                                   offset: const Offset(0, 8),
                                 ),
@@ -349,7 +349,7 @@ class _LoginBgPainter extends CustomPainter {
     final center = baseCenter + Offset(dx, dy);
     final paint = Paint()
       ..shader = RadialGradient(colors: [
-        color.withOpacity(0.18),
+        color.withValues(alpha: 0.18),
         Colors.transparent
       ]).createShader(
           Rect.fromCircle(center: center, radius: radius));

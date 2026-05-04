@@ -34,7 +34,7 @@ class GlassCard extends StatelessWidget {
         boxShadow: showGlow
             ? [
                 BoxShadow(
-                  color: (glowColor ?? AppColors.primary).withOpacity(0.25),
+                  color: (glowColor ?? AppColors.primary).withValues(alpha: 0.25),
                   blurRadius: 24,
                   spreadRadius: 0,
                   offset: const Offset(0, 4),
@@ -42,7 +42,7 @@ class GlassCard extends StatelessWidget {
               ]
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -121,7 +121,7 @@ class _GradientButtonState extends State<GradientButton>
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.4),
+                color: AppColors.primary.withValues(alpha: 0.4),
                 blurRadius: 20,
                 offset: const Offset(0, 6),
               ),
@@ -291,7 +291,7 @@ class _ScoreRingState extends State<ScoreRing>
                 ),
                 Text('/ 100',
                     style: TextStyle(
-                        color: color.withOpacity(0.6),
+                        color: color.withValues(alpha: 0.6),
                         fontSize: 12,
                         fontWeight: FontWeight.w600)),
               ],

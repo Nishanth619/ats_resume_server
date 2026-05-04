@@ -4,13 +4,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/resume_model.dart';
 
 final docxServiceProvider = Provider<DocxExportService>((ref) => DocxExportService());
 
 class DocxExportService {
-  static const String _backendUrl = 'https://your-backend.onrender.com';
   final _dio = Dio();
+
+  String get _backendUrl => dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:10000';
 
   /// Export resume as .docx — returns File path on success.
   /// [onProgress] callback receives 0.0 → 1.0 as download progresses.
@@ -67,3 +69,4 @@ class DocxExportService {
     }
   }
 }
+

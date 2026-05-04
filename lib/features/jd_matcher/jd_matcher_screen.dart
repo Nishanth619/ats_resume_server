@@ -133,7 +133,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                      color: AppColors.accent.withOpacity(0.4),
+                      color: AppColors.accent.withValues(alpha: 0.4),
                       blurRadius: 30)
                 ],
               ),
@@ -334,11 +334,11 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                                         horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: AppColors.scoreGreen
-                                          .withOpacity(0.1),
+                                          .withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(6),
                                       border: Border.all(
                                           color: AppColors.scoreGreen
-                                              .withOpacity(0.3)),
+                                              .withValues(alpha: 0.3)),
                                     ),
                                     child: Text(k,
                                         style: const TextStyle(
@@ -386,11 +386,11 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                                         horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color:
-                                          AppColors.scoreRed.withOpacity(0.1),
+                                          AppColors.scoreRed.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(6),
                                       border: Border.all(
                                           color: AppColors.scoreRed
-                                              .withOpacity(0.3)),
+                                              .withValues(alpha: 0.3)),
                                     ),
                                     child: Text('+ $k',
                                         style: const TextStyle(
@@ -454,7 +454,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                     Container(
                       width: 44, height: 44,
                       decoration: BoxDecoration(
-                        color: AppColors.scoreGreen.withOpacity(0.15),
+                        color: AppColors.scoreGreen.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Center(child: Text('✅', style: TextStyle(fontSize: 22))),

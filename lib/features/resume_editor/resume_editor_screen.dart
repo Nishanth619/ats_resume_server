@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../providers/resume_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/shared_widgets.dart';
+import '../../../services/pdf_service.dart';
+import 'package:printing/printing.dart';
 
 import 'sections/personal_info_section.dart';
 import 'sections/experience_section.dart';
@@ -15,7 +17,8 @@ import 'sections/certifications_section.dart';
 
 class ResumeEditorScreen extends ConsumerStatefulWidget {
   final String resumeId;
-  const ResumeEditorScreen({super.key, required this.resumeId});
+  final String? initialTemplate;
+  const ResumeEditorScreen({super.key, required this.resumeId, this.initialTemplate});
   
   @override
   ConsumerState<ResumeEditorScreen> createState() => _State();
@@ -32,6 +35,16 @@ class _State extends ConsumerState<ResumeEditorScreen> {
     _autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (_dirty) _save();
     });
+    
+    if (widget.resumeId == 'new' && widget.initialTemplate != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Just delay slightly to ensure the stream provider has emitted the initial 'new' resume
+        Future.delayed(const Duration(milliseconds: 100), () {
+          ref.read(resumeNotifierProvider(widget.resumeId).notifier)
+             .setTemplate(widget.initialTemplate!);
+        });
+      });
+    }
   }
 
   @override
@@ -64,13 +77,13 @@ class _State extends ConsumerState<ResumeEditorScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: _dirty 
-                    ? AppColors.scoreOrange.withOpacity(0.15) 
-                    : AppColors.scoreGreen.withOpacity(0.15),
+                    ? AppColors.scoreOrange.withValues(alpha: 0.15) 
+                    : AppColors.scoreGreen.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: _dirty 
-                      ? AppColors.scoreOrange.withOpacity(0.3) 
-                      : AppColors.scoreGreen.withOpacity(0.3),
+                      ? AppColors.scoreOrange.withValues(alpha: 0.3) 
+                      : AppColors.scoreGreen.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -115,59 +128,93 @@ class _State extends ConsumerState<ResumeEditorScreen> {
           child: CircularProgressIndicator(color: AppColors.primaryLight)),
         error: (e, _) => Center(
           child: Text('Error: $e', style: const TextStyle(color: AppColors.textSecondary))),
-        data: (resume) => ListView(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
-          children: [
-            PersonalInfoSection(
-              resumeId: widget.resumeId,
-              data: Map<String,dynamic>.from(resume.sections['personal'] ?? {}),
-              onChanged: (d) {
-                ref.read(resumeNotifierProvider(widget.resumeId).notifier)
-                    .updateSection('personal', d);
-                _onChanged();
-              }),
-            const SizedBox(height: 16),
-            ExperienceSection(
-              data: List<Map<String,dynamic>>.from(resume.sections['experience'] ?? []),
-              targetRole: resume.targetRole,
-              onChanged: (d) {
-                ref.read(resumeNotifierProvider(widget.resumeId).notifier)
-                    .updateSection('experience', d);
-                _onChanged();
-              }),
-            const SizedBox(height: 16),
-            EducationSection(
-              data: List<Map<String,dynamic>>.from(resume.sections['education'] ?? []),
-              onChanged: (d) {
-                ref.read(resumeNotifierProvider(widget.resumeId).notifier)
-                    .updateSection('education', d);
-                _onChanged();
-              }),
-            const SizedBox(height: 16),
-            SkillsSection(
-              data: List<String>.from(resume.sections['skills'] ?? []),
-              onChanged: (d) {
-                ref.read(resumeNotifierProvider(widget.resumeId).notifier)
-                    .updateSection('skills', d);
-                _onChanged();
-              }),
-            const SizedBox(height: 16),
-            ProjectsSection(
-              data: List<Map<String,dynamic>>.from(resume.sections['projects'] ?? []),
-              onChanged: (d) {
-                ref.read(resumeNotifierProvider(widget.resumeId).notifier)
-                    .updateSection('projects', d);
-                _onChanged();
-              }),
-            const SizedBox(height: 16),
-            CertificationsSection(
-              data: List<Map<String,dynamic>>.from(resume.sections['certifications'] ?? []),
-              onChanged: (d) {
-                ref.read(resumeNotifierProvider(widget.resumeId).notifier)
-                    .updateSection('certifications', d);
-                _onChanged();
-              }),
-          ]),
+        data: (resume) => LayoutBuilder(
+          builder: (context, constraints) {
+            final editor = ListView(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+              children: [
+                PersonalInfoSection(
+                  resumeId: widget.resumeId,
+                  data: Map<String,dynamic>.from(resume.sections['personal'] ?? {}),
+                  onChanged: (d) {
+                    ref.read(resumeNotifierProvider(widget.resumeId).notifier)
+                        .updateSection('personal', d);
+                    _onChanged();
+                  }),
+                const SizedBox(height: 16),
+                ExperienceSection(
+                  data: List<Map<String,dynamic>>.from(resume.sections['experience'] ?? []),
+                  targetRole: resume.targetRole,
+                  onChanged: (d) {
+                    ref.read(resumeNotifierProvider(widget.resumeId).notifier)
+                        .updateSection('experience', d);
+                    _onChanged();
+                  }),
+                const SizedBox(height: 16),
+                EducationSection(
+                  data: List<Map<String,dynamic>>.from(resume.sections['education'] ?? []),
+                  onChanged: (d) {
+                    ref.read(resumeNotifierProvider(widget.resumeId).notifier)
+                        .updateSection('education', d);
+                    _onChanged();
+                  }),
+                const SizedBox(height: 16),
+                SkillsSection(
+                  data: List<String>.from(resume.sections['skills'] ?? []),
+                  onChanged: (d) {
+                    ref.read(resumeNotifierProvider(widget.resumeId).notifier)
+                        .updateSection('skills', d);
+                    _onChanged();
+                  }),
+                const SizedBox(height: 16),
+                ProjectsSection(
+                  data: List<Map<String,dynamic>>.from(resume.sections['projects'] ?? []),
+                  onChanged: (d) {
+                    ref.read(resumeNotifierProvider(widget.resumeId).notifier)
+                        .updateSection('projects', d);
+                    _onChanged();
+                  }),
+                const SizedBox(height: 16),
+                CertificationsSection(
+                  data: List<Map<String,dynamic>>.from(resume.sections['certifications'] ?? []),
+                  onChanged: (d) {
+                    ref.read(resumeNotifierProvider(widget.resumeId).notifier)
+                        .updateSection('certifications', d);
+                    _onChanged();
+                  }),
+              ]);
+
+            if (constraints.maxWidth > 800) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(flex: 1, child: editor),
+                  const VerticalDivider(width: 1, color: AppColors.borderDark),
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      color: AppColors.surfaceDark,
+                      child: PdfPreview(
+                        build: (format) async => await PDFService().generatePDFBytes(resume),
+                        allowPrinting: false,
+                        allowSharing: false,
+                        canChangePageFormat: false,
+                        canChangeOrientation: false,
+                        pdfPreviewPageDecoration: BoxDecoration(
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return editor;
+          },
+        ),
       ),
       floatingActionButton: Container(
         decoration: BoxDecoration(
@@ -175,7 +222,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.4),
+              color: AppColors.primary.withValues(alpha: 0.4),
               blurRadius: 20,
               offset: const Offset(0, 6),
             ),

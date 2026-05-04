@@ -134,7 +134,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.5),
+                    color: AppColors.primary.withValues(alpha: 0.5),
                     blurRadius: 30,
                   ),
                 ],
@@ -241,9 +241,9 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
+                    color: color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(50),
-                    border: Border.all(color: color.withOpacity(0.3), width: 1),
+                    border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
                   ),
                   child: Text(label,
                       style: TextStyle(
@@ -377,7 +377,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                         Container(
                           width: 28, height: 28,
                           decoration: BoxDecoration(
-                            color: AppColors.scoreGreen.withOpacity(0.15),
+                            color: AppColors.scoreGreen.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Center(child: Text('✅', style: TextStyle(fontSize: 13))),
@@ -416,7 +416,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                         Container(
                           width: 28, height: 28,
                           decoration: BoxDecoration(
-                            color: AppColors.scoreOrange.withOpacity(0.15),
+                            color: AppColors.scoreOrange.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Center(child: Text('🔧', style: TextStyle(fontSize: 13))),
@@ -516,7 +516,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                         Container(
                           width: 36, height: 36,
                           decoration: BoxDecoration(
-                            color: AppColors.scoreOrange.withOpacity(0.15),
+                            color: AppColors.scoreOrange.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Center(child: Text('⚠️', style: TextStyle(fontSize: 16))),
@@ -578,9 +578,9 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                     .map((k) => Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: AppColors.scoreRed.withOpacity(0.1),
+                            color: AppColors.scoreRed.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.scoreRed.withOpacity(0.3), width: 1),
+                            border: Border.all(color: AppColors.scoreRed.withValues(alpha: 0.3), width: 1),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -612,9 +612,9 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                     .map((k) => Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: AppColors.scoreGreen.withOpacity(0.1),
+                            color: AppColors.scoreGreen.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.scoreGreen.withOpacity(0.3), width: 1),
+                            border: Border.all(color: AppColors.scoreGreen.withValues(alpha: 0.3), width: 1),
                           ),
                           child: Text(k, style: const TextStyle(color: AppColors.scoreGreen, fontSize: 12, fontWeight: FontWeight.w600)),
                         ))
@@ -631,9 +631,9 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Text(text,
           style: TextStyle(

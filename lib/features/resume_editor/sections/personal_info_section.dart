@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../services/ai_service.dart';
+import '../../../services/storage_service.dart';
 import '../../../providers/resume_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../core/constants/app_colors.dart';
 
 class PersonalInfoSection extends ConsumerStatefulWidget {
   final String resumeId;
@@ -21,6 +26,7 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection> with Automat
   late Map<String, dynamic> _data;
   late TextEditingController _summaryController;
   bool _isGeneratingSummary = false;
+  bool _isUploadingPhoto = false;
 
   @override
   void initState() {
@@ -40,6 +46,30 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection> with Automat
     widget.onChanged(_data);
   }
   
+  Future<void> _pickAndUploadPhoto() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (picked == null) return;
+
+    final user = ref.read(authStateProvider).value;
+    if (user == null) return;
+
+    setState(() => _isUploadingPhoto = true);
+    try {
+      final file = File(picked.path);
+      final url = await ref.read(storageServiceProvider).uploadProfilePhoto(user.uid, file);
+      _update('photoUrl', url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload photo: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
+    }
+  }
+
   Future<void> _generateSummary() async {
     final resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
     if (resume == null) return;
@@ -84,11 +114,33 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection> with Automat
           Padding(
             padding: const EdgeInsets.all(12),
             child: Column(children: [
-              TextFormField(
-                initialValue: _data['name'] ?? '',
-                decoration: const InputDecoration(labelText: 'Full Name',
-                    border: OutlineInputBorder()),
-                onChanged: (v) => _update('name', v),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: _pickAndUploadPhoto,
+                    child: CircleAvatar(
+                      radius: 36,
+                      backgroundColor: AppColors.surfaceDark,
+                      backgroundImage: _data['photoUrl'] != null && _data['photoUrl'].toString().isNotEmpty
+                          ? NetworkImage(_data['photoUrl'])
+                          : null,
+                      child: _isUploadingPhoto
+                          ? const CircularProgressIndicator()
+                          : _data['photoUrl'] == null || _data['photoUrl'].toString().isEmpty
+                              ? const Icon(Icons.add_a_photo_rounded, color: AppColors.textSecondary)
+                              : null,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: _data['name'] ?? '',
+                      decoration: const InputDecoration(labelText: 'Full Name',
+                          border: OutlineInputBorder()),
+                      onChanged: (v) => _update('name', v),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               Row(children: [

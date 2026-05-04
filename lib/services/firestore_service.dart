@@ -32,6 +32,7 @@ class FirestoreService {
   Stream<ResumeModel> resumeStream(String uid, String resumeId) =>
       _db.collection('users').doc(uid).collection('resumes').doc(resumeId)
           .snapshots()
+          .where((s) => s.exists && s.data() != null)
           .map((s) => ResumeModel.fromJson({'id': s.id, ...s.data()!}));
 
   Future<String> createResume(String uid, ResumeModel resume) async {

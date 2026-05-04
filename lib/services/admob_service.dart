@@ -2,9 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 final adServiceProvider = Provider<AdMobService>((ref) =>
-  AdMobService()..loadRewardedAd());
+  AdMobService()..loadRewardedAd()..loadInterstitialAd());
   
 final bannerAdProvider = Provider<Widget?>((ref) {
   final svc = ref.watch(adServiceProvider);
@@ -20,19 +21,19 @@ class AdMobService {
 
   static String get _rewardedId => Platform.isAndroid
       ? (const bool.fromEnvironment('dart.vm.product')
-          ? 'ca-app-pub-REAL_ANDROID_ID/REWARDED'
+          ? (dotenv.env['ADMOB_ANDROID_REWARDED'] ?? 'ca-app-pub-3940256099942544/5224354917')
           : 'ca-app-pub-3940256099942544/5224354917')
       : (const bool.fromEnvironment('dart.vm.product')
-          ? 'ca-app-pub-REAL_IOS_ID/REWARDED'
+          ? (dotenv.env['ADMOB_IOS_REWARDED'] ?? 'ca-app-pub-3940256099942544/1712485313')
           : 'ca-app-pub-3940256099942544/1712485313');
           
   static String get _bannerId => Platform.isAndroid
-      ? 'ca-app-pub-3940256099942544/6300978111' 
-      : 'ca-app-pub-3940256099942544/2934735716';
+      ? (const bool.fromEnvironment('dart.vm.product') ? (dotenv.env['ADMOB_ANDROID_BANNER'] ?? 'ca-app-pub-3940256099942544/6300978111') : 'ca-app-pub-3940256099942544/6300978111') 
+      : (const bool.fromEnvironment('dart.vm.product') ? (dotenv.env['ADMOB_IOS_BANNER'] ?? 'ca-app-pub-3940256099942544/2934735716') : 'ca-app-pub-3940256099942544/2934735716');
       
   static String get _interstitialId => Platform.isAndroid
-      ? 'ca-app-pub-3940256099942544/1033173712' 
-      : 'ca-app-pub-3940256099942544/4411468910';
+      ? (const bool.fromEnvironment('dart.vm.product') ? (dotenv.env['ADMOB_ANDROID_INTERSTITIAL'] ?? 'ca-app-pub-3940256099942544/1033173712') : 'ca-app-pub-3940256099942544/1033173712') 
+      : (const bool.fromEnvironment('dart.vm.product') ? (dotenv.env['ADMOB_IOS_INTERSTITIAL'] ?? 'ca-app-pub-3940256099942544/4411468910') : 'ca-app-pub-3940256099942544/4411468910');
 
   Future<void> loadRewardedAd() async {
     await RewardedAd.load(adUnitId: _rewardedId, request: const AdRequest(),

@@ -1,4 +1,4 @@
-package com.example.ats_resume_builder
+package com.atsai.resume
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -100,6 +100,23 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       versions: state!.versions,
     );
   }
+
+  void setTemplate(String templateId) {
+    if (state == null) return;
+    state = ResumeModel(
+      id: state!.id,
+      title: state!.title,
+      templateId: templateId,
+      colorTheme: state!.colorTheme,
+      atsScore: state!.atsScore,
+      sections: state!.sections,
+      targetRole: state!.targetRole,
+      targetJD: state!.targetJD,
+      lastEdited: DateTime.now(),
+      downloadCount: state!.downloadCount,
+      versions: state!.versions,
+    );
+  }
   
   Future<void> updateTargetJD(String jd) async {
     if (state == null) return;

@@ -43,7 +43,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
       GoRoute(path: '/templates', builder: (_, __) => const TemplatePickerScreen()),
       GoRoute(path: '/editor/:id', builder: (_, s) =>
-          ResumeEditorScreen(resumeId: s.pathParameters['id']!)),
+          ResumeEditorScreen(
+            resumeId: s.pathParameters['id']!,
+            initialTemplate: s.uri.queryParameters['template'],
+          )),
       GoRoute(path: '/ats/:id', builder: (_, s) =>
           ATSScoreScreen(resumeId: s.pathParameters['id']!)),
       GoRoute(path: '/jd/:id', builder: (_, s) =>

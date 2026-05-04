@@ -132,10 +132,8 @@ class AIService {
     return KeywordMatchResult.fromJson(jsonDecode(response.body));
   }
 
-  Future<Map<String, dynamic>> importFromLinkedIn(String url) async {
-    // Stub for LinkedIn import
-    return {};
-  }
+  // LinkedIn import is handled by linkedin_service.dart — see that file for the real implementation.
+
 
   Future<CoverLetterResult> generateCoverLetter({
     required String resumeText,

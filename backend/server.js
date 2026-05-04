@@ -10,8 +10,11 @@ const AdmZip = require('adm-zip');
 const { parse } = require('csv-parse/sync');
 const multer = require('multer');
 const axios = require('axios');
+const helmet = require('helmet');
+const { Document, Packer, Paragraph, TextRun, HeadingLevel } = require('docx');
 
 const app = express();
+app.use(helmet());
 app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || '*' }));
 app.use(express.json({ limit: '5mb' }));
 const port = process.env.PORT || 10000;
@@ -204,24 +207,21 @@ function withTimeout(promise, ms = 30000) {
   ]);
 }
 
-// ─── 8. Auth Middleware (kept as-is for testing) ──────────────────────────────
+// ─── 8. Auth Middleware ───────────────────────────────────────────────────────
 const auth = async (req, res, next) => {
   const token = req.headers.authorization?.split('Bearer ')[1];
-  if (!token) return res.status(401).json({ error: 'No token' });
+  if (!token) return res.status(401).json({ error: 'No token provided.' });
   try {
     req.user = await admin.auth().verifyIdToken(token);
     next();
   } catch (error) {
     console.error("Auth Error:", error.code);
-    // TEMPORARY: Allow through for testing — remove before go-live
-    req.user = { uid: 'auth_failed_but_allowed' };
-    next();
+    return res.status(401).json({ error: 'Invalid or expired token. Please sign in again.' });
   }
 };
 
-// ─── 9. Rate Limiter (kept bypassed for testing) ──────────────────────────────
+// ─── 9. Rate Limiter ─────────────────────────────────────────────────────────
 const rateLimit = async (uid, isPro, limit = 3) => {
-  return true; // TEMPORARY BYPASS — remove this line before go-live
   if (isPro) return true;
   if (!db) return true;
   const today = new Date().toISOString().split('T')[0];
@@ -759,6 +759,83 @@ app.get('/api/linkedin/callback', async (req, res) => {
   } catch (err) {
     console.error('[linkedin-oauth] Error:', err.response?.data || err.message);
     res.redirect('atsresumebuilder://linkedin-callback?error=server_error');
+  }
+});
+
+// ─── Export DOCX ───────────────────────────────────────────────────────────────
+app.post('/api/export/docx', auth, async (req, res) => {
+  try {
+    const resume = req.body;
+    if (!resume || !resume.sections) return res.status(400).json({ error: 'Missing resume data.' });
+
+    const p = resume.sections.personal || {};
+    const exp = resume.sections.experience || [];
+    const edu = resume.sections.education || [];
+    const skills = resume.sections.skills || [];
+
+    const docChildren = [];
+
+    // Personal Info
+    docChildren.push(new Paragraph({ text: (p.name || 'Untitled').toUpperCase(), heading: HeadingLevel.HEADING_1 }));
+    
+    const contactInfo = [p.email, p.phone, p.location, p.linkedin].filter(Boolean).join(' | ');
+    if (contactInfo) {
+      docChildren.push(new Paragraph({ text: contactInfo }));
+    }
+    
+    if (p.summary) {
+      docChildren.push(new Paragraph({ text: 'Professional Summary', heading: HeadingLevel.HEADING_2 }));
+      docChildren.push(new Paragraph({ text: p.summary }));
+    }
+
+    // Experience
+    if (exp.length > 0) {
+      docChildren.push(new Paragraph({ text: 'Experience', heading: HeadingLevel.HEADING_2 }));
+      exp.forEach(e => {
+        docChildren.push(new Paragraph({
+          children: [
+            new TextRun({ text: e.title || '', bold: true }),
+            new TextRun({ text: ' — ' + (e.company || '') }),
+          ]
+        }));
+        if (e.dates) docChildren.push(new Paragraph({ text: e.dates }));
+        if (e.description) docChildren.push(new Paragraph({ text: e.description }));
+      });
+    }
+
+    // Education
+    if (edu.length > 0) {
+      docChildren.push(new Paragraph({ text: 'Education', heading: HeadingLevel.HEADING_2 }));
+      edu.forEach(e => {
+        docChildren.push(new Paragraph({
+          children: [
+            new TextRun({ text: e.degree || '', bold: true }),
+            new TextRun({ text: ' — ' + (e.institution || '') }),
+          ]
+        }));
+        if (e.year) docChildren.push(new Paragraph({ text: e.year }));
+      });
+    }
+
+    // Skills
+    if (skills.length > 0) {
+      docChildren.push(new Paragraph({ text: 'Skills', heading: HeadingLevel.HEADING_2 }));
+      const skillsText = skills.map(s => (typeof s === 'string' ? s : JSON.stringify(s))).join(', ');
+      docChildren.push(new Paragraph({ text: skillsText }));
+    }
+
+    const doc = new Document({
+      sections: [{ properties: {}, children: docChildren }]
+    });
+
+    const buffer = await Packer.toBuffer(doc);
+    
+    res.setHeader('Content-Disposition', 'attachment; filename=resume.docx');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.send(buffer);
+  } catch (err) {
+    console.error('[export-docx] Error:', err.message);
+    res.status(500).json({ error: 'Failed to generate DOCX document.' });
   }
 });
 

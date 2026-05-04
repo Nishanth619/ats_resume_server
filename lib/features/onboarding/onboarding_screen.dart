@@ -221,7 +221,7 @@ class _PageContent extends StatelessWidget {
               borderRadius: BorderRadius.circular(36),
               boxShadow: [
                 BoxShadow(
-                  color: page.glowColor.withOpacity(0.4),
+                  color: page.glowColor.withValues(alpha: 0.4),
                   blurRadius: 40,
                   spreadRadius: 0,
                 ),
@@ -277,7 +277,7 @@ class _OrbPainter extends CustomPainter {
     final y = size.height * 0.2 + math.cos(t * 2 * math.pi) * 40;
     final paint = Paint()
       ..shader = RadialGradient(colors: [
-        color.withOpacity(0.15),
+        color.withValues(alpha: 0.15),
         Colors.transparent
       ]).createShader(Rect.fromCircle(
           center: Offset(x, y), radius: 200));
@@ -287,7 +287,7 @@ class _OrbPainter extends CustomPainter {
     final y2 = size.height * 0.75 + math.sin(t * 2 * math.pi) * 30;
     final paint2 = Paint()
       ..shader = RadialGradient(colors: [
-        color.withOpacity(0.10),
+        color.withValues(alpha: 0.10),
         Colors.transparent
       ]).createShader(Rect.fromCircle(
           center: Offset(x2, y2), radius: 150));

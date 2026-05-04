@@ -88,23 +88,90 @@ class JobTrackerScreen extends ConsumerWidget {
                     child: CircularProgressIndicator(
                         color: AppColors.primaryLight)),
               ),
-              error: (e, _) => Center(
-                  child: Text('Error: $e',
-                      style:
-                          const TextStyle(color: AppColors.textSecondary))),
+              error: (e, _) => SizedBox(
+                height: 400,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('💼', style: TextStyle(fontSize: 48)),
+                      const SizedBox(height: 16),
+                      Text('Could not load applications',
+                          style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      Text('$e',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: AppColors.textMuted, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
               data: (rawList) {
-                final apps = rawList
-                    .map((m) =>
-                        ApplicationModel.fromMap(m['id'] as String, m))
-                    .toList();
+                // Safely parse each application — skip malformed docs
+                final apps = <ApplicationModel>[];
+                for (final m in rawList) {
+                  try {
+                    apps.add(ApplicationModel.fromMap(
+                        m['id'] as String? ?? '', m));
+                  } catch (_) {
+                    // Skip malformed documents
+                  }
+                }
+
+                if (apps.isEmpty) {
+                  return SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              gradient: AppColors.accentGradient,
+                              borderRadius: BorderRadius.circular(28),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.accent.withValues(alpha: 0.3),
+                                  blurRadius: 30,
+                                ),
+                              ],
+                            ),
+                            child: const Center(
+                              child: Text('💼', style: TextStyle(fontSize: 44)),
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          const Text('No applications yet',
+                              style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Start tracking your job applications\nby tapping the + button above.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 14,
+                                height: 1.6),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
                 return Column(
                   children: [
                     _StatsBar(apps: apps),
-                    // LayoutBuilder gives us a bounded height — avoids grey
-                    // screen when keyboard opens/closes or MediaQuery shifts
                     LayoutBuilder(
                       builder: (ctx2, constraints) {
-                        // Remaining screen height after stats bar (~90) + appbar (~56)
                         final columnH =
                             MediaQuery.of(ctx2).size.height - 56 - 90 - 48;
                         return SizedBox(
@@ -202,7 +269,7 @@ class JobTrackerScreen extends ConsumerWidget {
                             horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           color: selected
-                              ? cfg.accent.withOpacity(0.15)
+                              ? cfg.accent.withValues(alpha: 0.15)
                               : AppColors.cardDark2,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
@@ -366,7 +433,7 @@ class _KanbanColumnState extends State<_KanbanColumn> {
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
           color: _isDragOver
-              ? cfg.accent.withOpacity(0.08)
+              ? cfg.accent.withValues(alpha: 0.08)
               : AppColors.cardDark,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
@@ -375,7 +442,7 @@ class _KanbanColumnState extends State<_KanbanColumn> {
           boxShadow: _isDragOver
               ? [
                   BoxShadow(
-                      color: cfg.accent.withOpacity(0.2),
+                      color: cfg.accent.withValues(alpha: 0.2),
                       blurRadius: 16)
                 ]
               : null,
@@ -386,12 +453,12 @@ class _KanbanColumnState extends State<_KanbanColumn> {
             Container(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
               decoration: BoxDecoration(
-                color: cfg.accent.withOpacity(0.12),
+                color: cfg.accent.withValues(alpha: 0.12),
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(19)),
                 border: Border(
                     bottom: BorderSide(
-                        color: cfg.accent.withOpacity(0.3), width: 1)),
+                        color: cfg.accent.withValues(alpha: 0.3), width: 1)),
               ),
               child: Row(
                 children: [
@@ -409,7 +476,7 @@ class _KanbanColumnState extends State<_KanbanColumn> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: cfg.accent.withOpacity(0.2),
+                      color: cfg.accent.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text('${widget.apps.length}',
@@ -511,7 +578,7 @@ class _CardContent extends StatelessWidget {
         boxShadow: isFloating
             ? [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.black.withValues(alpha: 0.4),
                     blurRadius: 16,
                     offset: const Offset(0, 6))
               ]

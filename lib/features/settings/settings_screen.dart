@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/auth_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
@@ -11,6 +13,8 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).value;
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = themeMode == ThemeMode.dark;
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -74,18 +78,29 @@ class SettingsScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: 28),
+            _SectionLabel(label: 'Appearance'),
+            _SettingsTile(
+              icon: isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+              label: 'Theme',
+              subtitle: isDark ? 'Dark mode' : 'Light mode',
+              trailing: Switch.adaptive(
+                value: isDark,
+                activeColor: AppColors.primaryLight,
+                onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
+              ),
+              onTap: () => ref.read(themeModeProvider.notifier).toggle(),
+            ),
+
+            const SizedBox(height: 20),
             _SectionLabel(label: 'Account'),
             _SettingsTile(
               icon: Icons.person_outline_rounded,
               label: 'Account Information',
-              subtitle: 'Manage your profile details',
-              onTap: () {},
-            ),
-            _SettingsTile(
-              icon: Icons.notifications_outlined,
-              label: 'Notifications',
-              subtitle: 'Push and email preferences',
-              onTap: () {},
+              subtitle: user?.email ?? 'Manage your profile',
+              onTap: () {
+                // Show account info bottom sheet
+                _showAccountInfo(context, user);
+              },
             ),
 
             const SizedBox(height: 20),
@@ -93,25 +108,33 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsTile(
               icon: Icons.privacy_tip_outlined,
               label: 'Privacy Policy',
-              onTap: () {},
+              onTap: () => _launchUrl('https://ats-resume-builder.app/privacy'),
             ),
             _SettingsTile(
               icon: Icons.description_outlined,
               label: 'Terms of Service',
-              onTap: () {},
+              onTap: () => _launchUrl('https://ats-resume-builder.app/terms'),
             ),
 
             const SizedBox(height: 20),
             _SectionLabel(label: 'Support'),
             _SettingsTile(
               icon: Icons.help_outline_rounded,
-              label: 'Help Center',
-              onTap: () {},
+              label: 'Help & FAQ',
+              subtitle: 'Get help with the app',
+              onTap: () => _launchUrl('mailto:support@ats-resume-builder.app?subject=Help%20Request'),
             ),
             _SettingsTile(
               icon: Icons.star_outline_rounded,
               label: 'Rate the App',
-              onTap: () {},
+              subtitle: 'Love ATS.ai? Leave a review',
+              onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=com.atsai.resume'),
+            ),
+            _SettingsTile(
+              icon: Icons.share_rounded,
+              label: 'Share with Friends',
+              subtitle: 'Help others land their dream job',
+              onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=com.atsai.resume'),
             ),
 
             const SizedBox(height: 32),
@@ -131,10 +154,10 @@ class SettingsScreen extends ConsumerWidget {
                     child: Container(
                       height: 50,
                       decoration: BoxDecoration(
-                        color: AppColors.scoreRed.withOpacity(0.1),
+                        color: AppColors.scoreRed.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: AppColors.scoreRed.withOpacity(0.3),
+                            color: AppColors.scoreRed.withValues(alpha: 0.3),
                             width: 1),
                       ),
                       child: const Row(
@@ -163,6 +186,48 @@ class SettingsScreen extends ConsumerWidget {
                     color: AppColors.textMuted,
                     fontSize: 12,
                     height: 1.6)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _showAccountInfo(BuildContext context, dynamic user) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.cardDark,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: AppColors.borderDark,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 24),
+            const Text('Account Details',
+                style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800)),
+            const SizedBox(height: 20),
+            _InfoRow(label: 'Name', value: user?.displayName ?? 'Not set'),
+            _InfoRow(label: 'Email', value: user?.email ?? 'Unknown'),
+            _InfoRow(label: 'UID', value: user?.uid?.substring(0, 12) ?? '—'),
+            _InfoRow(label: 'Plan', value: 'Free'),
           ],
         ),
       ),
@@ -225,6 +290,34 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+          const Spacer(),
+          Text(value,
+              style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionLabel extends StatelessWidget {
   final String label;
   const _SectionLabel({required this.label});
@@ -248,12 +341,14 @@ class _SettingsTile extends StatelessWidget {
   final String label;
   final String? subtitle;
   final VoidCallback onTap;
+  final Widget? trailing;
 
   const _SettingsTile({
     required this.icon,
     required this.label,
     this.subtitle,
     required this.onTap,
+    this.trailing,
   });
 
   @override
@@ -271,7 +366,7 @@ class _SettingsTile extends StatelessWidget {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: AppColors.primaryLight, size: 18),
@@ -286,10 +381,12 @@ class _SettingsTile extends StatelessWidget {
                 style: const TextStyle(
                     color: AppColors.textMuted, fontSize: 12))
             : null,
-        trailing: const Icon(Icons.chevron_right_rounded,
-            color: AppColors.textMuted, size: 18),
+        trailing: trailing ??
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.textMuted, size: 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
 }
+

@@ -70,7 +70,7 @@ class DashboardScreen extends ConsumerWidget {
                         width: 160, height: 160,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.primary.withOpacity(0.12),
+                          color: AppColors.primary.withValues(alpha: 0.12),
                         ),
                       ),
                     ),
@@ -80,7 +80,7 @@ class DashboardScreen extends ConsumerWidget {
                         width: 100, height: 100,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.accent.withOpacity(0.08),
+                          color: AppColors.accent.withValues(alpha: 0.08),
                         ),
                       ),
                     ),
@@ -205,7 +205,7 @@ class DashboardScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.4),
+            color: AppColors.primary.withValues(alpha: 0.4),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -238,7 +238,7 @@ class DashboardScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
+                    color: AppColors.primary.withValues(alpha: 0.3),
                     blurRadius: 30,
                   ),
                 ],
@@ -291,7 +291,7 @@ class DashboardScreen extends ConsumerWidget {
                   width: 54,
                   height: 54,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Center(
@@ -452,7 +452,7 @@ class _FeatureItem {
   });
 }
 
-class _FeatureCard extends StatefulWidget {
+class _FeatureCard extends ConsumerStatefulWidget {
   final _FeatureItem feature;
   final double width;
   final double height;
@@ -465,10 +465,10 @@ class _FeatureCard extends StatefulWidget {
   });
 
   @override
-  State<_FeatureCard> createState() => _FeatureCardState();
+  ConsumerState<_FeatureCard> createState() => _FeatureCardState();
 }
 
-class _FeatureCardState extends State<_FeatureCard>
+class _FeatureCardState extends ConsumerState<_FeatureCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _scale;
@@ -488,8 +488,13 @@ class _FeatureCardState extends State<_FeatureCard>
     super.dispose();
   }
 
-  void _onTap() {
+  void _onTap() async {
     final f = widget.feature;
+
+    // Show Interstitial ad before navigating (1 in 3 chance so it's not annoying)
+    if (DateTime.now().millisecondsSinceEpoch % 3 == 0) {
+      await ref.read(adServiceProvider).showInterstitialAd();
+    }
 
     // Direct route — no resume needed
     if (f.directRoute != null) {
@@ -619,7 +624,7 @@ class _FeatureCardState extends State<_FeatureCard>
                         leading: Container(
                           width: 48, height: 48,
                           decoration: BoxDecoration(
-                            color: scoreColor.withOpacity(0.1),
+                            color: scoreColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Center(
@@ -679,7 +684,7 @@ class _FeatureCardState extends State<_FeatureCard>
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: f.gradient.colors.first.withOpacity(0.35),
+                color: f.gradient.colors.first.withValues(alpha: 0.35),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -693,7 +698,7 @@ class _FeatureCardState extends State<_FeatureCard>
                 child: Text(f.emoji,
                     style: TextStyle(
                         fontSize: f.isLarge ? 72 : 58,
-                        color: Colors.white.withOpacity(0.1))),
+                        color: Colors.white.withValues(alpha: 0.1))),
               ),
               // Content
               Padding(
@@ -705,7 +710,7 @@ class _FeatureCardState extends State<_FeatureCard>
                           Container(
                             width: 52, height: 52,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Center(
@@ -727,14 +732,14 @@ class _FeatureCardState extends State<_FeatureCard>
                                 const SizedBox(height: 4),
                                 Text(f.subtitle,
                                     style: TextStyle(
-                                        color: Colors.white.withOpacity(0.75),
+                                        color: Colors.white.withValues(alpha: 0.75),
                                         fontSize: 13)),
                                 const SizedBox(height: 10),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12, vertical: 5),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
+                                    color: Colors.white.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: const Text('Get Started →',
@@ -754,7 +759,7 @@ class _FeatureCardState extends State<_FeatureCard>
                           Container(
                             width: 44, height: 44,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Center(
@@ -771,7 +776,7 @@ class _FeatureCardState extends State<_FeatureCard>
                           const SizedBox(height: 3),
                           Text(f.subtitle,
                               style: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: Colors.white.withValues(alpha: 0.7),
                                   fontSize: 11)),
                         ],
                       ),
@@ -855,7 +860,7 @@ class _ResumeCard extends ConsumerWidget {
                               fontWeight: FontWeight.w800)),
                       Text('ATS',
                           style: TextStyle(
-                              color: scoreColor.withOpacity(0.7),
+                              color: scoreColor.withValues(alpha: 0.7),
                               fontSize: 9,
                               fontWeight: FontWeight.w700)),
                     ],
@@ -1011,7 +1016,7 @@ class _MiniAction extends StatelessWidget {
       child: Container(
         width: 32, height: 32,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, size: 16, color: color),
@@ -1058,7 +1063,7 @@ class _OptionTile extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: color, size: 20),
@@ -1097,7 +1102,7 @@ class _LinkedInImportCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0077B5).withOpacity(0.4),
+              color: const Color(0xFF0077B5).withValues(alpha: 0.4),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -1109,7 +1114,7 @@ class _LinkedInImportCard extends StatelessWidget {
             Container(
               width: 52, height: 52,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Center(
@@ -1141,7 +1146,7 @@ class _LinkedInImportCard extends StatelessWidget {
                   Text(
                     'Auto-build your resume from LinkedIn data',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.75),
+                      color: Colors.white.withValues(alpha: 0.75),
                       fontSize: 12,
                     ),
                   ),
@@ -1151,7 +1156,7 @@ class _LinkedInImportCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white24),
               ),
@@ -1334,7 +1339,7 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
               Container(
                 width: 46, height: 46,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0077B5).withOpacity(0.15),
+                  color: const Color(0xFF0077B5).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Center(
@@ -1449,7 +1454,7 @@ class _SheetOption extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        splashColor: iconBg.withOpacity(0.08),
+        splashColor: iconBg.withValues(alpha: 0.08),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -1457,7 +1462,7 @@ class _SheetOption extends StatelessWidget {
               Container(
                 width: 48, height: 48,
                 decoration: BoxDecoration(
-                  color: iconBg.withOpacity(0.15),
+                  color: iconBg.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(icon, color: iconBg, size: 22),
@@ -1479,10 +1484,10 @@ class _SheetOption extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: badgeColor.withOpacity(0.15),
+                            color: badgeColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(5),
                             border: Border.all(
-                                color: badgeColor.withOpacity(0.3), width: 1),
+                                color: badgeColor.withValues(alpha: 0.3), width: 1),
                           ),
                           child: Text(badge,
                               style: TextStyle(

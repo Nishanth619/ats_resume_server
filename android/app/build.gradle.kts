@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
     // END: FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -9,7 +10,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ats_resume_builder"
+    namespace = "com.atsai.resume"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -23,7 +24,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.ats_resume_builder"
+        applicationId = "com.atsai.resume"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
