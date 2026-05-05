@@ -1,17 +1,29 @@
-# ats_resume_builder
+# ATS Resume Builder
 
-A new Flutter project.
+Flutter app plus Node backend for building, tailoring, scoring, and exporting ATS-friendly resumes.
 
-## Getting Started
+## Production Configuration
 
-This project is a starting point for a Flutter application.
+Do not bundle `.env` in the Flutter app. Backend secrets such as `GEMINI_API_KEY`, `GROQ_API_KEY`, Firebase service account JSON, and LinkedIn OAuth credentials must live only on the backend host.
 
-A few resources to get you started if this is your first Flutter project:
+Build the Flutter app with public runtime values using `--dart-define`:
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```sh
+flutter build apk --release \
+  --dart-define=BACKEND_URL=https://ats-resume-server.onrender.com \
+  --dart-define=REVENUECAT_ANDROID_KEY=your_public_revenuecat_key \
+  --dart-define=ADMOB_ANDROID_BANNER=your_admob_banner_id
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Set backend environment variables on the server:
+
+```sh
+NODE_ENV=production
+GEMINI_API_KEY=...
+GROQ_API_KEY=...
+FIREBASE_SERVICE_ACCOUNT=...
+ALLOWED_ORIGINS=https://your-web-origin.example
+BACKEND_URL=https://ats-resume-server.onrender.com
+```
+
+In production, the backend no longer returns mock AI results when providers are missing. At least one AI provider must be configured.

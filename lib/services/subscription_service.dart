@@ -1,8 +1,8 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../core/config/app_config.dart';
 
 final subscriptionProvider = NotifierProvider<SubscriptionNotifier, bool>(() {
   return SubscriptionNotifier();
@@ -18,27 +18,22 @@ class SubscriptionNotifier extends Notifier<bool> {
   Future<void> _init() async {
     try {
       await Purchases.setLogLevel(LogLevel.info);
-      
-      String? apiKey;
-      if (Platform.isAndroid) {
-        apiKey = dotenv.env['REVENUECAT_ANDROID_KEY'];
-      } else if (Platform.isIOS) {
-        apiKey = dotenv.env['REVENUECAT_IOS_KEY'];
-      }
 
-      if (apiKey != null && apiKey.isNotEmpty) {
+      final apiKey = AppConfig.revenueCatKey;
+
+      if (apiKey.isNotEmpty) {
         PurchasesConfiguration configuration = PurchasesConfiguration(apiKey);
         await Purchases.configure(configuration);
-        
+
         CustomerInfo customerInfo = await Purchases.getCustomerInfo();
         _updateState(customerInfo);
-        
+
         Purchases.addCustomerInfoUpdateListener((customerInfo) {
           _updateState(customerInfo);
         });
       }
     } catch (e) {
-      print('Failed to initialize RevenueCat: $e');
+      debugPrint('Failed to initialize RevenueCat: $e');
     }
   }
 
@@ -54,7 +49,8 @@ class SubscriptionNotifier extends Notifier<bool> {
   Future<bool> purchasePro() async {
     try {
       final offerings = await Purchases.getOfferings();
-      if (offerings.current != null && offerings.current!.availablePackages.isNotEmpty) {
+      if (offerings.current != null &&
+          offerings.current!.availablePackages.isNotEmpty) {
         final package = offerings.current!.availablePackages.first;
         final customerInfo = await Purchases.purchasePackage(package);
         _updateState(customerInfo);
@@ -63,7 +59,7 @@ class SubscriptionNotifier extends Notifier<bool> {
     } on PlatformException catch (e) {
       var errorCode = PurchasesErrorHelper.getErrorCode(e);
       if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
-        print(e);
+        debugPrint(e.toString());
       }
     }
     return false;
@@ -74,7 +70,7 @@ class SubscriptionNotifier extends Notifier<bool> {
       CustomerInfo customerInfo = await Purchases.restorePurchases();
       _updateState(customerInfo);
     } catch (e) {
-      print('Failed to restore purchases: $e');
+      debugPrint('Failed to restore purchases: $e');
     }
   }
 }

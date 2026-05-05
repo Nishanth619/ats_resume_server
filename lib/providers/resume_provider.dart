@@ -10,19 +10,24 @@ final resumeListProvider = StreamProvider<List<ResumeModel>>((ref) {
   return ref.watch(firestoreServiceProvider).resumesStream(user.uid);
 });
 
-final resumeStreamProvider = StreamProvider.family<ResumeModel, String>((ref, id) {
+final resumeStreamProvider = StreamProvider.family<ResumeModel, String>((
+  ref,
+  id,
+) {
   final user = ref.watch(authStateProvider).value;
   if (user == null) throw Exception('Not authenticated');
-  
+
   if (id == 'new') {
-    return Stream.value(ResumeModel(
-      id: const Uuid().v4(),
-      title: 'Untitled Resume',
-      lastEdited: DateTime.now(),
-      sections: {},
-    ));
+    return Stream.value(
+      ResumeModel(
+        id: const Uuid().v4(),
+        title: 'Untitled Resume',
+        lastEdited: DateTime.now(),
+        sections: {},
+      ),
+    );
   }
-  
+
   return ref.watch(firestoreServiceProvider).resumeStream(user.uid, id);
 });
 
@@ -40,12 +45,14 @@ Future<ResumeModel> fetchResumeRobustly(WidgetRef ref, String id) async {
   if (list != null) {
     try {
       resume = list.firstWhere((r) => r.id == id);
-      
+
       // 🔄 Silently refresh in background so the single-resume stream stays fresh
       Future.microtask(() async {
         try {
           // Reading the future forces the stream to activate and fetch the latest from Firebase
-          await ref.read(resumeStreamProvider(id).future).timeout(const Duration(seconds: 15));
+          await ref
+              .read(resumeStreamProvider(id).future)
+              .timeout(const Duration(seconds: 15));
         } catch (_) {
           // Silently ignore — user already has their data, this is best-effort
         }
@@ -57,18 +64,25 @@ Future<ResumeModel> fetchResumeRobustly(WidgetRef ref, String id) async {
 
   // 4. Await network fetch
   if (id == 'new') {
-    throw Exception('Cannot load an empty unsaved resume. Please go back and save.');
+    throw Exception(
+      'Cannot load an empty unsaved resume. Please go back and save.',
+    );
   }
-  
-  return await ref.read(resumeStreamProvider(id).future).timeout(
-    const Duration(seconds: 10),
-    onTimeout: () => throw Exception('Resume took too long to load from cloud. Please check your connection.'),
-  );
+
+  return await ref
+      .read(resumeStreamProvider(id).future)
+      .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw Exception(
+          'Resume took too long to load from cloud. Please check your connection.',
+        ),
+      );
 }
 
 final resumeNotifierProvider =
     NotifierProvider.family<ResumeNotifier, ResumeModel?, String>(
-        ResumeNotifier.new);
+      ResumeNotifier.new,
+    );
 
 class ResumeNotifier extends Notifier<ResumeModel?> {
   ResumeNotifier(this.resumeId);
@@ -82,10 +96,10 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
 
   void updateSection(String section, dynamic data) {
     if (state == null) return;
-    
+
     final newSections = Map<String, dynamic>.from(state!.sections);
     newSections[section] = data;
-    
+
     state = ResumeModel(
       id: state!.id,
       title: state!.title,
@@ -117,7 +131,7 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       versions: state!.versions,
     );
   }
-  
+
   Future<void> updateTargetJD(String jd) async {
     if (state == null) return;
     state = ResumeModel(
@@ -135,7 +149,7 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
     );
     await save();
   }
-  
+
   Future<void> updateATSScore(int score) async {
     if (state == null) return;
     state = ResumeModel(
@@ -176,19 +190,33 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
     if (state == null) return;
     final user = ref.read(authStateProvider).value;
     if (user == null) throw Exception('Not authenticated');
-    
+
     await ref.read(firestoreServiceProvider).saveResume(user.uid, state!);
   }
 
   Future<void> tailorToJD(String jd, dynamic aiService) async {
     if (state == null) return;
+    final original = state!;
     final result = await aiService.tailorResume(
-      resumeSections: state!.sections,
+      resumeSections: original.sections,
       jd: jd,
     );
+
+    final user = ref.read(authStateProvider).value;
+    if (user != null && original.id.isNotEmpty) {
+      try {
+        final snapshot = original.toJson()..remove('versions');
+        await ref
+            .read(firestoreServiceProvider)
+            .saveVersionSnapshot(user.uid, original.id, snapshot);
+      } catch (_) {
+        // Tailoring should still complete even if version backup fails.
+      }
+    }
+
     // Merge tailored sections back into existing resume
-    final newSections = Map<String, dynamic>.from(state!.sections);
-    
+    final newSections = Map<String, dynamic>.from(original.sections);
+
     // Update personal summary
     final personal = Map<String, dynamic>.from(newSections['personal'] ?? {});
     personal['summary'] = result.summary;
@@ -209,7 +237,9 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       colorTheme: state!.colorTheme,
       atsScore: state!.atsScore,
       sections: newSections,
-      targetRole: result.targetRole.isNotEmpty ? result.targetRole : state!.targetRole,
+      targetRole: result.targetRole.isNotEmpty
+          ? result.targetRole
+          : state!.targetRole,
       targetJD: jd,
       lastEdited: DateTime.now(),
       downloadCount: state!.downloadCount,
@@ -252,5 +282,6 @@ class ResumeActions {
   }
 }
 
-final resumeActionsProvider = Provider<ResumeActions>((ref) => ResumeActions(ref));
-
+final resumeActionsProvider = Provider<ResumeActions>(
+  (ref) => ResumeActions(ref),
+);

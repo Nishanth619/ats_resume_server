@@ -14,8 +14,13 @@ const helmet = require('helmet');
 const { Document, Packer, Paragraph, TextRun, HeadingLevel } = require('docx');
 
 const app = express();
+const isProduction = process.env.NODE_ENV === 'production';
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ?.split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 app.use(helmet());
-app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || '*' }));
+app.use(cors({ origin: allowedOrigins?.length ? allowedOrigins : '*' }));
 app.use(express.json({ limit: '5mb' }));
 const port = process.env.PORT || 10000;
 
@@ -41,8 +46,17 @@ try {
 }
 
 const db = admin.apps.length ? admin.firestore() : null;
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'MOCK_KEY');
+const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
+const hasAiProvider = Boolean(genAI || groq);
+
+function shouldUseMockAI() {
+  return !isProduction && !hasAiProvider;
+}
+
+function rejectMissingAI(res) {
+  return res.status(503).json({ error: 'AI service is not configured on this server.' });
+}
 
 // ─── 2. In-Memory LRU Cache ────────────────────────────────────────────────────
 const ATS_CACHE = new Map();
@@ -69,14 +83,23 @@ function cacheSet(key, data) {
 
 // ─── 3. ATS Scoring Rubric ────────────────────────────────────────────────────
 const SCORING_RUBRIC = `
-Score this resume across 5 categories (each out of 20):
-1. KEYWORD_MATCH: Presence of role-relevant technical keywords
-2. IMPACT_LANGUAGE: Use of strong action verbs and quantified achievements
-3. STRUCTURE: Clear sections, consistent formatting, scannable layout
-4. RELEVANCE: Experience and skills alignment to the target role
-5. ATS_COMPATIBILITY: No tables, graphics, headers/footers, special chars
+You are a strict ATS and recruiter-quality reviewer. Score only from evidence in the resume and optional job description.
 
-Return ONLY this exact JSON schema — no other text:
+Rules:
+- Do not reward vague, unsupported, or unrelated claims.
+- Do not invent missing keywords, achievements, employers, degrees, dates, metrics, tools, or certifications.
+- If a target job description is provided, weigh must-have responsibilities and tools above generic keywords.
+- Keep category reasoning concise and evidence-based. Mention exact evidence or the exact gap.
+- Scores must be integers. Each category is 0-20 and total_score must equal the sum of the five categories.
+
+Categories:
+1. KEYWORD_MATCH: role-specific tools, technologies, certifications, domain terms, and must-have requirements.
+2. IMPACT_LANGUAGE: action verbs, ownership, scope, outcomes, and quantified impact already present in the resume.
+3. STRUCTURE: clear sections, consistent bullet style, readable order, no clutter.
+4. RELEVANCE: alignment of experience, skills, projects, and education to the target role.
+5. ATS_COMPATIBILITY: plain text, standard headings, minimal graphics/tables, parseable contact info.
+
+Return ONLY this exact JSON schema, no markdown:
 {
   "total_score": <sum of all 5>,
   "categories": {
@@ -90,7 +113,8 @@ Return ONLY this exact JSON schema — no other text:
   "matched_keywords":    [],
   "missing_keywords":    [],
   "top_3_wins":          [],
-  "top_3_improvements":  []
+  "top_3_improvements":  [],
+  "evidence":            ["short resume evidence used for scoring"]
 }`;
 
 // ─── 4. Shared Validation Middleware ──────────────────────────────────────────
@@ -161,10 +185,122 @@ function safeParseJson(rawText) {
 
 function safeParseAtsResponse(rawText) {
   const parsed = safeParseJson(rawText);
-  if (typeof parsed.total_score !== 'number') throw new Error('Missing total_score.');
   if (!parsed.categories) throw new Error('Missing categories.');
-  if (!Array.isArray(parsed.critical_issues)) throw new Error('Missing critical_issues array.');
-  return parsed;
+  return normalizeAtsResponse(parsed);
+}
+function toText(value, fallback = '') {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return fallback;
+}
+
+function toArray(value, limit = 20) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => typeof item === 'string' ? item.trim() : toText(item))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function boundedInt(value, min = 0, max = 100) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+function normalizeCategory(raw) {
+  return {
+    score: boundedInt(raw?.score, 0, 20),
+    reasoning: toText(raw?.reasoning).slice(0, 600),
+  };
+}
+
+function normalizeAtsResponse(raw) {
+  const categories = {
+    keyword_match: normalizeCategory(raw.categories?.keyword_match),
+    impact_language: normalizeCategory(raw.categories?.impact_language),
+    structure: normalizeCategory(raw.categories?.structure),
+    relevance: normalizeCategory(raw.categories?.relevance),
+    ats_compatibility: normalizeCategory(raw.categories?.ats_compatibility),
+  };
+  const total = Object.values(categories).reduce((sum, c) => sum + c.score, 0);
+  return {
+    total_score: total,
+    categories,
+    critical_issues: (Array.isArray(raw.critical_issues) ? raw.critical_issues : [])
+      .map((item) => ({
+        issue: toText(item?.issue).slice(0, 220),
+        fix: toText(item?.fix).slice(0, 260),
+        priority: ['high', 'medium', 'low'].includes(item?.priority) ? item.priority : 'medium',
+      }))
+      .filter((item) => item.issue && item.fix)
+      .slice(0, 5),
+    matched_keywords: toArray(raw.matched_keywords || raw.keywords, 30),
+    missing_keywords: toArray(raw.missing_keywords, 30),
+    top_3_wins: toArray(raw.top_3_wins, 3),
+    top_3_improvements: toArray(raw.top_3_improvements, 3),
+    evidence: toArray(raw.evidence, 5),
+  };
+}
+
+function normalizeKeywordMatch(raw) {
+  const required = toArray(raw.required_keywords, 25);
+  const matched = toArray(raw.matched, 25);
+  const missing = toArray(raw.missing, 25);
+  const total = required.length || matched.length + missing.length;
+  const fallbackPct = total ? Math.round((matched.length / total) * 100) : 0;
+  return {
+    required_keywords: required,
+    matched,
+    missing,
+    match_percentage: boundedInt(raw.match_percentage ?? fallbackPct, 0, 100),
+    must_have: toArray(raw.must_have, 15),
+    preferred: toArray(raw.preferred, 15),
+    tools: toArray(raw.tools, 15),
+    responsibilities: toArray(raw.responsibilities, 15),
+    soft_skills: toArray(raw.soft_skills, 10),
+    evidence: toArray(raw.evidence, 8),
+  };
+}
+
+function normalizeTailoredResume(raw, originalSections) {
+  const originalExperience = Array.isArray(originalSections.experience) ? originalSections.experience : [];
+  const originalSkills = Array.isArray(originalSections.skills) ? originalSections.skills : [];
+  const originalSummary = toText(originalSections.personal?.summary);
+  const proposedExperience = Array.isArray(raw.experience) ? raw.experience : [];
+  const experience = originalExperience.map((oldItem, index) => {
+    const proposed = proposedExperience[index] && typeof proposedExperience[index] === 'object'
+      ? proposedExperience[index]
+      : {};
+    return {
+      ...oldItem,
+      ...proposed,
+      title: oldItem.title || proposed.title || '',
+      company: oldItem.company || proposed.company || '',
+      dates: oldItem.dates || proposed.dates || '',
+      location: oldItem.location || proposed.location || '',
+      description: toText(proposed.description || oldItem.description),
+    };
+  });
+  const skills = toArray(raw.skills, 60);
+  return {
+    targetRole: toText(raw.targetRole).slice(0, 160),
+    summary: toText(raw.summary, originalSummary).slice(0, 1200),
+    experience,
+    skills: skills.length ? skills : toArray(originalSkills, 60),
+    warnings: toArray(raw.warnings, 8),
+    changes: Array.isArray(raw.changes) ? raw.changes.slice(0, 20) : [],
+  };
+}
+
+function sanitizeBulletOutput(rawDuty, bullet) {
+  const clean = toText(bullet).replace(/^[-*]\s*/, '').replace(/^"|"$/g, '').trim();
+  if (!clean) return rawDuty.trim();
+  const sourceHasNumber = /\d/.test(rawDuty);
+  const outputHasNumber = /\d/.test(clean);
+  if (!sourceHasNumber && outputHasNumber) return rawDuty.trim();
+  return clean.split(/\r?\n/).find(Boolean)?.trim() || rawDuty.trim();
 }
 
 // ─── 6. Structured Resume Formatter ──────────────────────────────────────────
@@ -209,6 +345,9 @@ function withTimeout(promise, ms = 30000) {
 
 // ─── 8. Auth Middleware ───────────────────────────────────────────────────────
 const auth = async (req, res, next) => {
+  if (!admin.apps.length) {
+    return res.status(503).json({ error: 'Authentication service is not configured.' });
+  }
   const token = req.headers.authorization?.split('Bearer ')[1];
   if (!token) return res.status(401).json({ error: 'No token provided.' });
   try {
@@ -270,7 +409,15 @@ const upload = multer({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 app.get('/', (req, res) => {
-  res.send('ATS Resume Backend is Live and Firebase is connected!');
+  res.json({
+    status: 'ok',
+    firebase: Boolean(db),
+    ai: {
+      gemini: Boolean(genAI),
+      groq: Boolean(groq),
+      mockEnabled: shouldUseMockAI(),
+    },
+  });
 });
 
 // ─── Improve Bullet ───────────────────────────────────────────────────────────
@@ -282,15 +429,33 @@ app.post('/api/ai/improve-bullet', auth,
   async (req, res) => {
     const { rawDuty, role } = req.body;
 
-    if (!process.env.GEMINI_API_KEY)
-      return res.json({ bullet: `Optimised ${role} duty: Increased efficiency by 20% in ${rawDuty}` });
+    if (shouldUseMockAI())
+      return res.json({ bullet: rawDuty.trim() });
 
-    const prompt = `You are an expert resume writer. Rewrite as strong, quantified, action-verb-led bullet. Past tense. Under 20 words. Role: ${role}. Duty: ${rawDuty}. Return ONLY the bullet.`;
+    if (!hasAiProvider) return rejectMissingAI(res);
 
+    const prompt = `You are an expert resume bullet editor.
+
+Rewrite the duty into ONE resume bullet for the role: ${role || 'target role'}.
+
+Rules:
+- Preserve the user's facts exactly.
+- Do not invent numbers, percentages, tools, employers, dates, revenue, users, team sizes, or outcomes.
+- Use a number only if it already appears in the duty.
+- Start with a strong past-tense action verb.
+- Keep it under 24 words.
+- No markdown, no quotes, no explanations.
+
+USER_DUTY:
+${rawDuty}
+
+Return only the improved bullet.`;
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      const result = await withTimeout(model.generateContent(prompt));
-      return res.json({ bullet: result.response.text().trim() });
+      if (genAI) {
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { temperature: 0.2, topP: 0.8 } });
+        const result = await withTimeout(model.generateContent(prompt));
+        return res.json({ bullet: sanitizeBulletOutput(rawDuty, result.response.text()) });
+      }
     } catch (e) {
       console.error('[improve-bullet] Gemini failed:', e.message);
     }
@@ -300,9 +465,10 @@ app.post('/api/ai/improve-bullet', auth,
         const result = await withTimeout(groq.chat.completions.create({
           messages: [{ role: 'user', content: prompt }],
           model: 'llama-3.3-70b-versatile',
-          max_tokens: 100,
+          max_tokens: 120,
+          temperature: 0.2,
         }));
-        return res.json({ bullet: result.choices[0]?.message?.content?.trim() || rawDuty });
+        return res.json({ bullet: sanitizeBulletOutput(rawDuty, result.choices[0]?.message?.content || rawDuty) });
       } catch (groqErr) {
         console.error('[improve-bullet] Groq failed:', groqErr.message);
       }
@@ -337,7 +503,7 @@ app.post('/api/ai/ats-check', auth, validateAtsInput, async (req, res) => {
     return res.json({ ...cached, _cached: true });
   }
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (shouldUseMockAI()) {
     return res.json({
       total_score: 72,
       categories: {
@@ -355,6 +521,8 @@ app.post('/api/ai/ats-check', auth, validateAtsInput, async (req, res) => {
     });
   }
 
+  if (!hasAiProvider) return rejectMissingAI(res);
+
   const resumeBody = sections ? formatStructuredResume(sections) : resumeText;
   const jdSection = targetJD ? `\n\n=== TARGET JOB DESCRIPTION ===\n${targetJD}` : '';
   const prompt = `${SCORING_RUBRIC}\n\n=== RESUME TO SCORE ===\n${resumeBody}${jdSection}`;
@@ -362,9 +530,13 @@ app.post('/api/ai/ats-check', auth, validateAtsInput, async (req, res) => {
   let aiResult;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const result = await withTimeout(model.generateContent(prompt));
-    aiResult = { text: result.response.text(), engine: 'gemini' };
+    if (genAI) {
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { temperature: 0.2, topP: 0.8 } });
+      const result = await withTimeout(model.generateContent(prompt));
+      aiResult = { text: result.response.text(), engine: 'gemini' };
+    } else {
+      throw new Error('Gemini is not configured.');
+    }
   } catch (e) {
     console.error('[ats-check] Gemini failed:', e.message);
     if (!groq)
@@ -402,21 +574,46 @@ app.post('/api/ai/ats-check', auth, validateAtsInput, async (req, res) => {
 // ─── Generate Summary ─────────────────────────────────────────────────────────
 app.post('/api/ai/summary', auth,
   validateAiInput([
-    { key: 'name', required: true, maxLen: 200 },
-    { key: 'targetRole', required: true, maxLen: 200 },
+    { key: 'name', required: false, maxLen: 200 },
+    { key: 'targetRole', required: false, maxLen: 200 },
   ]),
   async (req, res) => {
     const { name, targetRole, experiences = [], skills = [] } = req.body;
 
-    if (!process.env.GEMINI_API_KEY)
+    if (shouldUseMockAI())
       return res.json({ summary: 'Mock summary for testing.' });
 
-    const prompt = `Write a 3-4 sentence professional resume summary for ${name} targeting role ${targetRole}. Experience: ${experiences.slice(0, 5).join(', ')}. Skills: ${skills.slice(0, 15).join(', ')}. No "I". Professional tone. Return ONLY the summary.`;
+    if (!hasAiProvider) return rejectMissingAI(res);
 
+    const prompt = `You are an expert resume summary editor.
+
+Write a concise professional summary using ONLY the facts provided.
+
+Rules:
+- 3 to 4 sentences, 70 to 110 words total.
+- No first-person pronouns.
+- Do not invent metrics, employers, tools, titles, degrees, or certifications.
+- If target role is empty, infer a broad role from the experience and skills.
+- Prioritize current strengths, relevant domain keywords, and evidence-backed impact.
+- Output only the summary text. No markdown.
+
+CANDIDATE_NAME:
+${name || 'Candidate'}
+
+TARGET_ROLE:
+${targetRole || 'Infer from resume context'}
+
+EXPERIENCE_SIGNALS:
+${experiences.slice(0, 8).join('\n')}
+
+SKILLS:
+${skills.slice(0, 20).join(', ')}`;
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      const result = await withTimeout(model.generateContent(prompt));
-      return res.json({ summary: result.response.text().trim() });
+      if (genAI) {
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { temperature: 0.2, topP: 0.8 } });
+        const result = await withTimeout(model.generateContent(prompt));
+        return res.json({ summary: result.response.text().trim() });
+      }
     } catch (e) {
       console.error('[summary] Gemini failed:', e.message);
     }
@@ -447,16 +644,48 @@ app.post('/api/ai/match-jd', auth,
   async (req, res) => {
     const { resumeText, jd } = req.body;
 
-    if (!process.env.GEMINI_API_KEY)
+    if (shouldUseMockAI())
       return res.json({ required_keywords: [], matched: [], missing: [], match_percentage: 50 });
 
-    const prompt = `Extract top 15 keywords from JD, check which are in resume. Return ONLY valid JSON: {"required_keywords":[],"matched":[],"missing":[],"match_percentage":0} JD: ${jd} Resume: ${resumeText}`;
+    if (!hasAiProvider) return rejectMissingAI(res);
 
+    const prompt = `You are a precise job-description matching engine.
+
+Analyze the job description and compare it with the resume text.
+
+Rules:
+- Extract must-have requirements separately from preferred or nice-to-have items.
+- Match semantically equivalent skills (for example REST APIs and API integration), but do not over-credit unrelated words.
+- Do not invent resume skills. A match must be supported by resume evidence.
+- Penalize missing core responsibilities more than missing generic soft skills.
+- Return match_percentage as an integer 0-100.
+
+Return ONLY valid JSON with this schema:
+{
+  "required_keywords": [],
+  "matched": [],
+  "missing": [],
+  "match_percentage": 0,
+  "must_have": [],
+  "preferred": [],
+  "tools": [],
+  "responsibilities": [],
+  "soft_skills": [],
+  "evidence": ["matched keyword -> resume evidence"]
+}
+
+JOB_DESCRIPTION:
+${jd}
+
+RESUME_TEXT:
+${resumeText}`;
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      const result = await withTimeout(model.generateContent(prompt));
-      const parsed = safeParseJson(result.response.text());
-      return res.json(parsed);
+      if (genAI) {
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { temperature: 0.2, topP: 0.8 } });
+        const result = await withTimeout(model.generateContent(prompt));
+        const parsed = normalizeKeywordMatch(safeParseJson(result.response.text()));
+        return res.json(parsed);
+      }
     } catch (e) {
       console.error('[match-jd] Gemini failed:', e.message);
     }
@@ -469,9 +698,10 @@ app.post('/api/ai/match-jd', auth,
             { role: 'user', content: prompt }
           ],
           model: 'llama-3.3-70b-versatile',
-          max_tokens: 1024,
+          max_tokens: 1400,
+          temperature: 0.2,
         }));
-        const parsed = safeParseJson(result.choices[0]?.message?.content || '');
+        const parsed = normalizeKeywordMatch(safeParseJson(result.choices[0]?.message?.content || ''));
         return res.json(parsed);
       } catch (groqErr) {
         console.error('[match-jd] Groq failed:', groqErr.message);
@@ -492,47 +722,57 @@ function extractLetterText(rawText) {
 
 function buildCoverLetterPrompt(name, company, resumeText, jd) {
   const jdSection = jd?.trim()
-    ? `\n\nTARGET JOB DESCRIPTION:\n${jd.trim()}`
-    : '\n\n(No job description provided — write a compelling general application.)';
-  return `You are an expert cover letter writer. Write a professional, highly detailed, and compelling cover letter.
+    ? `\n\nTARGET_JOB_DESCRIPTION:\n${jd.trim()}`
+    : '\n\nTARGET_JOB_DESCRIPTION:\nNot provided. Write a general but evidence-based application letter.';
+  return `You are an expert cover letter writer for modern hiring teams.
 
-CRITICAL RULES:
-- MUST be exactly 3 well-developed paragraphs.
-- Length MUST be between 250 and 350 words. Fewer than 200 words is a failure.
-- Paragraph 1: Opening hook + strong interest in the role (at least 3 sentences).
-- Paragraph 2: Highlight 2-3 specific, quantified achievements from the resume (at least 4 sentences).
-- Paragraph 3: Closing with a clear call to action (at least 3 sentences).
-- Do NOT use phrases like "I am writing to express my interest" or "Please find attached".
-- Flowing prose only — no bullet points.
+Write a polished, specific cover letter using only facts from the candidate resume and job description.
+
+Critical rules:
+- Do not invent achievements, metrics, tools, employers, dates, role titles, or company knowledge.
+- If no metric exists in the resume, describe impact qualitatively instead of adding a fake number.
+- Exactly 3 paragraphs, 230 to 330 words.
+- Paragraph 1: targeted opening tied to the company/role and candidate fit.
+- Paragraph 2: 2-3 strongest evidence-backed achievements or skill clusters from the resume.
+- Paragraph 3: confident closing and call to action.
+- Avoid generic phrases like "I am writing to express my interest" and "Please find attached".
+- Flowing prose only, no bullet points.
 - Start directly with "Dear Hiring Team,".
-- End directly with "Sincerely,\\n${name}".
-- Output ONLY the letter text. No explanations or markdown.
+- End directly with "Sincerely,\n${name}".
+- Output only the letter text. No markdown.
 
-CANDIDATE NAME: ${name}
-TARGET COMPANY: ${company}
+CANDIDATE_NAME:
+${name}
 
-CANDIDATE RESUME:
+TARGET_COMPANY:
+${company}
+
+CANDIDATE_RESUME:
 ${resumeText}${jdSection}`;
 }
 
 app.post('/api/ai/cover-letter', auth, validateCoverLetterInput, async (req, res) => {
   const { resumeText, jd, company, name } = req.body;
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (shouldUseMockAI()) {
     const mock = `Dear Hiring Team,\n\nI am excited to apply for the position at ${company}. With a strong background and a proven track record of delivering high-quality results, I am confident in my ability to make an immediate and positive impact on your team. I have long admired ${company}'s commitment to innovation and excellence, and I am eager to bring my expertise to support your strategic goals.\n\nThroughout my career, I have consistently demonstrated a commitment to excellence. As highlighted in my resume, I have successfully managed complex projects, collaborated with cross-functional teams, and implemented solutions that significantly improved efficiency. My recent work involved streamlining processes that reduced turnaround times by 30% and increased overall productivity across the team. These experiences have equipped me with the technical skills and problem-solving mindset required to thrive in this role.\n\nI would welcome the opportunity to discuss how my background, skills, and enthusiasm align with the needs of ${company}. Thank you for your time and consideration. I look forward to the possibility of contributing to your continued success.\n\nSincerely,\n${name}`;
     return res.json({ letter: mock, engine: 'mock', wordCount: mock.split(/\s+/).length });
   }
 
+  if (!hasAiProvider) return rejectMissingAI(res);
+
   const prompt = buildCoverLetterPrompt(name.trim(), company.trim(), resumeText.trim(), jd?.trim());
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      generationConfig: { maxOutputTokens: 600, temperature: 0.7, topP: 0.9 },
-    });
-    const result = await withTimeout(model.generateContent(prompt));
-    const letter = extractLetterText(result.response.text());
-    return res.json({ letter, engine: 'gemini', wordCount: letter.split(/\s+/).length });
+    if (genAI) {
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash',
+        generationConfig: { maxOutputTokens: 600, temperature: 0.7, topP: 0.9 },
+      });
+      const result = await withTimeout(model.generateContent(prompt));
+      const letter = extractLetterText(result.response.text());
+      return res.json({ letter, engine: 'gemini', wordCount: letter.split(/\s+/).length });
+    }
   } catch (geminiErr) {
     console.error('[cover-letter] Gemini failed:', geminiErr.message);
   }
@@ -571,7 +811,7 @@ app.post('/api/ai/tailor-resume', auth,
     if (resumeJson.length > 20000)
       return res.status(400).json({ error: 'Resume data too large.' });
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (shouldUseMockAI()) {
       return res.json({
         summary: 'Mock tailored summary matching the job description.',
         experience: resume.sections?.experience || [],
@@ -580,33 +820,41 @@ app.post('/api/ai/tailor-resume', auth,
       });
     }
 
-    const prompt = `You are an expert resume coach. A user wants to tailor their resume to match a specific job description.
+    if (!hasAiProvider) return rejectMissingAI(res);
 
-Here is their current resume data in JSON:
-${resumeJson}
+    const prompt = `You are an expert resume tailoring editor. Tailor the resume to the job description without changing the candidate's factual history.
 
-Here is the Job Description they are targeting:
-${jd}
+Non-negotiable rules:
+- Do not invent employers, job titles, dates, degrees, certifications, tools, metrics, revenue, users, team sizes, or outcomes.
+- Use numbers only if they already exist in the resume JSON.
+- Preserve every experience object's original company, title, dates, location, and order.
+- Improve only summary, experience.description, and genuinely supported skills.
+- Add a skill only when it is clearly supported by existing resume evidence or already present in the resume.
+- If a JD requirement is missing from the resume, put it in warnings instead of fabricating it.
+- Keep bullets concise, action-led, and ATS-friendly.
 
-Your task:
-1. Extract the target job title from the JD and return it as "targetRole".
-2. Rewrite the "summary" field to be tightly tailored to this JD. Keep it 3-4 sentences. Professional. No "I". Highlight matching skills. Do NOT invent experience they don't have.
-3. For each experience entry, improve the "description" field to emphasize responsibilities and achievements that align with the JD keywords. Keep all facts, only reframe them. Quantify where possible.
-4. Add any missing critical skills from the JD to the skills list (only genuinely applicable ones).
-
-Return ONLY valid JSON in this exact format, no markdown:
+Return ONLY valid JSON with this exact schema:
 {
   "targetRole": "string",
   "summary": "string",
-  "experience": [array of experience objects same shape as input, with improved description fields],
-  "skills": [array of skill strings]
-}`;
+  "experience": [array of experience objects same shape and order as input, with improved description fields],
+  "skills": [array of skill strings],
+  "warnings": ["JD requirement not supported by resume evidence"],
+  "changes": [{"section":"summary|experience|skills","before":"string","after":"string","reason":"string"}]
+}
 
+RESUME_JSON:
+${resumeJson}
+
+JOB_DESCRIPTION:
+${jd}`;
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      const result = await withTimeout(model.generateContent(prompt), 45000);
-      const parsed = safeParseJson(result.response.text());
-      return res.json(parsed);
+      if (genAI) {
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { temperature: 0.2, topP: 0.8 } });
+        const result = await withTimeout(model.generateContent(prompt), 45000);
+        const parsed = normalizeTailoredResume(safeParseJson(result.response.text()), resume.sections || {});
+        return res.json(parsed);
+      }
     } catch (e) {
       console.error('[tailor-resume] Gemini failed:', e.message);
     }
@@ -621,7 +869,7 @@ Return ONLY valid JSON in this exact format, no markdown:
           model: 'llama-3.3-70b-versatile',
           max_tokens: 4096,
         }), 45000);
-        const parsed = safeParseJson(result.choices[0]?.message?.content || '');
+        const parsed = normalizeTailoredResume(safeParseJson(result.choices[0]?.message?.content || ''), resume.sections || {});
         return res.json(parsed);
       } catch (groqErr) {
         console.error('[tailor-resume] Groq failed:', groqErr.message);

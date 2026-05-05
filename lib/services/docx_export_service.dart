@@ -4,15 +4,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../core/config/app_config.dart';
 import '../models/resume_model.dart';
 
-final docxServiceProvider = Provider<DocxExportService>((ref) => DocxExportService());
+final docxServiceProvider = Provider<DocxExportService>(
+  (ref) => DocxExportService(),
+);
 
 class DocxExportService {
   final _dio = Dio();
 
-  String get _backendUrl => dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:10000';
+  String get _backendUrl => AppConfig.backendUrl;
 
   /// Export resume as .docx — returns File path on success.
   /// [onProgress] callback receives 0.0 → 1.0 as download progresses.
@@ -34,29 +36,31 @@ class DocxExportService {
     final filePath = '${dir.path}/${safeName}_Resume.docx';
 
     // 3. POST resume data, stream response bytes to file
-    await _dio.post(
-      '$_backendUrl/api/export/docx',
-      data: resume.toFirestore(),
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        responseType: ResponseType.bytes,
-        followRedirects: true,
-      ),
-      onReceiveProgress: (received, total) {
-        if (total > 0 && onProgress != null) {
-          onProgress(received / total);
-        }
-      },
-    ).then((response) async {
-      if (response.statusCode != 200) {
-        throw Exception('Server error: ${response.statusCode}');
-      }
-      final file = File(filePath);
-      await file.writeAsBytes(response.data as List<int>);
-    });
+    await _dio
+        .post(
+          '$_backendUrl/api/export/docx',
+          data: resume.toFirestore(),
+          options: Options(
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            responseType: ResponseType.bytes,
+            followRedirects: true,
+          ),
+          onReceiveProgress: (received, total) {
+            if (total > 0 && onProgress != null) {
+              onProgress(received / total);
+            }
+          },
+        )
+        .then((response) async {
+          if (response.statusCode != 200) {
+            throw Exception('Server error: ${response.statusCode}');
+          }
+          final file = File(filePath);
+          await file.writeAsBytes(response.data as List<int>);
+        });
 
     return File(filePath);
   }
@@ -69,4 +73,3 @@ class DocxExportService {
     }
   }
 }
-

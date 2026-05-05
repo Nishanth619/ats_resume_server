@@ -1,16 +1,13 @@
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
+import '../core/config/app_config.dart';
 
 // ─── Provider ──────────────────────────────────────────────────────────────────
 final linkedInImportServiceProvider = Provider<LinkedInImportService>((ref) {
-  return LinkedInImportService(
-    Dio(),
-    baseUrl: dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:10000',
-  );
+  return LinkedInImportService(Dio(), baseUrl: AppConfig.backendUrl);
 });
 
 // ─── LinkedIn ZIP Import Service ───────────────────────────────────────────────
@@ -119,8 +116,5 @@ class LinkedInOAuthService {
 }
 
 final linkedInOAuthServiceProvider = Provider<LinkedInOAuthService>((ref) {
-  return LinkedInOAuthService(
-    Dio(),
-    baseUrl: dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:10000',
-  );
+  return LinkedInOAuthService(Dio(), baseUrl: AppConfig.backendUrl);
 });

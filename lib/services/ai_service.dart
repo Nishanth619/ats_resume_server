@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../core/config/app_config.dart';
 
 // ─── Cover Letter Result ───────────────────────────────────────────────────────
 class CoverLetterResult {
@@ -19,11 +19,15 @@ class CoverLetterResult {
 
   factory CoverLetterResult.fromJson(Map<String, dynamic> json) {
     final letter = (json['letter'] as String?) ?? '';
-    if (letter.trim().isEmpty) throw const FormatException('Empty letter in response');
+    if (letter.trim().isEmpty) {
+      throw const FormatException('Empty letter in response');
+    }
     return CoverLetterResult(
-      letter:    letter,
-      engine:    (json['engine'] as String?) ?? 'unknown',
-      wordCount: (json['wordCount'] as int?) ?? letter.trim().split(RegExp(r'\s+')).length,
+      letter: letter,
+      engine: (json['engine'] as String?) ?? 'unknown',
+      wordCount:
+          (json['wordCount'] as int?) ??
+          letter.trim().split(RegExp(r'\s+')).length,
     );
   }
 }
@@ -36,23 +40,25 @@ sealed class AiServiceException implements Exception {
   String toString() => message;
 }
 
-class CoverLetterNetworkException    extends AiServiceException {
+class CoverLetterNetworkException extends AiServiceException {
   const CoverLetterNetworkException(super.m);
 }
-class CoverLetterServerException     extends AiServiceException {
+
+class CoverLetterServerException extends AiServiceException {
   const CoverLetterServerException(super.m);
 }
+
 class CoverLetterValidationException extends AiServiceException {
   const CoverLetterValidationException(super.m);
 }
-class CoverLetterTimeoutException    extends AiServiceException {
+
+class CoverLetterTimeoutException extends AiServiceException {
   const CoverLetterTimeoutException(super.m);
 }
 
-
-final aiServiceProvider = Provider<AIService>((ref) => AIService(
-  backendUrl: dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:10000',
-));
+final aiServiceProvider = Provider<AIService>(
+  (ref) => AIService(backendUrl: AppConfig.backendUrl),
+);
 
 class AIService {
   final String _baseUrl;
@@ -79,15 +85,22 @@ class AIService {
     return jsonDecode(response.body)['bullet'];
   }
 
-  Future<String> generateSummary({required String name,
-      required String targetRole, required List<String> experiences,
-      required List<String> skills}) async {
+  Future<String> generateSummary({
+    required String name,
+    required String targetRole,
+    required List<String> experiences,
+    required List<String> skills,
+  }) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/api/ai/summary'),
       headers: await _getHeaders(),
       body: jsonEncode({
-        'name': name, 'targetRole': targetRole, 
-        'experiences': experiences, 'skills': skills
+        'name': name,
+        'targetRole': targetRole.trim().isEmpty
+            ? 'General professional role'
+            : targetRole,
+        'experiences': experiences,
+        'skills': skills,
       }),
     );
     if (response.statusCode != 200) throw Exception(response.body);
@@ -113,8 +126,11 @@ class AIService {
     }
     if (response.statusCode != 200) {
       // Try to extract a readable error from the server body
-      String msg = 'Analysis failed (server error ${response.statusCode}). Please retry.';
-      try { msg = jsonDecode(response.body)['error'] ?? msg; } catch (_) {}
+      String msg =
+          'Analysis failed (server error ${response.statusCode}). Please retry.';
+      try {
+        msg = jsonDecode(response.body)['error'] ?? msg;
+      } catch (_) {}
       throw Exception(msg);
     }
     return ATSResult.fromJson(jsonDecode(response.body));
@@ -127,13 +143,17 @@ class AIService {
       body: jsonEncode({'resumeText': resumeText, 'jd': jd}),
     );
     if (response.statusCode != 200) {
-      return KeywordMatchResult(requiredKeywords: [], matched: [], missing: [], matchPercentage: 0);
+      return KeywordMatchResult(
+        requiredKeywords: [],
+        matched: [],
+        missing: [],
+        matchPercentage: 0,
+      );
     }
     return KeywordMatchResult.fromJson(jsonDecode(response.body));
   }
 
   // LinkedIn import is handled by linkedin_service.dart — see that file for the real implementation.
-
 
   Future<CoverLetterResult> generateCoverLetter({
     required String resumeText,
@@ -144,7 +164,8 @@ class AIService {
     // Client-side validation before burning an API call
     if (resumeText.trim().length < 50) {
       throw const CoverLetterValidationException(
-          'Resume is too short to generate a cover letter. Please add more content first.');
+        'Resume is too short to generate a cover letter. Please add more content first.',
+      );
     }
     if (company.trim().isEmpty) {
       throw const CoverLetterValidationException('Company name is required.');
@@ -169,13 +190,15 @@ class AIService {
           .timeout(
             const Duration(seconds: 45),
             onTimeout: () => throw const CoverLetterTimeoutException(
-                'The AI is taking too long. Please try again.'),
+              'The AI is taking too long. Please try again.',
+            ),
           );
     } on CoverLetterTimeoutException {
       rethrow;
     } on SocketException {
       throw const CoverLetterNetworkException(
-          'No internet connection. Check your network and try again.');
+        'No internet connection. Check your network and try again.',
+      );
     } catch (e) {
       if (e is AiServiceException) rethrow;
       throw CoverLetterNetworkException('Network error: ${e.toString()}');
@@ -187,27 +210,34 @@ class AIService {
       body = jsonDecode(response.body) as Map<String, dynamic>;
     } catch (_) {
       throw const CoverLetterServerException(
-          'Received an invalid response from the server.');
+        'Received an invalid response from the server.',
+      );
     }
 
     // Per-status error handling
     if (response.statusCode == 400) {
       throw CoverLetterValidationException(
-          (body['error'] as String?) ?? 'Invalid request');
+        (body['error'] as String?) ?? 'Invalid request',
+      );
     }
     if (response.statusCode == 503 || response.statusCode == 502) {
       throw CoverLetterServerException(
-          (body['error'] as String?) ?? 'AI service unavailable. Please try again shortly.');
+        (body['error'] as String?) ??
+            'AI service unavailable. Please try again shortly.',
+      );
     }
     if (response.statusCode != 200) {
       throw CoverLetterServerException(
-          'Server error (${response.statusCode}). Please try again.');
+        'Server error (${response.statusCode}). Please try again.',
+      );
     }
 
     try {
       return CoverLetterResult.fromJson(body);
     } on FormatException catch (e) {
-      throw CoverLetterServerException('Could not parse cover letter: ${e.message}');
+      throw CoverLetterServerException(
+        'Could not parse cover letter: ${e.message}',
+      );
     }
   }
 
@@ -229,13 +259,19 @@ class AIService {
 }
 
 // ─── ATSCategoryScore ──────────────────────────────────────────────────────
+int _toInt(dynamic value) {
+  if (value is num) return value.round();
+  if (value is String) return num.tryParse(value)?.round() ?? 0;
+  return 0;
+}
+
 class ATSCategoryScore {
   final int score;
   final String reasoning;
   ATSCategoryScore({required this.score, required this.reasoning});
 
   factory ATSCategoryScore.fromJson(Map<String, dynamic> j) => ATSCategoryScore(
-    score: (j['score'] as num?)?.toInt() ?? 0,
+    score: _toInt(j['score']),
     reasoning: j['reasoning'] ?? '',
   );
 }
@@ -245,7 +281,11 @@ class ATSCriticalIssue {
   final String issue;
   final String fix;
   final String priority; // 'high' | 'medium' | 'low'
-  ATSCriticalIssue({required this.issue, required this.fix, required this.priority});
+  ATSCriticalIssue({
+    required this.issue,
+    required this.fix,
+    required this.priority,
+  });
 
   factory ATSCriticalIssue.fromJson(Map<String, dynamic> j) => ATSCriticalIssue(
     issue: j['issue'] ?? '',
@@ -293,12 +333,13 @@ class ATSResult {
 
   factory ATSResult.fromJson(Map<String, dynamic> j) {
     // Support both old schema (score) and new schema (total_score)
-    final score = (j['total_score'] ?? j['score'] ?? 0) as int;
+    final score = _toInt(j['total_score'] ?? j['score']);
 
     // Parse categories map
     final rawCats = j['categories'] as Map<String, dynamic>? ?? {};
     final categories = rawCats.map(
-      (k, v) => MapEntry(k, ATSCategoryScore.fromJson(v as Map<String, dynamic>)),
+      (k, v) =>
+          MapEntry(k, ATSCategoryScore.fromJson(v as Map<String, dynamic>)),
     );
 
     // Parse critical_issues — new schema
@@ -323,7 +364,9 @@ class ATSResult {
       missingKeywords: List<String>.from(j['missing_keywords'] ?? []),
       categories: categories,
       criticalIssues: criticalIssues,
-      matchedKeywords: List<String>.from(j['matched_keywords'] ?? j['keywords'] ?? []),
+      matchedKeywords: List<String>.from(
+        j['matched_keywords'] ?? j['keywords'] ?? [],
+      ),
       top3Wins: List<String>.from(j['top_3_wins'] ?? []),
       top3Improvements: List<String>.from(j['top_3_improvements'] ?? []),
       engine: j['_engine'] ?? '',
@@ -336,14 +379,20 @@ class KeywordMatchResult {
   final List<String> requiredKeywords, matched, missing;
   final int matchPercentage;
 
-  KeywordMatchResult({required this.requiredKeywords, required this.matched,
-    required this.missing, required this.matchPercentage});
+  KeywordMatchResult({
+    required this.requiredKeywords,
+    required this.matched,
+    required this.missing,
+    required this.matchPercentage,
+  });
 
-  factory KeywordMatchResult.fromJson(Map<String,dynamic> j) => KeywordMatchResult(
-    requiredKeywords: List<String>.from(j['required_keywords'] ?? []),
-    matched: List<String>.from(j['matched'] ?? []),
-    missing: List<String>.from(j['missing'] ?? []),
-    matchPercentage: j['match_percentage'] ?? 0);
+  factory KeywordMatchResult.fromJson(Map<String, dynamic> j) =>
+      KeywordMatchResult(
+        requiredKeywords: List<String>.from(j['required_keywords'] ?? []),
+        matched: List<String>.from(j['matched'] ?? []),
+        missing: List<String>.from(j['missing'] ?? []),
+        matchPercentage: _toInt(j['match_percentage']),
+      );
 }
 
 class TailoredResumeResult {
@@ -351,19 +400,29 @@ class TailoredResumeResult {
   final String summary;
   final List<Map<String, dynamic>> experience;
   final List<String> skills;
+  final List<String> warnings;
+  final List<Map<String, dynamic>> changes;
 
   TailoredResumeResult({
     required this.targetRole,
     required this.summary,
     required this.experience,
     required this.skills,
+    this.warnings = const [],
+    this.changes = const [],
   });
 
-  factory TailoredResumeResult.fromJson(Map<String, dynamic> j) => TailoredResumeResult(
-    targetRole: j['targetRole'] ?? '',
-    summary: j['summary'] ?? '',
-    experience: List<Map<String, dynamic>>.from(
-      (j['experience'] ?? []).map((e) => Map<String, dynamic>.from(e))),
-    skills: List<String>.from(j['skills'] ?? []),
-  );
+  factory TailoredResumeResult.fromJson(Map<String, dynamic> j) =>
+      TailoredResumeResult(
+        targetRole: j['targetRole'] ?? '',
+        summary: j['summary'] ?? '',
+        experience: List<Map<String, dynamic>>.from(
+          (j['experience'] ?? []).map((e) => Map<String, dynamic>.from(e)),
+        ),
+        skills: List<String>.from(j['skills'] ?? []),
+        warnings: List<String>.from(j['warnings'] ?? []),
+        changes: List<Map<String, dynamic>>.from(
+          (j['changes'] ?? []).map((e) => Map<String, dynamic>.from(e)),
+        ),
+      );
 }

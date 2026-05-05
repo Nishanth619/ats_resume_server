@@ -47,13 +47,12 @@ dependencies:
   google_sign_in: ^6.2.1
   shared_preferences: ^2.2.2
   uuid: ^4.5.1
-  google_generative_ai: ^0.4.7
   http: ^1.2.0
   percent_indicator: ^4.2.3
   google_mobile_ads: ^5.0.0
+  pdf: ^3.12.0
   printing: ^5.13.1
   firebase_storage: ^13.3.0
-  flutter_dotenv: ^5.2.1
   file_picker: ^8.1.7         # ZIP file picker for LinkedIn import
   url_launcher: ^6.3.1        # Opens LinkedIn OAuth URL in browser
   app_links: ^6.4.0           # Handles deep link callback from LinkedIn
@@ -86,9 +85,6 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
-  assets:
-    - .env
 
   # To add assets to your application, add an assets section, like this:
   # assets:
