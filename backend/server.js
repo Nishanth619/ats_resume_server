@@ -49,6 +49,8 @@ const db = admin.apps.length ? admin.firestore() : null;
 const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 const hasAiProvider = Boolean(genAI || groq);
+const atsRateLimitDisabled = process.env.DISABLE_ATS_RATE_LIMIT === 'true';
+const atsFreeDailyLimit = Math.max(1, Number.parseInt(process.env.ATS_FREE_DAILY_LIMIT || '3', 10) || 3);
 
 function shouldUseMockAI() {
   return !isProduction && !hasAiProvider;
@@ -361,6 +363,7 @@ const auth = async (req, res, next) => {
 
 // ─── 9. Rate Limiter ─────────────────────────────────────────────────────────
 const rateLimit = async (uid, isPro, limit = 3) => {
+  if (atsRateLimitDisabled) return true;
   if (isPro) return true;
   if (!db) return true;
   const today = new Date().toISOString().split('T')[0];
@@ -492,7 +495,7 @@ app.post('/api/ai/ats-check', auth, validateAtsInput, async (req, res) => {
     }
   }
 
-  const allowed = await rateLimit(req.user.uid, isPro, 3);
+  const allowed = await rateLimit(req.user.uid, isPro, atsFreeDailyLimit);
   if (!allowed)
     return res.status(429).json({ error: 'Daily ATS check limit reached. Upgrade to Pro for unlimited checks.' });
 

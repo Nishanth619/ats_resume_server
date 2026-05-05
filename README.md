@@ -24,6 +24,10 @@ GROQ_API_KEY=...
 FIREBASE_SERVICE_ACCOUNT=...
 ALLOWED_ORIGINS=https://your-web-origin.example
 BACKEND_URL=https://ats-resume-server.onrender.com
+ATS_FREE_DAILY_LIMIT=3
+DISABLE_ATS_RATE_LIMIT=false
 ```
 
 In production, the backend no longer returns mock AI results when providers are missing. At least one AI provider must be configured.
+
+For temporary testing, set `DISABLE_ATS_RATE_LIMIT=true` on the backend host and redeploy. Set it back to `false` before public launch.
