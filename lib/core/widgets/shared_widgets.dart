@@ -25,31 +25,31 @@ class GlassCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(borderRadius),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [Color(0xFF1E1B33), Color(0xFF14122A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: AppColors.borderDark, width: 1),
+        border: Border.all(color: context.appColors.border, width: 1),
         boxShadow: showGlow
             ? [
                 BoxShadow(
                   color: (glowColor ?? AppColors.primary).withValues(alpha: 0.25),
                   blurRadius: 24,
                   spreadRadius: 0,
-                  offset: const Offset(0, 4),
+                  offset: Offset(0, 4),
                 ),
               ]
             : [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  offset: Offset(0, 4),
                 ),
               ],
       ),
       child: Padding(
-        padding: padding ?? const EdgeInsets.all(20),
+        padding: padding ?? EdgeInsets.all(20),
         child: child,
       ),
     );
@@ -90,7 +90,7 @@ class _GradientButtonState extends State<GradientButton>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 120));
+        vsync: this, duration: Duration(milliseconds: 120));
     _scale = Tween<double>(begin: 1.0, end: 0.96).animate(
         CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
@@ -117,19 +117,19 @@ class _GradientButtonState extends State<GradientButton>
           width: widget.width ?? double.infinity,
           height: 56,
           decoration: BoxDecoration(
-            gradient: widget.gradient ?? AppColors.primaryGradient,
+            gradient: widget.gradient ?? context.appColors.primaryGradient,
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
                 color: AppColors.primary.withValues(alpha: 0.4),
                 blurRadius: 20,
-                offset: const Offset(0, 6),
+                offset: Offset(0, 6),
               ),
             ],
           ),
           child: Center(
             child: widget.isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
@@ -139,10 +139,10 @@ class _GradientButtonState extends State<GradientButton>
                     children: [
                       if (widget.icon != null) ...[
                         widget.icon!,
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
                       ],
                       Text(widget.label,
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: Colors.white,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
@@ -168,13 +168,13 @@ class GradientBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
         gradient: gradient ?? AppColors.accentGradient,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(text,
-          style: const TextStyle(
+          style: TextStyle(
               color: Colors.white,
               fontSize: 11,
               fontWeight: FontWeight.w700,
@@ -203,20 +203,20 @@ class SectionHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: const TextStyle(
-                      color: AppColors.textPrimary,
+                  style: TextStyle(
+                      color: context.appColors.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w700)),
               if (subtitle != null) ...[
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(subtitle!,
-                    style: const TextStyle(
-                        color: AppColors.textSecondary, fontSize: 13)),
+                    style: TextStyle(
+                        color: context.appColors.textSecondary, fontSize: 13)),
               ],
             ],
           ),
         ),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     );
   }
@@ -244,7 +244,7 @@ class _ScoreRingState extends State<ScoreRing>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
+        vsync: this, duration: Duration(milliseconds: 1200));
     _anim = Tween<double>(begin: 0, end: widget.score / 100)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _ctrl.forward();
@@ -261,7 +261,7 @@ class _ScoreRingState extends State<ScoreRing>
     final color = AppColors.scoreColor(widget.score);
     return AnimatedBuilder(
       animation: _anim,
-      builder: (_, __) => SizedBox(
+      builder: (_, _) => SizedBox(
         width: widget.radius * 2 + 20,
         height: widget.radius * 2 + 20,
         child: Stack(
@@ -273,7 +273,7 @@ class _ScoreRingState extends State<ScoreRing>
               child: CircularProgressIndicator(
                 value: _anim.value,
                 strokeWidth: 10,
-                backgroundColor: AppColors.borderDark,
+                backgroundColor: context.appColors.border,
                 valueColor: AlwaysStoppedAnimation<Color>(color),
                 strokeCap: StrokeCap.round,
               ),
@@ -315,33 +315,33 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
       {super.key, required this.title, this.actions, this.showBack = true});
 
   @override
-  Size get preferredSize => const Size.fromHeight(64);
+  Size get preferredSize => Size.fromHeight(64);
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        border: const Border(
-            bottom: BorderSide(color: AppColors.borderDark, width: 1)),
+        color: context.appColors.surface,
+        border: Border(
+            bottom: BorderSide(color: context.appColors.border, width: 1)),
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: EdgeInsets.symmetric(horizontal: 8),
           child: Row(
             children: [
               if (showBack)
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                      size: 18, color: AppColors.textPrimary),
+                  icon: Icon(Icons.arrow_back_ios_new_rounded,
+                      size: 18, color: context.appColors.textPrimary),
                   onPressed: () => Navigator.of(context).maybePop(),
                 ),
               Expanded(
                 child: ShaderMask(
                   shaderCallback: (bounds) =>
-                      AppColors.primaryGradient.createShader(bounds),
+                      context.appColors.primaryGradient.createShader(bounds),
                   child: Text(title,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w800)),

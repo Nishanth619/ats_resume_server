@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/admob_service.dart';
 import '../../services/pdf_service.dart';
 import '../../providers/resume_provider.dart';
-import '../../models/resume_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 import 'package:share_plus/share_plus.dart';
@@ -28,7 +27,7 @@ class _DLState extends ConsumerState<DownloadScreen>
     super.initState();
     ref.read(adServiceProvider).loadRewardedAd();
     _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
+        vsync: this, duration: Duration(milliseconds: 1200))
       ..repeat(reverse: true);
   }
 
@@ -69,7 +68,7 @@ class _DLState extends ConsumerState<DownloadScreen>
     if (!adSvc.isRewardedReady) {
       setState(() => _status = 'Preparing download...');
       await adSvc.loadRewardedAd();
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(Duration(seconds: 2));
       
       // If the ad network is failing or blocked (no fill), bypass it to ensure UX.
       if (!adSvc.isRewardedReady) {
@@ -98,11 +97,11 @@ class _DLState extends ConsumerState<DownloadScreen>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bgDark,
+    backgroundColor: context.appColors.bg,
     appBar: GradientAppBar(title: 'Download Resume'),
     body: Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -118,16 +117,16 @@ class _DLState extends ConsumerState<DownloadScreen>
                 height: 120,
                 decoration: BoxDecoration(
                   gradient: _done
-                      ? const LinearGradient(
+                      ? LinearGradient(
                           colors: [AppColors.scoreGreen, Color(0xFF059669)])
-                      : AppColors.primaryGradient,
+                      : context.appColors.primaryGradient,
                   borderRadius: BorderRadius.circular(32),
                   boxShadow: [
                     BoxShadow(
                       color: (_done ? AppColors.scoreGreen : AppColors.primary)
                           .withValues(alpha: 0.4),
                       blurRadius: 30,
-                      offset: const Offset(0, 8),
+                      offset: Offset(0, 8),
                     ),
                   ],
                 ),
@@ -139,41 +138,41 @@ class _DLState extends ConsumerState<DownloadScreen>
               ),
             ),
 
-            const SizedBox(height: 32),
+            SizedBox(height: 32),
 
             // Status text
             Text(
               _done ? '🎉 Download Complete!' : 'Free Resume Download',
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: context.appColors.textPrimary,
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text(
               _status,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.appColors.textSecondary,
                 fontSize: 14,
                 height: 1.5,
               ),
             ),
 
             if (_filePath != null) ...[
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.cardDark,
+                  color: context.appColors.card,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.borderDark),
+                  border: Border.all(color: context.appColors.border),
                 ),
                 child: Text(
                   _filePath!.split('/').last,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
+                  style: TextStyle(
+                    color: context.appColors.textMuted,
                     fontSize: 11,
                     fontFamily: 'monospace',
                   ),
@@ -182,59 +181,59 @@ class _DLState extends ConsumerState<DownloadScreen>
               ),
             ],
 
-            const SizedBox(height: 36),
+            SizedBox(height: 36),
 
             // Action buttons
             if (_done) ...[
               GradientButton(
                 label: 'Share Resume',
                 onPressed: _shareFile,
-                icon: const Icon(Icons.share_rounded, color: Colors.white, size: 18),
+                icon: Icon(Icons.share_rounded, color: Colors.white, size: 18),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               GestureDetector(
                 onTap: () => Navigator.of(context).pop(),
                 child: Container(
                   height: 52,
                   decoration: BoxDecoration(
-                    color: AppColors.cardDark,
+                    color: context.appColors.card,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.borderDark, width: 1.5),
+                    border: Border.all(color: context.appColors.border, width: 1.5),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text('Back to Editor',
                         style: TextStyle(
-                            color: AppColors.textPrimary,
+                            color: context.appColors.textPrimary,
                             fontWeight: FontWeight.w700,
                             fontSize: 15)),
                   ),
                 ),
               ),
             ] else if (_loading) ...[
-              const CircularProgressIndicator(color: AppColors.primaryLight),
-              const SizedBox(height: 16),
+              CircularProgressIndicator(color: AppColors.primaryLight),
+              SizedBox(height: 16),
               Text(
                 _status.contains('Generating') ? 'Creating your PDF...' : 'Loading ad...',
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                style: TextStyle(color: context.appColors.textMuted, fontSize: 13),
               ),
             ] else ...[
               GradientButton(
                 label: 'Watch Ad & Download FREE',
                 onPressed: _download,
-                icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                icon: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
               ),
             ],
 
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             if (!_done)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: AppColors.scoreGreen.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.scoreGreen.withValues(alpha: 0.2)),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.verified_rounded,

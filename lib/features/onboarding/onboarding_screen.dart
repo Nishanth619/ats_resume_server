@@ -16,10 +16,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final PageController _pageController = PageController();
   late AnimationController _bgController;
   late AnimationController _slideController;
-  late Animation<double> _slideAnim;
   int _currentPage = 0;
 
-  final List<_OnboardingPage> _pages = const [
+  late final List<_OnboardingPage> _pages = [
     _OnboardingPage(
       title: 'Beat the\nATS Bots',
       subtitle:
@@ -57,11 +56,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void initState() {
     super.initState();
     _bgController = AnimationController(
-        vsync: this, duration: const Duration(seconds: 8))
+        vsync: this, duration: Duration(seconds: 8))
       ..repeat();
     _slideController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
-    _slideAnim = CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic);
+        vsync: this, duration: Duration(milliseconds: 600));
+    // CurvedAnimation wired to _slideController — drives page slide-in
+    CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic);
     _slideController.forward();
   }
 
@@ -84,7 +84,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     } else {
       _slideController.reset();
       _pageController.nextPage(
-          duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+          duration: Duration(milliseconds: 400), curve: Curves.easeInOut);
       _slideController.forward();
     }
   }
@@ -93,13 +93,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget build(BuildContext context) {
     final page = _pages[_currentPage];
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: context.appColors.bg,
       body: Stack(
         children: [
           // Animated orb background
           AnimatedBuilder(
             animation: _bgController,
-            builder: (_, __) {
+            builder: (_, _) {
               return CustomPaint(
                 size: MediaQuery.of(context).size,
                 painter: _OrbPainter(_bgController.value, _currentPage),
@@ -111,13 +111,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               children: [
                 // Top bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       ShaderMask(
                         shaderCallback: (b) => page.gradient.createShader(b),
-                        child: const Text('ATS.ai',
+                        child: Text('ATS.ai',
                             style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
@@ -127,7 +127,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         onPressed: _completeOnboarding,
                         child: Text('Skip',
                             style: TextStyle(
-                                color: AppColors.textSecondary, fontSize: 14)),
+                                color: context.appColors.textSecondary, fontSize: 14)),
                       ),
                     ],
                   ),
@@ -148,7 +148,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
                 // Bottom controls
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 40),
+                  padding: EdgeInsets.fromLTRB(28, 0, 28, 40),
                   child: Column(
                     children: [
                       // Page dots
@@ -157,8 +157,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         children: List.generate(
                           _pages.length,
                           (i) => AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            duration: Duration(milliseconds: 300),
+                            margin: EdgeInsets.symmetric(horizontal: 4),
                             width: i == _currentPage ? 28 : 8,
                             height: 8,
                             decoration: BoxDecoration(
@@ -167,13 +167,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                   : null,
                               color: i == _currentPage
                                   ? null
-                                  : AppColors.borderDark,
+                                  : context.appColors.border,
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 28),
+                      SizedBox(height: 28),
                       GradientButton(
                         label: _currentPage == _pages.length - 1
                             ? 'Get Started'
@@ -208,7 +208,7 @@ class _PageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+      padding: EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -228,19 +228,19 @@ class _PageContent extends StatelessWidget {
               ],
             ),
             child: Center(
-              child: Text(page.icon, style: const TextStyle(fontSize: 60)),
+              child: Text(page.icon, style: TextStyle(fontSize: 60)),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           // Tag
           GradientBadge(text: page.tag, gradient: page.gradient),
-          const SizedBox(height: 32),
+          SizedBox(height: 32),
           ShaderMask(
             shaderCallback: (b) => page.gradient.createShader(b),
             child: Text(
               page.title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                   color: Colors.white,
                   fontSize: 38,
                   fontWeight: FontWeight.w800,
@@ -248,12 +248,12 @@ class _PageContent extends StatelessWidget {
                   letterSpacing: -0.5),
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           Text(
             page.subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-                color: AppColors.textSecondary,
+            style: TextStyle(
+                color: context.appColors.textSecondary,
                 fontSize: 15,
                 height: 1.65),
           ),
@@ -302,7 +302,7 @@ class _OnboardingPage {
   final String title, subtitle, icon, tag;
   final LinearGradient gradient;
   final Color glowColor;
-  const _OnboardingPage({
+  _OnboardingPage({
     required this.title,
     required this.subtitle,
     required this.icon,

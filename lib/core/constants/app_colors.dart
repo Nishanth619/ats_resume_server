@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   // Primary brand gradient
@@ -67,4 +66,34 @@ class AppColors {
 
   static Color scoreColor(int score) =>
       score >= 80 ? scoreGreen : score >= 60 ? scoreOrange : scoreRed;
+}
+
+extension AppColorsExtension on BuildContext {
+  BuildContext get appColors => this;
+  
+  bool get _isDark => Theme.of(this).brightness == Brightness.dark;
+
+  Color get bg => _isDark ? AppColors.bgDark : AppColors.bgLight;
+  Color get surface => _isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
+  Color get card => _isDark ? AppColors.cardDark : AppColors.cardLight;
+  Color get card2 => _isDark ? AppColors.cardDark2 : const Color(0xFFEBE5FF);
+  Color get border => _isDark ? AppColors.borderDark : AppColors.borderLight;
+  
+  Color get textPrimary => _isDark ? AppColors.textPrimary : const Color(0xFF1E1E28);
+  Color get textSecondary => _isDark ? AppColors.textSecondary : const Color(0xFF5A5480);
+  Color get textMuted => _isDark ? AppColors.textMuted : const Color(0xFF8B8B9D);
+
+  LinearGradient get bgGradient => _isDark ? AppColors.darkBgGradient : const LinearGradient(
+    colors: [AppColors.bgLight, Color(0xFFE8E5FF)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  LinearGradient get cardGradient => _isDark ? AppColors.cardGradient : const LinearGradient(
+    colors: [Color(0xFFFFFFFF), Color(0xFFF3F0FF)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  LinearGradient get primaryGradient => AppColors.primaryGradient;
 }

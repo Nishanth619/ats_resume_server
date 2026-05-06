@@ -16,13 +16,21 @@ class StorageService {
   }
 
   // Upload Profile Photo
-  Future<String> uploadProfilePhoto(String uid, File imageFile) async {
-    // Use users/{uid}/profile.jpg path — must match Firebase Storage rules
-    final ref = _storage.ref('users/$uid/profile.jpg');
+  Future<String> uploadProfilePhoto(String uid, File imageFile, {String ext = 'jpg'}) async {
+    // Detect MIME type from extension
+    final mime = switch (ext) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'gif' => 'image/gif',
+      _ => 'image/jpeg',
+    };
+
+    // Store as profile.{ext} so the URL is deterministic per user
+    final ref = _storage.ref('users/$uid/profile.$ext');
     final task = await ref.putFile(
       imageFile,
       SettableMetadata(
-        contentType: 'image/jpeg',
+        contentType: mime,
         customMetadata: {'uid': uid},
       ),
     );

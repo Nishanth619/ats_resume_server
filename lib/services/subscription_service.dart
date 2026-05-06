@@ -1,76 +1,78 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:purchases_flutter/purchases_flutter.dart';
-import '../core/config/app_config.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_service.dart';
 
-final subscriptionProvider = NotifierProvider<SubscriptionNotifier, bool>(() {
-  return SubscriptionNotifier();
-});
+// ─── Subscription Provider ─────────────────────────────────────────────────
+// State: true = Pro, false = Free.
+// Reads plan from Firestore (UserModel) as source of truth.
+// purchasePro() writes plan:'pro' to Firestore, making it immediately live.
+//
+// ⚠️  PRODUCTION SWITCH:
+//   When you have a RevenueCat / Play Billing account:
+//   1. Add purchases_flutter to pubspec.yaml
+//   2. In purchasePro(), call Purchases.purchasePackage(package) FIRST.
+//   3. On success, THEN call _setPlanInFirestore(uid, 'pro') to persist.
+// ──────────────────────────────────────────────────────────────────────────
+
+final subscriptionProvider =
+    NotifierProvider<SubscriptionNotifier, bool>(SubscriptionNotifier.new);
 
 class SubscriptionNotifier extends Notifier<bool> {
   @override
-  bool build() {
-    _init();
-    return false;
+  bool build() => false; // default: free
+
+  /// Called from auth flow once we know the user's plan from Firestore.
+  void setFromUserModel(String plan) {
+    state = plan == 'pro';
   }
 
-  Future<void> _init() async {
+  /// Grants Pro access and persists it to Firestore.
+  /// In production: call your payment SDK first, then call this on success.
+  Future<bool> purchasePro({required String uid}) async {
     try {
-      await Purchases.setLogLevel(LogLevel.info);
+      // ── STEP 1: In production, initiate payment here ──
+      // final success = await _realPaymentFlow();
+      // if (!success) return false;
 
-      final apiKey = AppConfig.revenueCatKey;
+      // ── STEP 2: Write to Firestore (source of truth) ──
+      await _setPlanInFirestore(uid, 'pro');
 
-      if (apiKey.isNotEmpty) {
-        PurchasesConfiguration configuration = PurchasesConfiguration(apiKey);
-        await Purchases.configure(configuration);
-
-        CustomerInfo customerInfo = await Purchases.getCustomerInfo();
-        _updateState(customerInfo);
-
-        Purchases.addCustomerInfoUpdateListener((customerInfo) {
-          _updateState(customerInfo);
-        });
-      }
-    } catch (e) {
-      debugPrint('Failed to initialize RevenueCat: $e');
-    }
-  }
-
-  void _updateState(CustomerInfo customerInfo) {
-    // We consider the user "Pro" if they have an active entitlement called "pro"
-    if (customerInfo.entitlements.all['pro']?.isActive == true) {
       state = true;
-    } else {
-      state = false;
-    }
-  }
-
-  Future<bool> purchasePro() async {
-    try {
-      final offerings = await Purchases.getOfferings();
-      if (offerings.current != null &&
-          offerings.current!.availablePackages.isNotEmpty) {
-        final package = offerings.current!.availablePackages.first;
-        final customerInfo = await Purchases.purchasePackage(package);
-        _updateState(customerInfo);
-        return state;
-      }
-    } on PlatformException catch (e) {
-      var errorCode = PurchasesErrorHelper.getErrorCode(e);
-      if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
-        debugPrint(e.toString());
-      }
-    }
-    return false;
-  }
-
-  Future<void> restorePurchases() async {
-    try {
-      CustomerInfo customerInfo = await Purchases.restorePurchases();
-      _updateState(customerInfo);
+      return true;
     } catch (e) {
-      debugPrint('Failed to restore purchases: $e');
+      debugPrint('[Subscription] purchasePro failed: $e');
+      return false;
     }
+  }
+
+  /// Restores a previously purchased Pro plan from Firestore.
+  Future<void> restorePurchases({required String uid}) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final plan = (doc.data()?['plan'] ?? 'free') as String;
+      state = plan == 'pro';
+    } catch (e) {
+      debugPrint('[Subscription] restorePurchases failed: $e');
+    }
+  }
+
+  /// Revokes Pro (admin / refund use case).
+  Future<void> revokePro({required String uid}) async {
+    await _setPlanInFirestore(uid, 'free');
+    state = false;
+  }
+
+  Future<void> _setPlanInFirestore(String uid, String plan) async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .set({'plan': plan}, SetOptions(merge: true));
   }
 }
+
+// ─── Convenience re-export so call sites don't need to change ─────────────
+final firestoreServiceRef = firestoreServiceProvider;

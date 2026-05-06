@@ -14,6 +14,8 @@ import 'sections/education_section.dart';
 import 'sections/skills_section.dart';
 import 'sections/projects_section.dart';
 import 'sections/certifications_section.dart';
+import 'sections/languages_section.dart';
+import 'sections/awards_section.dart';
 
 class ResumeEditorScreen extends ConsumerStatefulWidget {
   final String resumeId;
@@ -32,14 +34,14 @@ class _State extends ConsumerState<ResumeEditorScreen> {
   @override
   void initState() {
     super.initState();
-    _autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _autoSaveTimer = Timer.periodic(Duration(seconds: 30), (_) {
       if (_dirty) _save();
     });
     
     if (widget.resumeId == 'new' && widget.initialTemplate != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         // Just delay slightly to ensure the stream provider has emitted the initial 'new' resume
-        Future.delayed(const Duration(milliseconds: 100), () {
+        Future.delayed(Duration(milliseconds: 100), () {
           ref.read(resumeNotifierProvider(widget.resumeId).notifier)
              .setTemplate(widget.initialTemplate!);
         });
@@ -67,14 +69,14 @@ class _State extends ConsumerState<ResumeEditorScreen> {
     final resumeAsync = ref.watch(resumeStreamProvider(widget.resumeId));
 
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: context.appColors.bg,
       appBar: GradientAppBar(
         title: resumeAsync.whenData((r) => r.title).value ?? 'Edit Resume',
         actions: [
           Center(
             child: Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              margin: EdgeInsets.only(right: 8),
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: _dirty 
                     ? AppColors.scoreOrange.withValues(alpha: 0.15) 
@@ -93,7 +95,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                     size: 14,
                     color: _dirty ? AppColors.scoreOrange : AppColors.scoreGreen,
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Text(_saveStatus, style: TextStyle(
                       color: _dirty ? AppColors.scoreOrange : AppColors.scoreGreen, 
                       fontSize: 11, fontWeight: FontWeight.w700)),
@@ -102,12 +104,12 @@ class _State extends ConsumerState<ResumeEditorScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.visibility_outlined, color: AppColors.textPrimary, size: 22),
+            icon: Icon(Icons.visibility_outlined, color: context.appColors.textPrimary, size: 22),
             onPressed: () => context.push('/preview/${widget.resumeId}')
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
-            color: AppColors.cardDark,
+            icon: Icon(Icons.more_vert_rounded, color: context.appColors.textPrimary),
+            color: context.appColors.card,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             itemBuilder: (_) => [
               _buildPopupItem('ats', Icons.analytics_outlined, 'Check ATS Score'),
@@ -120,18 +122,18 @@ class _State extends ConsumerState<ResumeEditorScreen> {
               if (val == 'cover') context.push('/cover-letter/${widget.resumeId}');
             }
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
         ],
       ),
       body: resumeAsync.when(
-        loading: () => const Center(
+        loading: () => Center(
           child: CircularProgressIndicator(color: AppColors.primaryLight)),
         error: (e, _) => Center(
-          child: Text('Error: $e', style: const TextStyle(color: AppColors.textSecondary))),
+          child: Text('Error: $e', style: TextStyle(color: context.appColors.textSecondary))),
         data: (resume) => LayoutBuilder(
           builder: (context, constraints) {
             final editor = ListView(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+              padding: EdgeInsets.fromLTRB(16, 20, 16, 100),
               children: [
                 PersonalInfoSection(
                   resumeId: widget.resumeId,
@@ -141,7 +143,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                         .updateSection('personal', d);
                     _onChanged();
                   }),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 ExperienceSection(
                   data: List<Map<String,dynamic>>.from(resume.sections['experience'] ?? []),
                   targetRole: resume.targetRole,
@@ -150,7 +152,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                         .updateSection('experience', d);
                     _onChanged();
                   }),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 EducationSection(
                   data: List<Map<String,dynamic>>.from(resume.sections['education'] ?? []),
                   onChanged: (d) {
@@ -158,7 +160,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                         .updateSection('education', d);
                     _onChanged();
                   }),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 SkillsSection(
                   data: List<String>.from(resume.sections['skills'] ?? []),
                   onChanged: (d) {
@@ -166,7 +168,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                         .updateSection('skills', d);
                     _onChanged();
                   }),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 ProjectsSection(
                   data: List<Map<String,dynamic>>.from(resume.sections['projects'] ?? []),
                   onChanged: (d) {
@@ -174,12 +176,28 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                         .updateSection('projects', d);
                     _onChanged();
                   }),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 CertificationsSection(
                   data: List<Map<String,dynamic>>.from(resume.sections['certifications'] ?? []),
                   onChanged: (d) {
                     ref.read(resumeNotifierProvider(widget.resumeId).notifier)
                         .updateSection('certifications', d);
+                    _onChanged();
+                  }),
+                SizedBox(height: 16),
+                AwardsSection(
+                  data: List<Map<String,dynamic>>.from(resume.sections['awards'] ?? []),
+                  onChanged: (d) {
+                    ref.read(resumeNotifierProvider(widget.resumeId).notifier)
+                        .updateSection('awards', d);
+                    _onChanged();
+                  }),
+                SizedBox(height: 16),
+                LanguagesSection(
+                  data: List<Map<String,dynamic>>.from(resume.sections['languages'] ?? []),
+                  onChanged: (d) {
+                    ref.read(resumeNotifierProvider(widget.resumeId).notifier)
+                        .updateSection('languages', d);
                     _onChanged();
                   }),
               ]);
@@ -189,11 +207,11 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(flex: 1, child: editor),
-                  const VerticalDivider(width: 1, color: AppColors.borderDark),
+                  VerticalDivider(width: 1, color: context.appColors.border),
                   Expanded(
                     flex: 1,
                     child: Container(
-                      color: AppColors.surfaceDark,
+                      color: context.appColors.surface,
                       child: PdfPreview(
                         build: (format) async => await PDFService().generatePDFBytes(resume),
                         allowPrinting: false,
@@ -203,7 +221,7 @@ class _State extends ConsumerState<ResumeEditorScreen> {
                         pdfPreviewPageDecoration: BoxDecoration(
                           color: Colors.white,
                           boxShadow: [
-                            BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4)),
+                            BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12, offset: Offset(0, 4)),
                           ],
                         ),
                       ),
@@ -218,13 +236,13 @@ class _State extends ConsumerState<ResumeEditorScreen> {
       ),
       floatingActionButton: Container(
         decoration: BoxDecoration(
-          gradient: AppColors.primaryGradient,
+          gradient: context.appColors.primaryGradient,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
               color: AppColors.primary.withValues(alpha: 0.4),
               blurRadius: 20,
-              offset: const Offset(0, 6),
+              offset: Offset(0, 6),
             ),
           ],
         ),
@@ -232,8 +250,8 @@ class _State extends ConsumerState<ResumeEditorScreen> {
           onPressed: () => context.push('/ats/${widget.resumeId}'),
           backgroundColor: Colors.transparent,
           elevation: 0,
-          icon: const Icon(Icons.analytics_rounded, color: Colors.white),
-          label: const Text('ATS Score', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          icon: Icon(Icons.analytics_rounded, color: Colors.white),
+          label: Text('ATS Score', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         ),
       ),
     );
@@ -244,9 +262,9 @@ class _State extends ConsumerState<ResumeEditorScreen> {
       value: value,
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppColors.textPrimary),
-          const SizedBox(width: 12),
-          Text(text, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+          Icon(icon, size: 18, color: context.appColors.textPrimary),
+          SizedBox(width: 12),
+          Text(text, style: TextStyle(color: context.appColors.textPrimary, fontSize: 14)),
         ],
       ),
     );

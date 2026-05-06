@@ -7,7 +7,6 @@ import '../../services/ai_service.dart';
 import '../../services/firestore_service.dart';
 import '../../providers/resume_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../models/resume_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 
@@ -44,7 +43,7 @@ class _CLState extends ConsumerState<CoverLetterScreen>
   void initState() {
     super.initState();
     _shimmerCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1500))
+        vsync: this, duration: Duration(milliseconds: 1500))
       ..repeat();
     _letterCtrl.addListener(_onLetterEdited);
   }
@@ -89,7 +88,7 @@ class _CLState extends ConsumerState<CoverLetterScreen>
 
       final uid  = ref.read(authStateProvider).value?.uid;
       if (uid == null) {
-        throw const CoverLetterValidationException('You are not signed in.');
+        throw CoverLetterValidationException('You are not signed in.');
       }
 
       // Build resume text
@@ -150,10 +149,10 @@ class _CLState extends ConsumerState<CoverLetterScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Could not auto-save — tap Save to retry'),
+        content: Text('Could not auto-save — tap Save to retry'),
         backgroundColor: AppColors.scoreOrange,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 6),
+        duration: Duration(seconds: 6),
         action: SnackBarAction(
           label: 'Save',
           textColor: Colors.white,
@@ -182,7 +181,7 @@ class _CLState extends ConsumerState<CoverLetterScreen>
       }
       if (mounted) {
         setState(() => _hasUnsaved = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('✅ Saved'),
           behavior: SnackBarBehavior.floating,
           duration: Duration(seconds: 2),
@@ -201,7 +200,7 @@ class _CLState extends ConsumerState<CoverLetterScreen>
 
   void _copy() {
     Clipboard.setData(ClipboardData(text: _letterCtrl.text));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text('📋 Copied to clipboard'),
       behavior: SnackBarBehavior.floating,
       duration: Duration(seconds: 2),
@@ -219,21 +218,21 @@ class _CLState extends ConsumerState<CoverLetterScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: context.appColors.bg,
       appBar: GradientAppBar(
         title: 'Cover Letter Builder',
         actions: [
           if (_state == _ScreenState.done && _hasUnsaved)
             TextButton.icon(
               onPressed: _manualSave,
-              icon: const Icon(Icons.save_outlined, color: AppColors.accentGold, size: 18),
-              label: const Text('Save', style: TextStyle(color: AppColors.accentGold, fontWeight: FontWeight.w700)),
+              icon: Icon(Icons.save_outlined, color: AppColors.accentGold, size: 18),
+              label: Text('Save', style: TextStyle(color: AppColors.accentGold, fontWeight: FontWeight.w700)),
             ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 48),
+        padding: EdgeInsets.fromLTRB(20, 24, 20, 48),
         child: Form(
           key: _formKey,
           child: Column(
@@ -251,46 +250,46 @@ class _CLState extends ConsumerState<CoverLetterScreen>
                         gradient: AppColors.accentGradient,
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Center(child: Text('✉️', style: TextStyle(fontSize: 24))),
+                      child: Center(child: Text('✉️', style: TextStyle(fontSize: 24))),
                     ),
-                    const SizedBox(width: 16),
-                    const Expanded(
+                    SizedBox(width: 16),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('AI Cover Letter',
-                              style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                              style: TextStyle(color: context.appColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
                           SizedBox(height: 2),
                           Text('Generated in seconds, tailored to the role',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                              style: TextStyle(color: context.appColors.textSecondary, fontSize: 12)),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // ── Input card ─────────────────────────────────────────────────
               GlassCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SectionHeader(
+                    SectionHeader(
                         title: 'Job Details',
                         subtitle: 'Tell the AI where you\'re applying'),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
 
                     // Company field with validation
                     TextFormField(
                       controller: _companyCtrl,
                       enabled: _state != _ScreenState.generating,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+                      style: TextStyle(color: context.appColors.textPrimary, fontSize: 15),
                       maxLength: 100,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Company Name *',
                         counterText: '',
-                        prefixIcon: Icon(Icons.business_outlined, size: 20, color: AppColors.textMuted),
+                        prefixIcon: Icon(Icons.business_outlined, size: 20, color: context.appColors.textMuted),
                       ),
                       textCapitalization: TextCapitalization.words,
                       validator: (v) {
@@ -298,7 +297,7 @@ class _CLState extends ConsumerState<CoverLetterScreen>
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
 
                     // JD field with live character counter
                     TextFormField(
@@ -306,18 +305,18 @@ class _CLState extends ConsumerState<CoverLetterScreen>
                       enabled: _state != _ScreenState.generating,
                       maxLines: 5,
                       maxLength: 5000,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                      style: TextStyle(color: context.appColors.textPrimary, fontSize: 14),
                       decoration: InputDecoration(
                         labelText: 'Job Description (optional but recommended)',
                         alignLabelWithHint: true,
-                        counterStyle: const TextStyle(color: AppColors.textMuted, fontSize: 10),
-                        prefixIcon: const Padding(
+                        counterStyle: TextStyle(color: context.appColors.textMuted, fontSize: 10),
+                        prefixIcon: Padding(
                           padding: EdgeInsets.only(bottom: 60),
-                          child: Icon(Icons.description_outlined, size: 20, color: AppColors.textMuted),
+                          child: Icon(Icons.description_outlined, size: 20, color: context.appColors.textMuted),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
 
                     // Generate button — disabled while loading (double-tap guard)
                     GradientButton(
@@ -336,13 +335,13 @@ class _CLState extends ConsumerState<CoverLetterScreen>
 
               // ── Error banner ────────────────────────────────────────────────
               if (_state == _ScreenState.error && _errorMsg != null) ...[
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 _ErrorBanner(message: _errorMsg!, onRetry: _generate),
               ],
 
               // ── Result card ─────────────────────────────────────────────────
               if (_state == _ScreenState.done && _letterCtrl.text.isNotEmpty) ...[
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 GlassCard(
                   showGlow: true,
                   child: Column(
@@ -351,86 +350,86 @@ class _CLState extends ConsumerState<CoverLetterScreen>
                       // Header row with word count, engine badge, actions
                       Row(
                         children: [
-                          const Text('Your Cover Letter',
-                              style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 15)),
-                          const SizedBox(width: 8),
+                          Text('Your Cover Letter',
+                              style: TextStyle(color: context.appColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 15)),
+                          SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text('$_wordCount words',
-                                style: const TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
+                                style: TextStyle(color: context.appColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
                           ),
                           if (_engineBadge.isNotEmpty) ...[
-                            const SizedBox(width: 6),
+                            SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
                                 color: AppColors.accent.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(_engineBadge,
-                                  style: const TextStyle(color: AppColors.accent, fontSize: 9, fontWeight: FontWeight.w700)),
+                                  style: TextStyle(color: AppColors.accent, fontSize: 9, fontWeight: FontWeight.w700)),
                             ),
                           ],
                           if (_savedDocId != null && !_hasUnsaved) ...[
-                            const SizedBox(width: 6),
-                            const Icon(Icons.cloud_done_outlined, size: 14, color: AppColors.scoreGreen),
+                            SizedBox(width: 6),
+                            Icon(Icons.cloud_done_outlined, size: 14, color: AppColors.scoreGreen),
                           ],
-                          const Spacer(),
+                          Spacer(),
                           // Action icons
                           if (_hasUnsaved)
                             IconButton(
-                              icon: const Icon(Icons.save_outlined, size: 18, color: AppColors.accentGold),
+                              icon: Icon(Icons.save_outlined, size: 18, color: AppColors.accentGold),
                               tooltip: 'Save edits',
                               onPressed: _manualSave,
                               visualDensity: VisualDensity.compact,
                             ),
                           IconButton(
-                            icon: const Icon(Icons.copy_outlined, size: 18, color: AppColors.textSecondary),
+                            icon: Icon(Icons.copy_outlined, size: 18, color: context.appColors.textSecondary),
                             tooltip: 'Copy to clipboard',
                             onPressed: _copy,
                             visualDensity: VisualDensity.compact,
                           ),
                           IconButton(
-                            icon: const Icon(Icons.share_outlined, size: 18, color: AppColors.textSecondary),
+                            icon: Icon(Icons.share_outlined, size: 18, color: context.appColors.textSecondary),
                             tooltip: 'Share',
                             onPressed: _share,
                             visualDensity: VisualDensity.compact,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
 
                       // Editable letter area
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.bgDark,
+                          color: context.appColors.bg,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.borderDark),
+                          border: Border.all(color: context.appColors.border),
                         ),
                         child: TextField(
                           controller: _letterCtrl,
                           maxLines: null,
-                          style: const TextStyle(
-                              color: AppColors.textPrimary, fontSize: 14, height: 1.75),
-                          decoration: const InputDecoration(
+                          style: TextStyle(
+                              color: context.appColors.textPrimary, fontSize: 14, height: 1.75),
+                          decoration: InputDecoration(
                             border: InputBorder.none,
                             isDense: true,
                             contentPadding: EdgeInsets.zero,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      SizedBox(height: 20),
 
                       // Download button
                       GradientButton(
                         label: 'Download FREE — Watch Short Ad',
                         onPressed: () => context.push('/download/${widget.resumeId}'),
-                        icon: const Icon(Icons.download_rounded, color: Colors.white, size: 18),
+                        icon: Icon(Icons.download_rounded, color: Colors.white, size: 18),
                         gradient: AppColors.goldGradient,
                       ),
                     ],
@@ -467,7 +466,7 @@ class _ErrorBanner extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14),
@@ -477,24 +476,24 @@ class _ErrorBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: AppColors.error, size: 20),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(message,
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, height: 1.5)),
-                const SizedBox(height: 8),
+                    style: TextStyle(color: context.appColors.textPrimary, fontSize: 13, height: 1.5)),
+                SizedBox(height: 8),
                 GestureDetector(
                   onTap: onRetry,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.error.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
                     ),
-                    child: const Text('Try Again',
+                    child: Text('Try Again',
                         style: TextStyle(color: AppColors.error, fontSize: 12, fontWeight: FontWeight.w700)),
                   ),
                 ),

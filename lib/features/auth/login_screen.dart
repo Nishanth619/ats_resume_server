@@ -30,10 +30,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void initState() {
     super.initState();
     _bgController = AnimationController(
-        vsync: this, duration: const Duration(seconds: 10))
+        vsync: this, duration: Duration(seconds: 10))
       ..repeat();
     _fadeController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+        vsync: this, duration: Duration(milliseconds: 500));
     _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
     _fadeController.forward();
   }
@@ -88,13 +88,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: context.appColors.bg,
       body: Stack(
         children: [
           // Animated background
           AnimatedBuilder(
             animation: _bgController,
-            builder: (_, __) => CustomPaint(
+            builder: (_, _) => CustomPaint(
               size: MediaQuery.of(context).size,
               painter: _LoginBgPainter(_bgController.value),
             ),
@@ -103,11 +103,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             child: FadeTransition(
               opacity: _fadeAnim,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+                padding: EdgeInsets.fromLTRB(24, 20, 24, 40),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     // Logo & title
                     Center(
                       child: Column(
@@ -116,44 +116,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             width: 72,
                             height: 72,
                             decoration: BoxDecoration(
-                              gradient: AppColors.primaryGradient,
+                              gradient: context.appColors.primaryGradient,
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
                                   color: AppColors.primary.withValues(alpha: 0.4),
                                   blurRadius: 24,
-                                  offset: const Offset(0, 8),
+                                  offset: Offset(0, 8),
                                 ),
                               ],
                             ),
-                            child: const Center(
+                            child: Center(
                               child: Text('📄',
                                   style: TextStyle(fontSize: 32)),
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 20),
                           ShaderMask(
                             shaderCallback: (b) =>
-                                AppColors.primaryGradient.createShader(b),
-                            child: const Text('ATS.ai',
+                                context.appColors.primaryGradient.createShader(b),
+                            child: Text('ATS.ai',
                                 style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 32,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.5)),
                           ),
-                          const SizedBox(height: 6),
+                          SizedBox(height: 6),
                           Text(
                             _isSignUp
                                 ? 'Create your account'
                                 : 'Welcome back 👋',
-                            style: const TextStyle(
-                                color: AppColors.textSecondary, fontSize: 15),
+                            style: TextStyle(
+                                color: context.appColors.textSecondary, fontSize: 15),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 36),
+                    SizedBox(height: 36),
 
                     // Form card
                     GlassCard(
@@ -172,7 +172,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                     ? 'Enter your name'
                                     : null,
                               ),
-                              const SizedBox(height: 16),
+                              SizedBox(height: 16),
                             ],
                             _buildField(
                               controller: _emailCtrl,
@@ -184,7 +184,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                       ? null
                                       : 'Enter a valid email',
                             ),
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
                             _buildField(
                               controller: _passCtrl,
                               label: 'Password',
@@ -195,7 +195,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                   _obscurePass
                                       ? Icons.visibility_off_outlined
                                       : Icons.visibility_outlined,
-                                  color: AppColors.textMuted,
+                                  color: context.appColors.textMuted,
                                   size: 20,
                                 ),
                                 onPressed: () =>
@@ -205,31 +205,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                   ? null
                                   : 'Min 6 characters',
                             ),
-                            const SizedBox(height: 28),
+                            SizedBox(height: 28),
                             GradientButton(
                               label:
                                   _isSignUp ? 'Create Account' : 'Sign In',
                               onPressed: _loading ? null : _submit,
                               isLoading: _loading,
                             ),
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
 
                             // Divider
                             Row(children: [
-                              const Expanded(
-                                  child: Divider(color: AppColors.borderDark)),
+                              Expanded(
+                                  child: Divider(color: context.appColors.border)),
                               Padding(
                                 padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
+                                    EdgeInsets.symmetric(horizontal: 12),
                                 child: Text('or',
                                     style: TextStyle(
-                                        color: AppColors.textMuted,
+                                        color: context.appColors.textMuted,
                                         fontSize: 13)),
                               ),
-                              const Expanded(
-                                  child: Divider(color: AppColors.borderDark)),
+                              Expanded(
+                                  child: Divider(color: context.appColors.border)),
                             ]),
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
 
                             // Google button
                             GestureDetector(
@@ -237,23 +237,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               child: Container(
                                 height: 52,
                                 decoration: BoxDecoration(
-                                  color: AppColors.cardDark2,
+                                  color: context.appColors.card2,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                      color: AppColors.borderDark, width: 1.5),
+                                      color: context.appColors.border, width: 1.5),
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Text('G',
+                                    Text('G',
                                         style: TextStyle(
                                             fontSize: 20,
                                             fontWeight: FontWeight.w800,
                                             color: Colors.white)),
-                                    const SizedBox(width: 10),
+                                    SizedBox(width: 10),
                                     Text('Continue with Google',
                                         style: TextStyle(
-                                            color: AppColors.textPrimary,
+                                            color: context.appColors.textPrimary,
                                             fontWeight: FontWeight.w600,
                                             fontSize: 14)),
                                   ],
@@ -264,7 +264,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
 
                     // Toggle
                     GestureDetector(
@@ -276,8 +276,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       child: RichText(
                         textAlign: TextAlign.center,
                         text: TextSpan(
-                          style: const TextStyle(
-                              color: AppColors.textSecondary, fontSize: 14),
+                          style: TextStyle(
+                              color: context.appColors.textSecondary, fontSize: 14),
                           children: [
                             TextSpan(
                               text: _isSignUp
@@ -286,7 +286,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ),
                             TextSpan(
                               text: _isSignUp ? 'Sign In' : 'Sign Up',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   color: AppColors.primaryLight,
                                   fontWeight: FontWeight.w700),
                             ),
@@ -317,10 +317,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+      style: TextStyle(color: context.appColors.textPrimary, fontSize: 15),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, size: 20, color: AppColors.textMuted),
+        prefixIcon: Icon(icon, size: 20, color: context.appColors.textMuted),
         suffixIcon: suffix,
       ),
       validator: validator,

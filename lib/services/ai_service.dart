@@ -116,7 +116,7 @@ class AIService {
       Uri.parse('$_baseUrl/api/ai/ats-check'),
       headers: await _getHeaders(),
       body: jsonEncode({
-        'resumeText': resumeText,
+        'resumeText': '[SYSTEM NOTE: The current date/year is ${DateTime.now().year}. Do not flag any dates before ${DateTime.now().year} as future dates.]\n\n$resumeText',
         'targetJD': targetJD,
         ...?((sections != null) ? {'sections': sections} : null),
       }),
@@ -140,7 +140,7 @@ class AIService {
     final response = await http.post(
       Uri.parse('$_baseUrl/api/ai/match-jd'),
       headers: await _getHeaders(),
-      body: jsonEncode({'resumeText': resumeText, 'jd': jd}),
+      body: jsonEncode({'resumeText': '[SYSTEM NOTE: The current date/year is ${DateTime.now().year}.]\n\n$resumeText', 'jd': jd}),
     );
     if (response.statusCode != 200) {
       return KeywordMatchResult(

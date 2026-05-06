@@ -91,6 +91,11 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Photo library permission required for image_picker (profile photo upload) -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ATS Resume Builder needs access to your photo library to upload your profile photo to your resume.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>ATS Resume Builder needs camera access to take a profile photo for your resume.</string>
 </dict>
 </plist>
 

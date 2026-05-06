@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/ai_service.dart';
-import '../../models/resume_model.dart';
 import '../../providers/resume_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
@@ -27,7 +26,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
   void initState() {
     super.initState();
     _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900))
+        vsync: this, duration: Duration(milliseconds: 900))
       ..repeat(reverse: true);
     _pulse = Tween<double>(begin: 0.95, end: 1.05)
         .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
@@ -42,7 +41,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
 
   Future<void> _analyse() async {
     if (_jdCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Please paste a job description first'),
         backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
@@ -88,7 +87,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
           .tailorToJD(jd, aiService);
       if (mounted) {
         setState(() { _tailoring = false; _tailored = true; });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('✅ Resume tailored and saved! Go back to review changes.'),
           backgroundColor: AppColors.scoreGreen,
           behavior: SnackBarBehavior.floating,
@@ -110,7 +109,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: context.appColors.bg,
       appBar: GradientAppBar(title: 'JD Matcher'),
       body: (_loading || _tailoring) ? _buildLoading() : _buildContent(),
     );
@@ -139,31 +138,31 @@ class _JDState extends ConsumerState<JDMatcherScreen>
               ),
               child: Center(child: Text(
                 _tailoring ? '✨' : '🔍',
-                style: const TextStyle(fontSize: 40))),
+                style: TextStyle(fontSize: 40))),
             ),
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: 28),
           ShaderMask(
             shaderCallback: (b) => AppColors.accentGradient.createShader(b),
             child: Text(
               _tailoring ? 'Tailoring Your Resume...' : 'Matching Keywords...',
-              style: const TextStyle(
+              style: TextStyle(
                   color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.w700)),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Text(
             _tailoring 
               ? 'AI is rewriting your summary, experience\n& skills to match the job description'
               : 'Comparing your resume to the job description',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-          const SizedBox(height: 32),
-          const SizedBox(
+            style: TextStyle(color: context.appColors.textSecondary, fontSize: 13)),
+          SizedBox(height: 32),
+          SizedBox(
             width: 200,
             child: LinearProgressIndicator(
-              backgroundColor: AppColors.borderDark,
+              backgroundColor: context.appColors.border,
               valueColor:
                   AlwaysStoppedAnimation<Color>(AppColors.accent),
               minHeight: 3,
@@ -177,7 +176,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
 
   Widget _buildContent() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+      padding: EdgeInsets.fromLTRB(20, 24, 20, 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -195,47 +194,47 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                         gradient: AppColors.accentGradient,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Center(
+                      child: Center(
                           child: Text('🔍', style: TextStyle(fontSize: 20))),
                     ),
-                    const SizedBox(width: 14),
-                    const Expanded(
+                    SizedBox(width: 14),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Job Description',
                               style: TextStyle(
-                                  color: AppColors.textPrimary,
+                                  color: context.appColors.textPrimary,
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700)),
                           Text('Paste the full JD for best results',
                               style: TextStyle(
-                                  color: AppColors.textSecondary,
+                                  color: context.appColors.textSecondary,
                                   fontSize: 12)),
                         ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 Container(
                   decoration: BoxDecoration(
-                    color: AppColors.bgDark,
+                    color: context.appColors.bg,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderDark),
+                    border: Border.all(color: context.appColors.border),
                   ),
                   child: TextField(
                     controller: _jdCtrl,
                     maxLines: 7,
-                    style: const TextStyle(
-                        color: AppColors.textPrimary,
+                    style: TextStyle(
+                        color: context.appColors.textPrimary,
                         fontSize: 14,
                         height: 1.6),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText:
                           'Paste the job description here...\n\nThe more detail, the better the match.',
                       hintStyle: TextStyle(
-                          color: AppColors.textMuted,
+                          color: context.appColors.textMuted,
                           fontSize: 13,
                           height: 1.6),
                       border: InputBorder.none,
@@ -243,13 +242,13 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 GradientButton(
                   label: 'Analyse Match ✨',
                   onPressed: _analyse,
                   gradient: AppColors.accentGradient,
                   icon:
-                      const Icon(Icons.analytics_outlined, color: Colors.white, size: 18),
+                      Icon(Icons.analytics_outlined, color: Colors.white, size: 18),
                 ),
               ],
             ),
@@ -257,7 +256,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
 
           // Results
           if (_result != null) ...[
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
 
             // Match score card
             GlassCard(
@@ -266,7 +265,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
               child: Column(
                 children: [
                   ScoreRing(score: _result!.matchPercentage, radius: 68),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   Text(
                     _result!.matchPercentage >= 75
                         ? '🎉 Great match — Apply now!'
@@ -280,13 +279,13 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                         fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   // Match bar
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: _result!.matchPercentage / 100,
-                      backgroundColor: AppColors.borderDark,
+                      backgroundColor: context.appColors.border,
                       valueColor: AlwaysStoppedAnimation<Color>(
                           AppColors.scoreColor(_result!.matchPercentage)),
                       minHeight: 6,
@@ -295,7 +294,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
 
             // Two-column keyword results
             Row(
@@ -304,33 +303,33 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                 // Matched keywords
                 Expanded(
                   child: GlassCard(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            const Text('✅ ', style: TextStyle(fontSize: 14)),
-                            const Text('Matched',
+                            Text('✅ ', style: TextStyle(fontSize: 14)),
+                            Text('Matched',
                                 style: TextStyle(
                                     color: AppColors.scoreGreen,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13)),
-                            const Spacer(),
+                            Spacer(),
                             Text('${_result!.matched.length}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: AppColors.scoreGreen,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 16)),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
                           children: _result!.matched
                               .map((k) => Container(
-                                    padding: const EdgeInsets.symmetric(
+                                    padding: EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: AppColors.scoreGreen
@@ -341,7 +340,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                                               .withValues(alpha: 0.3)),
                                     ),
                                     child: Text(k,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             color: AppColors.scoreGreen,
                                             fontSize: 11,
                                             fontWeight: FontWeight.w600)),
@@ -352,37 +351,37 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 // Missing keywords
                 Expanded(
                   child: GlassCard(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            const Text('❌ ', style: TextStyle(fontSize: 14)),
-                            const Text('Missing',
+                            Text('❌ ', style: TextStyle(fontSize: 14)),
+                            Text('Missing',
                                 style: TextStyle(
                                     color: AppColors.scoreRed,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13)),
-                            const Spacer(),
+                            Spacer(),
                             Text('${_result!.missing.length}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: AppColors.scoreRed,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 16)),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
                           children: _result!.missing
                               .map((k) => Container(
-                                    padding: const EdgeInsets.symmetric(
+                                    padding: EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color:
@@ -393,7 +392,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                                               .withValues(alpha: 0.3)),
                                     ),
                                     child: Text('+ $k',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             color: AppColors.scoreRed,
                                             fontSize: 11,
                                             fontWeight: FontWeight.w600)),
@@ -409,29 +408,29 @@ class _JDState extends ConsumerState<JDMatcherScreen>
 
             // Tip card
             if (_result!.missing.isNotEmpty) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               GlassCard(
                 showGlow: true,
                 glowColor: AppColors.accentGold,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('💡', style: TextStyle(fontSize: 22)),
-                    const SizedBox(width: 14),
+                    Text('💡', style: TextStyle(fontSize: 22)),
+                    SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Pro Tip',
+                          Text('Pro Tip',
                               style: TextStyle(
                                   color: AppColors.accentGold,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14)),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
                             'Add the ${_result!.missing.take(3).join(', ')} keywords to your Skills or Summary section to significantly boost your match score.',
-                            style: const TextStyle(
-                                color: AppColors.textSecondary,
+                            style: TextStyle(
+                                color: context.appColors.textSecondary,
                                 fontSize: 13,
                                 height: 1.5),
                           ),
@@ -444,7 +443,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
             ],
 
             // ── Tailor My Resume CTA ──
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             if (_tailored)
               GlassCard(
                 showGlow: true,
@@ -457,10 +456,10 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                         color: AppColors.scoreGreen.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Center(child: Text('✅', style: TextStyle(fontSize: 22))),
+                      child: Center(child: Text('✅', style: TextStyle(fontSize: 22))),
                     ),
-                    const SizedBox(width: 14),
-                    const Expanded(
+                    SizedBox(width: 14),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -469,7 +468,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                                   fontWeight: FontWeight.w700, fontSize: 14)),
                           SizedBox(height: 2),
                           Text('Go back to the editor to review your AI-improved resume.',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                              style: TextStyle(color: context.appColors.textSecondary, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -488,33 +487,33 @@ class _JDState extends ConsumerState<JDMatcherScreen>
                         Container(
                           width: 44, height: 44,
                           decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
+                            gradient: context.appColors.primaryGradient,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Center(child: Text('🪄', style: TextStyle(fontSize: 22))),
+                          child: Center(child: Text('🪄', style: TextStyle(fontSize: 22))),
                         ),
-                        const SizedBox(width: 14),
-                        const Expanded(
+                        SizedBox(width: 14),
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Auto-Tailor Resume',
-                                  style: TextStyle(color: AppColors.textPrimary,
+                                  style: TextStyle(color: context.appColors.textPrimary,
                                       fontWeight: FontWeight.w700, fontSize: 15)),
                               SizedBox(height: 2),
                               Text('AI rewrites your summary, experience & skills to match this JD',
-                                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                                  style: TextStyle(color: context.appColors.textSecondary, fontSize: 12)),
                             ],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     GradientButton(
                       label: 'Tailor My Resume to this JD  🪄',
                       onPressed: _tailorResume,
-                      gradient: AppColors.primaryGradient,
-                      icon: const Icon(Icons.auto_fix_high_rounded, color: Colors.white, size: 18),
+                      gradient: context.appColors.primaryGradient,
+                      icon: Icon(Icons.auto_fix_high_rounded, color: Colors.white, size: 18),
                     ),
                   ],
                 ),

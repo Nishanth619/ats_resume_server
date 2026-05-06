@@ -6,7 +6,7 @@ import '../../services/subscription_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 
-const List<Map<String, dynamic>> kTemplates = [
+List<Map<String, dynamic>> kTemplates = [
   {'id': 'classic', 'name': 'Classic', 'premium': false, 'ats': 98, 'emoji': '📋', 'desc': 'Timeless & trusted',
     'gradient': [0xFF475569, 0xFF334155]},
   {'id': 'modern', 'name': 'Modern', 'premium': false, 'ats': 97, 'emoji': '⚡', 'desc': 'Clean & contemporary',
@@ -76,90 +76,41 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
   }
 
   void _showProSheet() {
+    final user = ref.read(userDataProvider).value;
+    final uid = user?.uid ?? '';
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.cardDark,
+      backgroundColor: context.appColors.card,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: AppColors.borderDark,
-                      borderRadius: BorderRadius.circular(2))),
-            ),
-            const SizedBox(height: 24),
-            const Text('👑', textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 52)),
-            const SizedBox(height: 16),
-            const Text('Upgrade to Pro',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            const Text(
-              'Unlock elite templates designed for FAANG and Fortune 500 companies.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: AppColors.textSecondary, fontSize: 14, height: 1.5),
-            ),
-            const SizedBox(height: 32),
-            GradientButton(
-              label: 'Upgrade Now',
-              onPressed: () async {
-                final success = await ref.read(subscriptionProvider.notifier).purchasePro();
-                if (success) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Upgraded to Pro successfully!')),
-                  );
-                }
-              },
-              gradient: AppColors.goldGradient,
-              icon: const Icon(Icons.star_rounded, color: Colors.white, size: 18),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Maybe later',
-                  style: TextStyle(color: AppColors.textMuted)),
-            ),
-          ],
-        ),
-      ),
+      builder: (ctx) => _ProPaywallSheet(uid: uid),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(userDataProvider).value;
-    final isPro = user?.plan == 'pro' || ref.watch(subscriptionProvider);
+    final isProSub = ref.watch(subscriptionProvider);
+    // Pro if Firestore plan == 'pro' OR if subscriptionProvider is true
+    final isPro = user?.plan == 'pro' || isProSub;
 
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: context.appColors.bg,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             pinned: true,
-            backgroundColor: AppColors.surfaceDark,
+            backgroundColor: context.appColors.surface,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 18, color: AppColors.textPrimary),
+              icon: Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 18, color: context.appColors.textPrimary),
               onPressed: () => Navigator.of(context).maybePop(),
             ),
             title: ShaderMask(
-              shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
-              child: const Text('Choose Template',
+              shaderCallback: (b) => context.appColors.primaryGradient.createShader(b),
+              child: Text('Choose Template',
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -168,7 +119,7 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
             actions: [
               if (_selectedId != null)
                 Padding(
-                  padding: const EdgeInsets.only(right: 12),
+                  padding: EdgeInsets.only(right: 12),
                   child: GestureDetector(
                     onTap: () =>
                         context.push('/editor/new?template=$_selectedId'),
@@ -177,27 +128,27 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
                 ),
             ],
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(50),
+              preferredSize: Size.fromHeight(50),
               child: Container(
-                margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                margin: EdgeInsets.fromLTRB(20, 0, 20, 12),
                 decoration: BoxDecoration(
-                  color: AppColors.cardDark,
+                  color: context.appColors.card,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.borderDark),
+                  border: Border.all(color: context.appColors.border),
                 ),
                 child: TabBar(
                   controller: _tabCtrl,
                   indicator: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
+                    gradient: context.appColors.primaryGradient,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   indicatorSize: TabBarIndicatorSize.tab,
                   labelColor: Colors.white,
-                  unselectedLabelColor: AppColors.textSecondary,
-                  labelStyle: const TextStyle(
+                  unselectedLabelColor: context.appColors.textSecondary,
+                  labelStyle: TextStyle(
                       fontWeight: FontWeight.w700, fontSize: 13),
                   dividerColor: Colors.transparent,
-                  tabs: const [
+                  tabs: [
                     Tab(text: '🎁  Free (10)'),
                     Tab(text: '👑  Pro (5)'),
                   ],
@@ -238,58 +189,58 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
         maxChildSize: 0.96,
         minChildSize: 0.6,
         builder: (_, scrollCtrl) => Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surfaceDark,
+          decoration: BoxDecoration(
+            color: context.appColors.surface,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.symmetric(vertical: 12),
                 child: Container(
                   width: 44, height: 4,
-                  decoration: BoxDecoration(color: AppColors.borderDark, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(color: context.appColors.border, borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 14),
                 child: Row(
                   children: [
                     ShaderMask(
                       shaderCallback: (b) => LinearGradient(colors: gradColors).createShader(b),
-                      child: Text(t['name'], style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                      child: Text(t['name'], style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: AppColors.scoreGreen.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: AppColors.scoreGreen.withValues(alpha: 0.3)),
                       ),
-                      child: Text('ATS ${t['ats']}%', style: const TextStyle(color: AppColors.scoreGreen, fontSize: 11, fontWeight: FontWeight.w700)),
+                      child: Text('ATS ${t['ats']}%', style: TextStyle(color: AppColors.scoreGreen, fontSize: 11, fontWeight: FontWeight.w700)),
                     ),
-                    const Spacer(),
-                    Text(t['desc'], style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                    Spacer(),
+                    Text(t['desc'], style: TextStyle(color: context.appColors.textMuted, fontSize: 12)),
                   ],
                 ),
               ),
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollCtrl,
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                  padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
+                      constraints: BoxConstraints(maxWidth: 420),
                       child: Container(
                         decoration: BoxDecoration(
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 40, offset: const Offset(0, 12))],
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 40, offset: Offset(0, 12))],
                         ),
                         child: AspectRatio(
                           aspectRatio: 1 / 1.414,
                           child: Container(
                             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
-                            padding: const EdgeInsets.all(20),
+                            padding: EdgeInsets.all(20),
                             child: _FullTemplatePreview(templateId: t['id'], color: gradColors[0]),
                           ),
                         ),
@@ -299,29 +250,29 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 32),
                 child: Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(ctx),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textSecondary,
-                          side: const BorderSide(color: AppColors.borderDark),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          foregroundColor: context.appColors.textSecondary,
+                          side: BorderSide(color: context.appColors.border),
+                          padding: EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
-                        child: const Text('Back'),
+                        child: Text('Back'),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Expanded(
                       flex: 2,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(colors: gradColors),
                           borderRadius: BorderRadius.circular(14),
-                          boxShadow: [BoxShadow(color: gradColors[0].withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 4))],
+                          boxShadow: [BoxShadow(color: gradColors[0].withValues(alpha: 0.4), blurRadius: 16, offset: Offset(0, 4))],
                         ),
                         child: ElevatedButton.icon(
                           onPressed: () {
@@ -329,13 +280,13 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
                             setState(() => _selectedId = t['id']);
                             context.push('/editor/new?template=${t['id']}');
                           },
-                          icon: const Icon(Icons.edit_rounded, size: 18, color: Colors.white),
-                          label: const Text('Use This Template',
+                          icon: Icon(Icons.edit_rounded, size: 18, color: Colors.white),
+                          label: Text('Use This Template',
                               style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
                         ),
@@ -368,8 +319,8 @@ class _TemplateGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 40),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
@@ -386,12 +337,12 @@ class _TemplateGrid extends StatelessWidget {
         return GestureDetector(
           onTap: () => onSelect(t, isPro),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
+            duration: Duration(milliseconds: 250),
             decoration: BoxDecoration(
-              color: AppColors.cardDark,
+              color: context.appColors.card,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: isSelected ? AppColors.primaryLight : AppColors.borderDark,
+                color: isSelected ? AppColors.primaryLight : context.appColors.border,
                 width: isSelected ? 2 : 1,
               ),
               boxShadow: isSelected
@@ -399,14 +350,14 @@ class _TemplateGrid extends StatelessWidget {
                       BoxShadow(
                         color: AppColors.primary.withValues(alpha: 0.35),
                         blurRadius: 20,
-                        offset: const Offset(0, 4),
+                        offset: Offset(0, 4),
                       ),
                     ]
                   : [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 8,
-                        offset: const Offset(0, 2),
+                        offset: Offset(0, 2),
                       ),
                     ],
             ),
@@ -424,11 +375,11 @@ class _TemplateGrid extends StatelessWidget {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: const BorderRadius.vertical(
+                          borderRadius: BorderRadius.vertical(
                               top: Radius.circular(17)),
                         ),
                         child: Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: EdgeInsets.all(8),
                           child: Center(
                             child: _MiniResumePreview(templateId: t['id'], color: gradColors[0]),
                           ),
@@ -439,10 +390,10 @@ class _TemplateGrid extends StatelessWidget {
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.45),
-                            borderRadius: const BorderRadius.vertical(
+                            borderRadius: BorderRadius.vertical(
                                 top: Radius.circular(17)),
                           ),
-                          child: const Center(
+                          child: Center(
                             child: Icon(Icons.lock_rounded,
                                 color: Colors.white, size: 28),
                           ),
@@ -455,11 +406,11 @@ class _TemplateGrid extends StatelessWidget {
                           child: Container(
                             width: 28,
                             height: 28,
-                            decoration: const BoxDecoration(
-                              gradient: AppColors.primaryGradient,
+                            decoration: BoxDecoration(
+                              gradient: context.appColors.primaryGradient,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.check_rounded,
+                            child: Icon(Icons.check_rounded,
                                 color: Colors.white, size: 16),
                           ),
                         ),
@@ -468,14 +419,14 @@ class _TemplateGrid extends StatelessWidget {
                         top: 10,
                         left: 10,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                               horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text('ATS ${t['ats']}%',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 9,
                                   fontWeight: FontWeight.w700)),
@@ -486,7 +437,7 @@ class _TemplateGrid extends StatelessWidget {
                 ),
                 // Info row
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  padding: EdgeInsets.fromLTRB(12, 10, 12, 12),
                   child: Row(
                     children: [
                       Expanded(
@@ -494,13 +445,13 @@ class _TemplateGrid extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(t['name'],
-                                style: const TextStyle(
-                                    color: AppColors.textPrimary,
+                                style: TextStyle(
+                                    color: context.appColors.textPrimary,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13)),
                             Text(t['desc'],
-                                style: const TextStyle(
-                                    color: AppColors.textMuted,
+                                style: TextStyle(
+                                    color: context.appColors.textMuted,
                                     fontSize: 10)),
                           ],
                         ),
@@ -510,7 +461,7 @@ class _TemplateGrid extends StatelessWidget {
                             text: 'PRO', gradient: AppColors.goldGradient)
                       else
                         Container(
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                               horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
                             color: AppColors.scoreGreen.withValues(alpha: 0.12),
@@ -518,7 +469,7 @@ class _TemplateGrid extends StatelessWidget {
                             border: Border.all(
                                 color: AppColors.scoreGreen.withValues(alpha: 0.3)),
                           ),
-                          child: const Text('FREE',
+                          child: Text('FREE',
                               style: TextStyle(
                                   color: AppColors.scoreGreen,
                                   fontSize: 9,
@@ -557,11 +508,11 @@ class _MiniResumePreview extends StatelessWidget {
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
-              offset: const Offset(0, 2),
+              offset: Offset(0, 2),
             )
           ],
         ),
-        padding: const EdgeInsets.all(6),
+        padding: EdgeInsets.all(6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -570,31 +521,31 @@ class _MiniResumePreview extends StatelessWidget {
               Container(
                 height: 12,
                 decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(1)),
-                margin: const EdgeInsets.only(bottom: 4),
+                margin: EdgeInsets.only(bottom: 4),
               ),
               _line(Colors.black87, 0.6, 3),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               _line(Colors.black38, 0.4, 2),
             ] else if (isMinimal) ...[
               Center(child: _line(Colors.black87, 0.5, 4)),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               Center(child: _line(Colors.black38, 0.8, 2)),
             ] else ...[
               // Classic
               _line(color, 0.5, 4),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               _line(Colors.black38, 1.0, 2),
             ],
             
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             
             // Sections
             _section(isModern ? color : Colors.black87, 0.3),
             _textBlock(),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             _section(isModern ? color : Colors.black87, 0.4),
             _textBlock(),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             _section(isModern ? color : Colors.black87, 0.3),
             _textBlock(),
           ],
@@ -608,9 +559,9 @@ class _MiniResumePreview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _line(c, w, 2.5),
-        const SizedBox(height: 2),
+        SizedBox(height: 2),
         if (templateId == 'classic')
-          Container(height: 0.5, color: c, margin: const EdgeInsets.only(bottom: 2)),
+          Container(height: 0.5, color: c, margin: EdgeInsets.only(bottom: 2)),
       ],
     );
   }
@@ -620,9 +571,9 @@ class _MiniResumePreview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _line(Colors.black54, 0.9, 1.5),
-        const SizedBox(height: 1.5),
+        SizedBox(height: 1.5),
         _line(Colors.black54, 0.85, 1.5),
-        const SizedBox(height: 1.5),
+        SizedBox(height: 1.5),
         _line(Colors.black54, 0.6, 1.5),
       ],
     );
@@ -660,20 +611,20 @@ class _FullTemplatePreview extends StatelessWidget {
       children: [
         // Header section
         if (isModern) _modernHeader() else if (isMinimal) _minimalHeader() else _classicHeader(),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         // Summary
         _sectionLabel('PROFESSIONAL SUMMARY', isModern, isExec),
         _textLines(3, 0.95),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         // Experience
         _sectionLabel('EXPERIENCE', isModern, isExec),
         _jobEntry('Senior Product Designer', 'Google Inc.', '2022 – Present'),
         _jobEntry('UX Designer', 'Meta Platforms', '2020 – 2022'),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         // Education
         _sectionLabel('EDUCATION', isModern, isExec),
         _eduEntry('B.Sc Computer Science', 'Stanford University', '2020'),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         // Skills
         _sectionLabel('SKILLS', isModern, isExec),
         _skillChips(isModern),
@@ -685,23 +636,23 @@ class _FullTemplatePreview extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       _line(color, 0.55, 5),
-      const SizedBox(height: 3),
+      SizedBox(height: 3),
       _line(Colors.black45, 0.4, 2.5),
-      const SizedBox(height: 3),
+      SizedBox(height: 3),
       _line(Colors.black26, 0.85, 1),
     ],
   );
 
   Widget _modernHeader() => Container(
-    padding: const EdgeInsets.all(6),
+    padding: EdgeInsets.all(6),
     decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _line(Colors.white, 0.5, 5),
-        const SizedBox(height: 3),
+        SizedBox(height: 3),
         _line(Colors.white70, 0.35, 2.5),
-        const SizedBox(height: 3),
+        SizedBox(height: 3),
         _line(Colors.white54, 0.7, 1.5),
       ],
     ),
@@ -711,9 +662,9 @@ class _FullTemplatePreview extends StatelessWidget {
     child: Column(
       children: [
         _line(Colors.black87, 0.45, 5),
-        const SizedBox(height: 3),
+        SizedBox(height: 3),
         _line(Colors.black45, 0.6, 2),
-        const SizedBox(height: 3),
+        SizedBox(height: 3),
         _line(Colors.black26, 0.8, 1),
       ],
     ),
@@ -722,19 +673,19 @@ class _FullTemplatePreview extends StatelessWidget {
   Widget _sectionLabel(String label, bool isModern, bool isExec) {
     if (isModern) {
       return Container(
-        margin: const EdgeInsets.only(bottom: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        margin: EdgeInsets.only(bottom: 4),
+        padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
         decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
         child: Text(label, style: TextStyle(color: Colors.white, fontSize: 5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
       );
     }
     return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
+      padding: EdgeInsets.only(bottom: 3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: TextStyle(color: isExec ? color : Colors.black87, fontSize: 5.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-          Container(height: 0.5, color: isExec ? color : Colors.black26, margin: const EdgeInsets.only(top: 1)),
+          Container(height: 0.5, color: isExec ? color : Colors.black26, margin: EdgeInsets.only(top: 1)),
         ],
       ),
     );
@@ -743,13 +694,13 @@ class _FullTemplatePreview extends StatelessWidget {
   Widget _textLines(int count, double w) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: List.generate(count, (i) => Padding(
-      padding: const EdgeInsets.only(bottom: 2),
+      padding: EdgeInsets.only(bottom: 2),
       child: _line(Colors.black26, i == count - 1 ? w * 0.7 : w, 1.5),
     )),
   );
 
   Widget _jobEntry(String title, String company, String dates) => Padding(
-    padding: const EdgeInsets.only(bottom: 5),
+    padding: EdgeInsets.only(bottom: 5),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -759,18 +710,18 @@ class _FullTemplatePreview extends StatelessWidget {
             Text(dates, style: TextStyle(fontSize: 4.5, color: Colors.black45)),
           ],
         ),
-        const SizedBox(height: 1),
+        SizedBox(height: 1),
         Text(company, style: TextStyle(fontSize: 5, color: color, fontStyle: FontStyle.italic)),
-        const SizedBox(height: 2),
+        SizedBox(height: 2),
         _line(Colors.black26, 0.9, 1.5),
-        const SizedBox(height: 1.5),
+        SizedBox(height: 1.5),
         _line(Colors.black26, 0.75, 1.5),
       ],
     ),
   );
 
   Widget _eduEntry(String degree, String school, String year) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
+    padding: EdgeInsets.only(bottom: 4),
     child: Row(
       children: [
         Expanded(child: Column(
@@ -789,7 +740,7 @@ class _FullTemplatePreview extends StatelessWidget {
     spacing: 3,
     runSpacing: 3,
     children: ['Flutter', 'Dart', 'Firebase', 'UI/UX', 'Figma'].map((s) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
         color: isModern ? color.withAlpha(25) : Colors.black.withAlpha(10),
         borderRadius: BorderRadius.circular(2),
@@ -808,3 +759,205 @@ class _FullTemplatePreview extends StatelessWidget {
     ),
   );
 }
+
+// ─── Pro Paywall Bottom Sheet ─────────────────────────────────────────────
+class _ProPaywallSheet extends ConsumerStatefulWidget {
+  final String uid;
+  const _ProPaywallSheet({required this.uid});
+
+  @override
+  ConsumerState<_ProPaywallSheet> createState() => _ProPaywallSheetState();
+}
+
+class _ProPaywallSheetState extends ConsumerState<_ProPaywallSheet> {
+  bool _loading = false;
+  String? _error;
+
+  Future<void> _upgrade() async {
+    if (_loading) return;
+    setState(() { _loading = true; _error = null; });
+
+    try {
+      final success = await ref
+          .read(subscriptionProvider.notifier)
+          .purchasePro(uid: widget.uid);
+
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Welcome to Pro! All templates unlocked.'),
+            backgroundColor: AppColors.scoreGreen,
+          ),
+        );
+      } else {
+        setState(() => _error = 'Purchase could not be completed. Please try again.');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _restore() async {
+    setState(() { _loading = true; _error = null; });
+    await ref.read(subscriptionProvider.notifier).restorePurchases(uid: widget.uid);
+    if (!mounted) return;
+    setState(() => _loading = false);
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Pro access restored!')),
+      );
+    } else {
+      setState(() => _error = 'No active Pro subscription found.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: context.appColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Crown + title
+          const Text('👑', textAlign: TextAlign.center, style: TextStyle(fontSize: 52)),
+          const SizedBox(height: 12),
+          const Text(
+            'ATS.ai Pro',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Designed for candidates who demand the best.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.appColors.textSecondary, fontSize: 13, height: 1.5),
+          ),
+          const SizedBox(height: 24),
+
+          // Features
+          ...[
+            ('👑', '5 Elite Pro Templates', 'FAANG, Fortune 500 & Executive designs'),
+            ('🤖', 'Unlimited ATS Checks', 'Free users get 3/day'),
+            ('✨', 'Priority AI Generation', 'Faster, higher-quality responses'),
+            ('📄', 'Unlimited Resumes', 'Free users limited to 3'),
+            ('💼', 'DOCX Export', 'Word-compatible export for recruiters'),
+          ].map((f) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(child: Text(f.$1, style: const TextStyle(fontSize: 16))),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(f.$2, style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13,
+                      )),
+                      Text(f.$3, style: TextStyle(
+                        color: context.appColors.textMuted, fontSize: 11,
+                      )),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          )),
+
+          const SizedBox(height: 20),
+
+          // Price badge
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+            ),
+            child: const Text(
+              '₹299 / month  •  Cancel anytime',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.primaryLight, fontWeight: FontWeight.w700, fontSize: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Error
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.scoreRed, fontSize: 12),
+              ),
+            ),
+
+          // Upgrade button
+          GradientButton(
+            label: _loading ? 'Processing…' : 'Upgrade to Pro',
+            onPressed: _loading ? () {} : _upgrade,
+            gradient: AppColors.goldGradient,
+            icon: _loading
+                ? const SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.star_rounded, color: Colors.white, size: 18),
+          ),
+          const SizedBox(height: 10),
+
+          // Restore
+          TextButton(
+            onPressed: _loading ? null : _restore,
+            child: Text(
+              'Restore Purchases',
+              style: TextStyle(
+                color: context.appColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Maybe later',
+              style: TextStyle(color: context.appColors.textMuted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

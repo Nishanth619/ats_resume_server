@@ -17,10 +17,10 @@ class SettingsScreen extends ConsumerWidget {
     final isDark = themeMode == ThemeMode.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: context.appColors.bg,
       appBar: GradientAppBar(title: 'Settings'),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+        padding: EdgeInsets.fromLTRB(20, 24, 20, 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -33,7 +33,7 @@ class SettingsScreen extends ConsumerWidget {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
+                      gradient: context.appColors.primaryGradient,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Center(
@@ -42,33 +42,33 @@ class SettingsScreen extends ConsumerWidget {
                                 ? user!.displayName![0]
                                 : user?.email?[0] ?? 'U')
                             .toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: Colors.white,
                             fontSize: 26,
                             fontWeight: FontWeight.w800),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           user?.displayName ?? 'User',
-                          style: const TextStyle(
-                              color: AppColors.textPrimary,
+                          style: TextStyle(
+                              color: context.appColors.textPrimary,
                               fontSize: 17,
                               fontWeight: FontWeight.w700),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           user?.email ?? '',
-                          style: const TextStyle(
-                              color: AppColors.textSecondary, fontSize: 13),
+                          style: TextStyle(
+                              color: context.appColors.textSecondary, fontSize: 13),
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         GradientBadge(text: 'Free Plan'),
                       ],
                     ),
@@ -77,7 +77,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 28),
+            SizedBox(height: 28),
             _SectionLabel(label: 'Appearance'),
             _SettingsTile(
               icon: isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
@@ -85,13 +85,13 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: isDark ? 'Dark mode' : 'Light mode',
               trailing: Switch.adaptive(
                 value: isDark,
-                activeColor: AppColors.primaryLight,
+                activeThumbColor: AppColors.primaryLight,
                 onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
               ),
               onTap: () => ref.read(themeModeProvider.notifier).toggle(),
             ),
 
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _SectionLabel(label: 'Account'),
             _SettingsTile(
               icon: Icons.person_outline_rounded,
@@ -103,7 +103,7 @@ class SettingsScreen extends ConsumerWidget {
               },
             ),
 
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _SectionLabel(label: 'Legal'),
             _SettingsTile(
               icon: Icons.privacy_tip_outlined,
@@ -116,7 +116,7 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => _launchUrl('https://ats-resume-builder.app/terms'),
             ),
 
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _SectionLabel(label: 'Support'),
             _SettingsTile(
               icon: Icons.help_outline_rounded,
@@ -137,18 +137,18 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=com.atsai.resume'),
             ),
 
-            const SizedBox(height: 32),
+            SizedBox(height: 32),
             // Danger zone
             GlassCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Danger Zone',
+                  Text('Danger Zone',
                       style: TextStyle(
                           color: AppColors.scoreRed,
                           fontWeight: FontWeight.w700,
                           fontSize: 14)),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   GestureDetector(
                     onTap: () => _confirmSignOut(context, ref),
                     child: Container(
@@ -160,7 +160,7 @@ class SettingsScreen extends ConsumerWidget {
                             color: AppColors.scoreRed.withValues(alpha: 0.3),
                             width: 1),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.logout_rounded,
@@ -179,11 +179,11 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 32),
-            const Text('ATS.ai v1.0.0\nBuilt with ❤️ for job seekers',
+            SizedBox(height: 32),
+            Text('ATS.ai v1.0.0\nBuilt with ❤️ for job seekers',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: AppColors.textMuted,
+                    color: context.appColors.textMuted,
                     fontSize: 12,
                     height: 1.6)),
           ],
@@ -202,11 +202,11 @@ class SettingsScreen extends ConsumerWidget {
   void _showAccountInfo(BuildContext context, dynamic user) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.cardDark,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: context.appColors.card,
+      shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        padding: EdgeInsets.fromLTRB(24, 20, 24, 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -214,16 +214,16 @@ class SettingsScreen extends ConsumerWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                  color: AppColors.borderDark,
+                  color: context.appColors.border,
                   borderRadius: BorderRadius.circular(2)),
             ),
-            const SizedBox(height: 24),
-            const Text('Account Details',
+            SizedBox(height: 24),
+            Text('Account Details',
                 style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.appColors.textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.w800)),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _InfoRow(label: 'Name', value: user?.displayName ?? 'Not set'),
             _InfoRow(label: 'Email', value: user?.email ?? 'Unknown'),
             _InfoRow(label: 'UID', value: user?.uid?.substring(0, 12) ?? '—'),
@@ -237,11 +237,11 @@ class SettingsScreen extends ConsumerWidget {
   void _confirmSignOut(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.cardDark,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: context.appColors.card,
+      shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        padding: EdgeInsets.fromLTRB(24, 20, 24, 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -249,38 +249,38 @@ class SettingsScreen extends ConsumerWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                  color: AppColors.borderDark,
+                  color: context.appColors.border,
                   borderRadius: BorderRadius.circular(2)),
             ),
-            const SizedBox(height: 24),
-            const Text('👋', style: TextStyle(fontSize: 48)),
-            const SizedBox(height: 16),
-            const Text('Sign Out?',
+            SizedBox(height: 24),
+            Text('👋', style: TextStyle(fontSize: 48)),
+            SizedBox(height: 16),
+            Text('Sign Out?',
                 style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.appColors.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            const Text('You can always come back and log in again.',
+            SizedBox(height: 8),
+            Text('You can always come back and log in again.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: AppColors.textSecondary, fontSize: 14)),
-            const SizedBox(height: 28),
+                    color: context.appColors.textSecondary, fontSize: 14)),
+            SizedBox(height: 28),
             GradientButton(
               label: 'Yes, Sign Out',
               onPressed: () {
                 Navigator.pop(context);
                 ref.read(authServiceProvider).signOut();
               },
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                   colors: [AppColors.error, Color(0xFFC0392B)]),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel',
+              child: Text('Cancel',
                   style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: context.appColors.textSecondary,
                       fontWeight: FontWeight.w600)),
             ),
           ],
@@ -298,18 +298,18 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
           Text(label,
-              style: const TextStyle(
-                  color: AppColors.textMuted,
+              style: TextStyle(
+                  color: context.appColors.textMuted,
                   fontSize: 13,
                   fontWeight: FontWeight.w600)),
-          const Spacer(),
+          Spacer(),
           Text(value,
-              style: const TextStyle(
-                  color: AppColors.textPrimary,
+              style: TextStyle(
+                  color: context.appColors.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w500)),
         ],
@@ -325,10 +325,10 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 10),
+      padding: EdgeInsets.only(left: 4, bottom: 10),
       child: Text(label.toUpperCase(),
-          style: const TextStyle(
-              color: AppColors.textMuted,
+          style: TextStyle(
+              color: context.appColors.textMuted,
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.2)),
@@ -354,11 +354,11 @@ class _SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: context.appColors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderDark, width: 1),
+        border: Border.all(color: context.appColors.border, width: 1),
       ),
       child: ListTile(
         onTap: onTap,
@@ -372,18 +372,18 @@ class _SettingsTile extends StatelessWidget {
           child: Icon(icon, color: AppColors.primaryLight, size: 18),
         ),
         title: Text(label,
-            style: const TextStyle(
-                color: AppColors.textPrimary,
+            style: TextStyle(
+                color: context.appColors.textPrimary,
                 fontWeight: FontWeight.w600,
                 fontSize: 14)),
         subtitle: subtitle != null
             ? Text(subtitle!,
-                style: const TextStyle(
-                    color: AppColors.textMuted, fontSize: 12))
+                style: TextStyle(
+                    color: context.appColors.textMuted, fontSize: 12))
             : null,
         trailing: trailing ??
-            const Icon(Icons.chevron_right_rounded,
-                color: AppColors.textMuted, size: 18),
+            Icon(Icons.chevron_right_rounded,
+                color: context.appColors.textMuted, size: 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );

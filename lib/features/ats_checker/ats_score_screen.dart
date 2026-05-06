@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../models/resume_model.dart';
 import '../../services/ai_service.dart';
 import '../../providers/resume_provider.dart';
-import '../../models/resume_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 
@@ -25,7 +25,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
   void initState() {
     super.initState();
     _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900))
+        vsync: this, duration: Duration(milliseconds: 900))
       ..repeat(reverse: true);
     _pulse = Tween<double>(begin: 0.95, end: 1.05)
         .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
@@ -71,7 +71,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
     return v.toString();
   }
 
-  String _serialize(resume) {
+  String _serialize(ResumeModel resume) {
     final buf = StringBuffer();
     final p = (resume.sections['personal'] as Map?) ?? {};
     buf.writeln('${_str(p['name'])}\n${_str(p['email'])}\n${_str(p['phone'])}');
@@ -100,12 +100,12 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: context.appColors.bg,
       appBar: GradientAppBar(
         title: 'ATS Analysis',
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.textPrimary),
+            icon: Icon(Icons.refresh_rounded, color: context.appColors.textPrimary),
             onPressed: _loading ? null : _run,
           ),
         ],
@@ -130,7 +130,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
+                gradient: context.appColors.primaryGradient,
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
@@ -139,28 +139,28 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                   ),
                 ],
               ),
-              child: const Center(
+              child: Center(
                 child: Text('🤖', style: TextStyle(fontSize: 44)),
               ),
             ),
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: 28),
           ShaderMask(
-            shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
-            child: const Text('Analysing Resume...',
+            shaderCallback: (b) => context.appColors.primaryGradient.createShader(b),
+            child: Text('Analysing Resume...',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.w700)),
           ),
-          const SizedBox(height: 10),
-          const Text('Running 24-point ATS compatibility check',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-          const SizedBox(height: 32),
-          const SizedBox(
+          SizedBox(height: 10),
+          Text('Running 24-point ATS compatibility check',
+              style: TextStyle(color: context.appColors.textSecondary, fontSize: 14)),
+          SizedBox(height: 32),
+          SizedBox(
             width: 200,
             child: LinearProgressIndicator(
-              backgroundColor: AppColors.borderDark,
+              backgroundColor: context.appColors.border,
               valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
               minHeight: 3,
               borderRadius: BorderRadius.all(Radius.circular(4)),
@@ -174,24 +174,24 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
   Widget _buildError() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(32),
         child: GlassCard(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('⚠️', style: TextStyle(fontSize: 48)),
-              const SizedBox(height: 16),
-              const Text('Analysis Failed',
+              Text('⚠️', style: TextStyle(fontSize: 48)),
+              SizedBox(height: 16),
+              Text('Analysis Failed',
                   style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(_error!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13)),
-              const SizedBox(height: 24),
+                  style: TextStyle(
+                      color: context.appColors.textSecondary, fontSize: 13)),
+              SizedBox(height: 24),
               GradientButton(label: 'Retry Analysis', onPressed: _run),
             ],
           ),
@@ -201,7 +201,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
   }
 
   Widget _buildResults() {
-    if (_result == null) return const SizedBox();
+    if (_result == null) return SizedBox();
     final score = _result!.score;
     final color = AppColors.scoreColor(score);
     final label = score >= 80
@@ -211,14 +211,14 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
             : 'Needs Work — Fix Issues First';
 
     // Category labels for display
-    const catLabels = {
+    final catLabels = {
       'keyword_match':     'Keyword Match',
       'impact_language':   'Impact Language',
       'structure':         'Structure',
       'relevance':         'Relevance',
       'ats_compatibility': 'ATS Compatibility',
     };
-    const catIcons = {
+    final catIcons = {
       'keyword_match':     '🔑',
       'impact_language':   '⚡',
       'structure':         '📊',
@@ -227,7 +227,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
     };
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+      padding: EdgeInsets.fromLTRB(20, 24, 20, 40),
       child: Column(
         children: [
           // ─── Score card ───
@@ -237,9 +237,9 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
             child: Column(
               children: [
                 ScoreRing(score: score, radius: 72),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(50),
@@ -253,13 +253,13 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                 ),
                 // Engine + cache badge
                 if (_result!.engine.isNotEmpty) ...[
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (_result!.cached)
                         _badge('⚡ Cached', AppColors.scoreGreen),
-                      if (_result!.cached) const SizedBox(width: 8),
+                      if (_result!.cached) SizedBox(width: 8),
                       _badge(
                         _result!.engine == 'gemini' ? '🤖 Gemini 2.5' : '🧠 Llama 3',
                         AppColors.primary,
@@ -270,35 +270,35 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
 
           // ─── 5-Category Breakdown ───
           if (_result!.categories.isNotEmpty) ...[
-            const SectionHeader(
+            SectionHeader(
               title: 'Score Breakdown',
               subtitle: '5 categories • 20 pts each',
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             ..._result!.categories.entries.map((entry) {
               final label = catLabels[entry.key] ?? entry.key;
               final icon = catIcons[entry.key] ?? '📌';
               final cat = entry.value;
               final catColor = AppColors.scoreColor(cat.score * 5); // scale /20 -> /100
               return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: EdgeInsets.only(bottom: 10),
                 child: GlassCard(
-                  padding: const EdgeInsets.all(14),
+                  padding: EdgeInsets.all(14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Text(icon, style: const TextStyle(fontSize: 16)),
-                          const SizedBox(width: 8),
+                          Text(icon, style: TextStyle(fontSize: 16)),
+                          SizedBox(width: 8),
                           Expanded(
                             child: Text(label,
-                                style: const TextStyle(
-                                    color: AppColors.textPrimary,
+                                style: TextStyle(
+                                    color: context.appColors.textPrimary,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13)),
                           ),
@@ -309,21 +309,21 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                                   fontSize: 15)),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
                           value: cat.score / 20,
-                          backgroundColor: AppColors.borderDark,
+                          backgroundColor: context.appColors.border,
                           valueColor: AlwaysStoppedAnimation<Color>(catColor),
                           minHeight: 5,
                         ),
                       ),
                       if (cat.reasoning.isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                        SizedBox(height: 6),
                         Text(cat.reasoning,
-                            style: const TextStyle(
-                                color: AppColors.textSecondary,
+                            style: TextStyle(
+                                color: context.appColors.textSecondary,
                                 fontSize: 11,
                                 height: 1.4)),
                       ],
@@ -332,7 +332,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                 ),
               );
             }),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
           ],
 
           // ─── Stats row ───
@@ -343,13 +343,13 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                   value: '${_result!.criticalIssues.isNotEmpty ? _result!.criticalIssues.length : _result!.issues.length}',
                   icon: '⚠️',
                   color: AppColors.scoreOrange),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               _StatCard(
                   label: 'Missing Keywords',
                   value: '${_result!.missingKeywords.length}',
                   icon: '🔑',
                   color: AppColors.scoreRed),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               _StatCard(
                   label: 'Keywords Found',
                   value: '${_result!.matchedKeywords.isNotEmpty ? _result!.matchedKeywords.length : _result!.keywords.length}',
@@ -360,12 +360,12 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
 
           // ─── Top 3 Wins ───
           if (_result!.top3Wins.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            const SectionHeader(
+            SizedBox(height: 24),
+            SectionHeader(
               title: '🏆 What You\'re Doing Right',
               subtitle: 'Keep these strong',
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             GlassCard(
               child: Column(
                 children: _result!.top3Wins.asMap().entries.map((e) =>
@@ -380,13 +380,13 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                             color: AppColors.scoreGreen.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Center(child: Text('✅', style: TextStyle(fontSize: 13))),
+                          child: Center(child: Text('✅', style: TextStyle(fontSize: 13))),
                         ),
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
                         Expanded(
                           child: Text(e.value,
-                              style: const TextStyle(
-                                  color: AppColors.textPrimary,
+                              style: TextStyle(
+                                  color: context.appColors.textPrimary,
                                   fontSize: 13, height: 1.5)),
                         ),
                       ],
@@ -399,12 +399,12 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
 
           // ─── Top 3 Improvements ───
           if (_result!.top3Improvements.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            const SectionHeader(
+            SizedBox(height: 24),
+            SectionHeader(
               title: '🔧 Quick Wins',
               subtitle: 'Fix these first for max score boost',
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             GlassCard(
               child: Column(
                 children: _result!.top3Improvements.asMap().entries.map((e) =>
@@ -419,13 +419,13 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                             color: AppColors.scoreOrange.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Center(child: Text('🔧', style: TextStyle(fontSize: 13))),
+                          child: Center(child: Text('🔧', style: TextStyle(fontSize: 13))),
                         ),
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
                         Expanded(
                           child: Text(e.value,
-                              style: const TextStyle(
-                                  color: AppColors.textPrimary,
+                              style: TextStyle(
+                                  color: context.appColors.textPrimary,
                                   fontSize: 13, height: 1.5)),
                         ),
                       ],
@@ -438,7 +438,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
 
           // ─── Critical Issues ───
           if (_result!.criticalIssues.isNotEmpty) ...[
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             SectionHeader(
               title: 'Critical Issues',
               subtitle: 'Fix these to improve your score',
@@ -446,17 +446,17 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                   text: '${_result!.criticalIssues.length}',
                   gradient: AppColors.goldGradient),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             ..._result!.criticalIssues.map((issue) {
               final priorityColor = issue.priority == 'high'
                   ? AppColors.scoreRed
                   : issue.priority == 'medium'
                       ? AppColors.scoreOrange
-                      : AppColors.textSecondary;
+                      : context.appColors.textSecondary;
               return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: EdgeInsets.only(bottom: 10),
                 child: GlassCard(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -464,27 +464,27 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                         children: [
                           Expanded(
                             child: Text(issue.issue,
-                                style: const TextStyle(
-                                    color: AppColors.textPrimary,
+                                style: TextStyle(
+                                    color: context.appColors.textPrimary,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13)),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           _badge(issue.priority.toUpperCase(), priorityColor),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('→ ',
+                          Text('→ ',
                               style: TextStyle(
                                   color: AppColors.scoreGreen,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700)),
                           Expanded(
                             child: Text(issue.fix,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: AppColors.scoreGreen,
                                     fontSize: 12, height: 1.4)),
                           ),
@@ -497,7 +497,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
             }),
           ] else if (_result!.issues.isNotEmpty) ...[
             // Fallback for old schema
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             SectionHeader(
               title: 'Issues Found',
               subtitle: 'Fix these to improve your score',
@@ -505,11 +505,11 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                   text: '${_result!.issues.length}',
                   gradient: AppColors.goldGradient),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             ..._result!.issues.asMap().entries.map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: EdgeInsets.only(bottom: 10),
                   child: GlassCard(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(16),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -519,31 +519,31 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                             color: AppColors.scoreOrange.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Center(child: Text('⚠️', style: TextStyle(fontSize: 16))),
+                          child: Center(child: Text('⚠️', style: TextStyle(fontSize: 16))),
                         ),
-                        const SizedBox(width: 14),
+                        SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(e.value,
-                                  style: const TextStyle(
-                                      color: AppColors.textPrimary,
+                                  style: TextStyle(
+                                      color: context.appColors.textPrimary,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 13)),
                               if (_result!.fixes.length > e.key) ...[
-                                const SizedBox(height: 6),
+                                SizedBox(height: 6),
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('→ ',
+                                    Text('→ ',
                                         style: TextStyle(
                                             color: AppColors.scoreGreen,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w700)),
                                     Expanded(
                                       child: Text(_result!.fixes[e.key],
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                               color: AppColors.scoreGreen,
                                               fontSize: 12)),
                                     ),
@@ -561,7 +561,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
 
           // ─── Missing keywords ───
           if (_result!.missingKeywords.isNotEmpty) ...[
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             SectionHeader(
               title: 'Missing Keywords',
               subtitle: 'Add these to boost your score',
@@ -569,14 +569,14 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                   text: '${_result!.missingKeywords.length}',
                   gradient: AppColors.accentGradient),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             GlassCard(
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: _result!.missingKeywords
                     .map((k) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: AppColors.scoreRed.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
@@ -585,8 +585,8 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('+ ', style: TextStyle(color: AppColors.scoreRed, fontSize: 11, fontWeight: FontWeight.w800)),
-                              Text(k, style: const TextStyle(color: AppColors.scoreRed, fontSize: 12, fontWeight: FontWeight.w600)),
+                              Text('+ ', style: TextStyle(color: AppColors.scoreRed, fontSize: 11, fontWeight: FontWeight.w800)),
+                              Text(k, style: TextStyle(color: AppColors.scoreRed, fontSize: 12, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ))
@@ -597,26 +597,26 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
 
           // ─── Found keywords ───
           if (_result!.matchedKeywords.isNotEmpty || _result!.keywords.isNotEmpty) ...[
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             SectionHeader(
               title: 'Keywords Detected',
               subtitle: 'Already in your resume',
               trailing: GradientBadge(text: '${_result!.matchedKeywords.isNotEmpty ? _result!.matchedKeywords.length : _result!.keywords.length}'),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             GlassCard(
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: (_result!.matchedKeywords.isNotEmpty ? _result!.matchedKeywords : _result!.keywords)
                     .map((k) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: AppColors.scoreGreen.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: AppColors.scoreGreen.withValues(alpha: 0.3), width: 1),
                           ),
-                          child: Text(k, style: const TextStyle(color: AppColors.scoreGreen, fontSize: 12, fontWeight: FontWeight.w600)),
+                          child: Text(k, style: TextStyle(color: AppColors.scoreGreen, fontSize: 12, fontWeight: FontWeight.w600)),
                         ))
                     .toList(),
               ),
@@ -629,7 +629,7 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
 
   Widget _badge(String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
@@ -655,11 +655,11 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: GlassCard(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: EdgeInsets.symmetric(vertical: 16),
         child: Column(
           children: [
-            Text(icon, style: const TextStyle(fontSize: 20)),
-            const SizedBox(height: 6),
+            Text(icon, style: TextStyle(fontSize: 20)),
+            SizedBox(height: 6),
             Text(value,
                 style: TextStyle(
                     color: color,
@@ -667,8 +667,8 @@ class _StatCard extends StatelessWidget {
                     fontWeight: FontWeight.w800)),
             Text(label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: AppColors.textMuted,
+                style: TextStyle(
+                    color: context.appColors.textMuted,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     height: 1.3)),

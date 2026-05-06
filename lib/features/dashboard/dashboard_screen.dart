@@ -24,20 +24,23 @@ class DashboardScreen extends ConsumerWidget {
         slivers: [
           // ─── Premium SliverAppBar ───
           SliverAppBar(
-            expandedHeight: 200,
+            expandedHeight: 220,
             floating: false,
             pinned: true,
             backgroundColor: AppColors.surfaceDark,
             elevation: 0,
             leading: Builder(
               builder: (ctx) => IconButton(
-                icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary),
+                icon: Icon(
+                  Icons.menu_rounded,
+                  color: AppColors.textPrimary,
+                ),
                 onPressed: () => Scaffold.of(ctx).openDrawer(),
               ),
             ),
             actions: [
               GradientBadge(text: 'PRO'),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               CircleAvatar(
                 radius: 18,
                 backgroundColor: AppColors.primary,
@@ -46,102 +49,45 @@ class DashboardScreen extends ConsumerWidget {
                           ? user!.displayName![0]
                           : user?.email?[0] ?? 'U')
                       .toUpperCase(),
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w800),
-                ),
-              ),
-              const SizedBox(width: 16),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF1A1035), AppColors.bgDark],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                child: Stack(
-                  children: [
-                    // Decorative glow blobs
-                    Positioned(
-                      top: -30, right: -30,
-                      child: Container(
-                        width: 160, height: 160,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.primary.withValues(alpha: 0.12),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 60, left: -20,
-                      child: Container(
-                        width: 100, height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.accent.withValues(alpha: 0.08),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 90, 24, 20),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ShaderMask(
-                            shaderCallback: (b) =>
-                                AppColors.primaryGradient.createShader(b),
-                            child: Text(
-                              'Hello, ${user?.displayName?.split(' ').first ?? 'there'} 👋',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Your AI-powered career toolkit is ready.',
-                            style: TextStyle(
-                                color: AppColors.textSecondary, fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
               ),
+              SizedBox(width: 16),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: _AppBarBackground(user: user),
             ),
           ),
 
-          // ─── Feature Grid ───
+          // ─── Features Section ───
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+              padding: EdgeInsets.fromLTRB(20, 24, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SectionHeader(
-                      title: 'Features', subtitle: 'Everything you need to land the job'),
-                  const SizedBox(height: 16),
+                  SectionHeader(
+                    title: 'Features',
+                    subtitle: 'Everything you need to land the job',
+                  ),
+                  SizedBox(height: 16),
                   _FeatureGrid(),
-                  const SizedBox(height: 12),
-                  // ─── LinkedIn Import Banner ───
+                  SizedBox(height: 16),
                   _LinkedInImportCard(),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 24),
                   SectionHeader(
                     title: 'My Resumes',
-                    subtitle: 'Tap to edit · Long press for options',
+                    subtitle: 'Tap to edit · long press for options',
                     trailing: resumes.whenOrNull(
                       data: (list) => list.isNotEmpty
                           ? GradientBadge(text: '${list.length}')
                           : null,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                 ],
               ),
             ),
@@ -149,34 +95,40 @@ class DashboardScreen extends ConsumerWidget {
 
           // ─── Resume List ───
           resumes.when(
-            loading: () => const SliverFillRemaining(
+            loading: () => SliverFillRemaining(
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CircularProgressIndicator(color: AppColors.primary),
                     SizedBox(height: 16),
-                    Text('Loading your resumes...',
-                        style: TextStyle(color: AppColors.textSecondary)),
+                    Text(
+                      'Loading your resumes...',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
                   ],
                 ),
               ),
             ),
             error: (e, _) => SliverFillRemaining(
               child: Center(
-                child: Text('Error: $e',
-                    style:
-                        const TextStyle(color: AppColors.textSecondary)),
+                child: Text(
+                  'Error: $e',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
               ),
             ),
             data: (list) => list.isEmpty
-                ? SliverFillRemaining(child: _buildEmptyState(context))
+                ? SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildEmptyState(context),
+                  )
                 : SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 100),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (ctx, i) => Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
+                          padding: EdgeInsets.only(bottom: 14),
                           child: _ResumeCard(resume: list[i]),
                         ),
                         childCount: list.length,
@@ -191,7 +143,7 @@ class DashboardScreen extends ConsumerWidget {
       bottomNavigationBar: ref.watch(bannerAdProvider) != null
           ? Container(
               color: AppColors.surfaceDark,
-              padding: const EdgeInsets.only(top: 4),
+              padding: EdgeInsets.only(top: 4),
               child: ref.watch(bannerAdProvider)!,
             )
           : null,
@@ -205,9 +157,9 @@ class DashboardScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
+            color: AppColors.primary.withValues(alpha: 0.45),
+            blurRadius: 24,
+            offset: Offset(0, 8),
           ),
         ],
       ),
@@ -215,10 +167,11 @@ class DashboardScreen extends ConsumerWidget {
         onPressed: () => context.push('/templates'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: const Text('New Resume',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.w700)),
+        icon: Icon(Icons.add_rounded, color: Colors.white),
+        label: Text(
+          'New Resume',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }
@@ -226,7 +179,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -238,34 +191,46 @@ class DashboardScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    blurRadius: 30,
+                    color: AppColors.primary.withValues(alpha: 0.35),
+                    blurRadius: 32,
                   ),
                 ],
               ),
-              child: const Center(
-                child: Text('📄', style: TextStyle(fontSize: 44)),
+              child: Icon(
+                Icons.description_rounded,
+                color: Colors.white,
+                size: 46,
               ),
             ),
-            const SizedBox(height: 28),
-            const Text('No resumes yet',
-                style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
-            const Text(
+            SizedBox(height: 28),
+            Text(
+              'No resumes yet',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            SizedBox(height: 10),
+            Text(
               'Create your first ATS-optimised resume\nand land your dream job.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: AppColors.textSecondary, fontSize: 14, height: 1.6),
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                height: 1.6,
+              ),
             ),
-            const SizedBox(height: 32),
+            SizedBox(height: 32),
             GradientButton(
               label: 'Create My First Resume',
               onPressed: () => context.push('/templates'),
               width: 260,
-              icon: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+              icon: Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
           ],
         ),
@@ -280,8 +245,8 @@ class DashboardScreen extends ConsumerWidget {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(24, 60, 24, 28),
-            decoration: const BoxDecoration(
+            padding: EdgeInsets.fromLTRB(24, 60, 24, 28),
+            decoration: BoxDecoration(
               gradient: AppColors.primaryGradient,
             ),
             child: Column(
@@ -294,175 +259,368 @@ class DashboardScreen extends ConsumerWidget {
                     color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Center(
-                    child: Text('📄', style: TextStyle(fontSize: 26)),
+                  child: Icon(
+                    Icons.description_rounded,
+                    color: Colors.white,
+                    size: 26,
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Text('ATS.ai',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800)),
-                const Text('Career Intelligence Platform',
-                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                SizedBox(height: 16),
+                Text(
+                  'ATS.ai',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  'Career Intelligence Platform',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           _DrawerItem(
-              icon: Icons.add_circle_outline_rounded,
-              label: 'New Resume',
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/templates');
-              }),
+            icon: Icons.add_circle_outline_rounded,
+            label: 'New Resume',
+            onTap: () {
+              Navigator.pop(context);
+              context.push('/templates');
+            },
+          ),
           _DrawerItem(
-              icon: Icons.work_outline_rounded,
-              label: 'Job Tracker',
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/job-tracker');
-              }),
+            icon: Icons.work_outline_rounded,
+            label: 'Job Tracker',
+            onTap: () {
+              Navigator.pop(context);
+              context.push('/job-tracker');
+            },
+          ),
           _DrawerItem(
-              icon: Icons.settings_outlined,
-              label: 'Settings',
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/settings');
-              }),
-          const Spacer(),
-          const Divider(color: AppColors.borderDark),
+            icon: Icons.settings_outlined,
+            label: 'Settings',
+            onTap: () {
+              Navigator.pop(context);
+              context.push('/settings');
+            },
+          ),
+          Spacer(),
+          Divider(color: AppColors.borderDark),
           _DrawerItem(
-              icon: Icons.logout_rounded,
-              label: 'Sign Out',
-              isDestructive: true,
-              onTap: () {
-                Navigator.pop(context);
-                ref.read(authServiceProvider).signOut();
-              }),
-          const SizedBox(height: 20),
+            icon: Icons.logout_rounded,
+            label: 'Sign Out',
+            isDestructive: true,
+            onTap: () {
+              Navigator.pop(context);
+              ref.read(authServiceProvider).signOut();
+            },
+          ),
+          SizedBox(height: 20),
         ],
       ),
     );
   }
 }
 
-// ─── Feature Grid Widget ───
+// ─── App Bar Background ────────────────────────────────────────────────────────
+class _AppBarBackground extends ConsumerWidget {
+  final dynamic user;
+  const _AppBarBackground({required this.user});
+
+  String _firstName(String? displayName) {
+    final trimmed = displayName?.trim();
+    if (trimmed == null || trimmed.isEmpty) return 'there';
+    return trimmed.split(RegExp(r'\s+')).first;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF120D2A), Color(0xFF1A1035), AppColors.bgDark],
+          stops: [0.0, 0.5, 1.0],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Stack(
+        children: [
+          // Glow blobs
+          Positioned(
+            top: -40,
+            right: -40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.15),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 40,
+            left: -30,
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.accent.withValues(alpha: 0.1),
+              ),
+            ),
+          ),
+          // Subtle dot grid
+          Positioned.fill(child: CustomPaint(painter: _DotGridPainter())),
+          Align(
+            alignment: Alignment.bottomLeft,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(24, 0, 24, 22),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (b) =>
+                          AppColors.primaryGradient.createShader(b),
+                      child: Text(
+                        'Hello, ${_firstName(user?.displayName)} 👋',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Your AI-powered career toolkit is ready.',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Subtle dot grid background painter
+class _DotGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.03)
+      ..strokeWidth = 1;
+    final spacing = 24.0;
+    for (double x = 0; x < size.width; x += spacing) {
+      for (double y = 0; y < size.height; y += spacing) {
+        canvas.drawCircle(Offset(x, y), 1.5, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+// ─── Feature Grid ──────────────────────────────────────────────────────────────
 class _FeatureGrid extends ConsumerWidget {
-  static const List<_FeatureItem> _features = [
+  // Hero card (full width)
+  static final _hero = _FeatureItem(
+    icon: Icons.description_rounded,
+    title: 'Build Resume',
+    subtitle: 'ATS-optimised templates',
+    gradient: AppColors.primaryGradient,
+    directRoute: '/templates',
+    cardType: _CardType.hero,
+  );
+
+  // Tall cards (left column, 2 stacked)
+  static final _tallLeft = [
     _FeatureItem(
-      emoji: '📄',
-      title: 'Build Resume',
-      subtitle: 'ATS-optimised templates',
-      gradient: AppColors.primaryGradient,
-      directRoute: '/templates',
-      isLarge: true,
-    ),
-    _FeatureItem(
-      emoji: '🎯',
+      icon: Icons.center_focus_strong_rounded,
       title: 'ATS Score',
       subtitle: 'Beat the bots',
       gradient: LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)]),
       resumeRoute: '/ats',
+      cardType: _CardType.tall,
     ),
     _FeatureItem(
-      emoji: '🔍',
+      icon: Icons.manage_search_rounded,
       title: 'JD Matcher',
       subtitle: 'Match & auto-tailor',
       gradient: AppColors.accentGradient,
       resumeRoute: '/jd',
-    ),
-    _FeatureItem(
-      emoji: '🪄',
-      title: 'Auto-Tailor',
-      subtitle: 'AI rewrites for JD',
-      gradient: LinearGradient(colors: [Color(0xFF059669), Color(0xFF0D9488)]),
-      resumeRoute: '/jd',
-    ),
-    _FeatureItem(
-      emoji: '✉️',
-      title: 'Cover Letter',
-      subtitle: 'AI generated in seconds',
-      gradient: LinearGradient(colors: [Color(0xFFD97706), Color(0xFFDC2626)]),
-      resumeRoute: '/cover-letter',
-    ),
-    _FeatureItem(
-      emoji: '💼',
-      title: 'Job Tracker',
-      subtitle: 'Track all applications',
-      gradient: LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF2563EB)]),
-      directRoute: '/job-tracker',
-    ),
-    _FeatureItem(
-      emoji: '⬇️',
-      title: 'Export PDF',
-      subtitle: 'Download & share',
-      gradient: LinearGradient(colors: [Color(0xFF374151), Color(0xFF1F2937)]),
-      resumeRoute: '/preview',
+      cardType: _CardType.tall,
     ),
   ];
+
+  // Wide card (right column, spans full height of the 2 tall cards)
+  static final _wideRight = _FeatureItem(
+    icon: Icons.auto_fix_high_rounded,
+    title: 'Auto-Tailor',
+    subtitle: 'AI rewrites your resume to perfectly match a job description',
+    gradient: LinearGradient(colors: [Color(0xFF059669), Color(0xFF0D9488)]),
+    resumeRoute: '/jd',
+    cardType: _CardType.wide,
+  );
+
+  // Bottom row (3 equal cards)
+  static final _bottomRow = [
+    _FeatureItem(
+      icon: Icons.mail_rounded,
+      title: 'Cover Letter',
+      subtitle: 'AI generated',
+      gradient: LinearGradient(colors: [Color(0xFFD97706), Color(0xFFDC2626)]),
+      resumeRoute: '/cover-letter',
+      cardType: _CardType.compact,
+    ),
+    _FeatureItem(
+      icon: Icons.work_rounded,
+      title: 'Job Tracker',
+      subtitle: 'Track applications',
+      gradient: LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF2563EB)]),
+      directRoute: '/job-tracker',
+      cardType: _CardType.compact,
+    ),
+    _FeatureItem(
+      icon: Icons.file_download_rounded,
+      title: 'Export PDF',
+      subtitle: 'Download & share',
+      gradient: LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+      resumeRoute: '/preview',
+      cardType: _CardType.compact,
+    ),
+  ];
+
+  // All heights are explicit — no IntrinsicHeight, no Expanded height inference.
+  static final double _heroH = 108.0;
+  static final double _tallH = 130.0; // each tall card
+  static final double _gap = 12.0;
+  static final double _wideH =
+      _tallH * 2 + _gap; // matches both tall cards + gap
+  static final double _compactH = 116.0;
 
   const _FeatureGrid();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final resumes = ref.watch(resumeListProvider).value ?? [];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final itemW = (constraints.maxWidth - 12) / 2;
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: _features.map((f) {
-            final width = f.isLarge ? constraints.maxWidth : itemW;
-            final height = f.isLarge ? 110.0 : 130.0;
-            return _FeatureCard(
-              feature: f,
-              width: width,
-              height: height,
-              resumes: resumes,
-            );
-          }).toList(),
-        );
-      },
+
+    return Column(
+      children: [
+        // ── Row 1: Hero (full width) ──
+        SizedBox(
+          height: _heroH,
+          child: _FeatureCard(feature: _hero, resumes: resumes),
+        ),
+        SizedBox(height: _gap),
+
+        // ── Row 2: 2 equal tall left + 1 matching right ──
+        SizedBox(
+          height: _wideH,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Left column: 2 equal tall cards
+              Expanded(
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: _tallH,
+                      child: _FeatureCard(
+                        feature: _tallLeft[0],
+                        resumes: resumes,
+                      ),
+                    ),
+                    SizedBox(height: _gap),
+                    SizedBox(
+                      height: _tallH,
+                      child: _FeatureCard(
+                        feature: _tallLeft[1],
+                        resumes: resumes,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: _gap),
+              // Right column: single card exactly matching combined left height
+              Expanded(
+                child: _FeatureCard(feature: _wideRight, resumes: resumes),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: _gap),
+
+        // ── Row 3: 3 perfectly equal compact cards ──
+        SizedBox(
+          height: _compactH,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: _bottomRow.asMap().entries.map((entry) {
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: entry.key == 0 ? 0 : 6,
+                    right: entry.key == 2 ? 0 : 6,
+                  ),
+                  child: _FeatureCard(feature: entry.value, resumes: resumes),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 }
 
+enum _CardType { hero, tall, wide, compact }
+
 class _FeatureItem {
-  final String emoji;
+  final IconData icon;
   final String title;
   final String subtitle;
   final LinearGradient gradient;
-  /// Direct navigation (no resume needed)
   final String? directRoute;
-  /// Route prefix that requires a resume ID: navigates to "$resumeRoute/{id}"
   final String? resumeRoute;
-  final bool isLarge;
+  final _CardType cardType;
 
-  const _FeatureItem({
-    required this.emoji,
+  _FeatureItem({
+    required this.icon,
     required this.title,
     required this.subtitle,
     required this.gradient,
     this.directRoute,
     this.resumeRoute,
-    this.isLarge = false,
+    this.cardType = _CardType.compact,
   });
 }
 
+// ─── Feature Card ──────────────────────────────────────────────────────────────
 class _FeatureCard extends ConsumerStatefulWidget {
   final _FeatureItem feature;
-  final double width;
-  final double height;
   final List<ResumeModel> resumes;
-  const _FeatureCard({
-    required this.feature,
-    required this.width,
-    required this.height,
-    required this.resumes,
-  });
+
+  const _FeatureCard({required this.feature, required this.resumes});
 
   @override
   ConsumerState<_FeatureCard> createState() => _FeatureCardState();
@@ -477,9 +635,13 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 120));
-    _scale = Tween<double>(begin: 1.0, end: 0.95)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+      vsync: this,
+      duration: Duration(milliseconds: 100),
+    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.96,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -488,298 +650,220 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
     super.dispose();
   }
 
+  // ── Card heights by type ──
   void _onTap() async {
     final f = widget.feature;
 
-    // Show Interstitial ad before navigating (1 in 3 chance so it's not annoying)
     if (DateTime.now().millisecondsSinceEpoch % 3 == 0) {
       await ref.read(adServiceProvider).showInterstitialAd();
     }
+    if (!mounted) return;
 
-    // Direct route — no resume needed
     if (f.directRoute != null) {
       context.push(f.directRoute!);
       return;
     }
 
-    // Resume-scoped route
     if (f.resumeRoute != null) {
       final resumes = widget.resumes;
       if (resumes.isEmpty) {
-        // No resumes yet — prompt to create one
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: AppColors.cardDark,
-          shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-          builder: (_) => Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(
-                      color: AppColors.borderDark,
-                      borderRadius: BorderRadius.circular(2)),
-                ),
-                const SizedBox(height: 24),
-                Text(f.emoji, style: const TextStyle(fontSize: 40)),
-                const SizedBox(height: 12),
-                Text('No resumes yet',
-                    style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                Text(
-                  'Create a resume first, then use "${f.title}" from within the editor.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13, height: 1.5),
-                ),
-                const SizedBox(height: 24),
-                GradientButton(
-                  label: 'Create Resume',
-                  onPressed: () {
-                    Navigator.pop(context);
-                    context.push('/templates');
-                  },
-                  icon: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                ),
-              ],
-            ),
-          ),
-        );
+        _showNoResumeSheet(f);
         return;
       }
-
       if (resumes.length == 1) {
-        // Only one resume — go straight there
         context.push('${f.resumeRoute}/${resumes.first.id}');
         return;
       }
-
-      // Multiple resumes — show a picker
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: AppColors.cardDark,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        builder: (_) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.55,
-          maxChildSize: 0.85,
-          builder: (_, scrollCtrl) => Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                        color: AppColors.borderDark,
-                        borderRadius: BorderRadius.circular(2)),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Text(f.emoji, style: const TextStyle(fontSize: 26)),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(f.title,
-                            style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700)),
-                        Text('Select a resume to continue',
-                            style: const TextStyle(
-                                color: AppColors.textSecondary, fontSize: 12)),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Divider(color: AppColors.borderDark),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: ListView.separated(
-                    controller: scrollCtrl,
-                    itemCount: resumes.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) {
-                      final r = resumes[i];
-                      final scoreColor = AppColors.scoreColor(r.atsScore);
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        tileColor: AppColors.surfaceDark,
-                        leading: Container(
-                          width: 48, height: 48,
-                          decoration: BoxDecoration(
-                            color: scoreColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Text('${r.atsScore}',
-                                style: TextStyle(
-                                    color: scoreColor,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800)),
-                          ),
-                        ),
-                        title: Text(r.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14)),
-                        subtitle: Text(
-                          r.targetRole?.isNotEmpty == true
-                              ? r.targetRole!
-                              : 'No target role set',
-                          style: const TextStyle(
-                              color: AppColors.textMuted, fontSize: 12),
-                        ),
-                        trailing: const Icon(Icons.chevron_right_rounded,
-                            color: AppColors.textMuted),
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('${f.resumeRoute}/${r.id}');
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+      _showResumePicker(f, resumes);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final f = widget.feature;
-    return GestureDetector(
-      onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) { _ctrl.reverse(); _onTap(); },
-      onTapCancel: () => _ctrl.reverse(),
-      child: ScaleTransition(
-        scale: _scale,
-        child: Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            gradient: f.gradient,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: f.gradient.colors.first.withValues(alpha: 0.35),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+  void _showNoResumeSheet(_FeatureItem f) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.cardDark,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => Padding(
+        padding: EdgeInsets.fromLTRB(24, 20, 24, 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.borderDark,
+                borderRadius: BorderRadius.circular(2),
               ),
-            ],
-          ),
-          child: Stack(
+            ),
+            SizedBox(height: 24),
+            _FeatureIconBox(icon: f.icon, size: 56, iconSize: 28),
+            SizedBox(height: 12),
+            Text(
+              'No resumes yet',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(height: 6),
+            Text(
+              'Create a resume first, then use "${f.title}" from within the editor.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+            SizedBox(height: 24),
+            GradientButton(
+              label: 'Create Resume',
+              onPressed: () {
+                Navigator.pop(context);
+                context.push('/templates');
+              },
+              icon: Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showResumePicker(_FeatureItem f, List<ResumeModel> resumes) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.cardDark,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.55,
+        maxChildSize: 0.85,
+        builder: (_, scrollCtrl) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Background watermark emoji
-              Positioned(
-                right: -12, bottom: -12,
-                child: Text(f.emoji,
-                    style: TextStyle(
-                        fontSize: f.isLarge ? 72 : 58,
-                        color: Colors.white.withValues(alpha: 0.1))),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.borderDark,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(18),
-                child: f.isLarge
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 52, height: 52,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Center(
-                              child: Text(f.emoji,
-                                  style: const TextStyle(fontSize: 26)),
-                            ),
+              SizedBox(height: 20),
+              Row(
+                children: [
+                  _FeatureIconBox(icon: f.icon, size: 42, iconSize: 22),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          f.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(f.title,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800)),
-                                const SizedBox(height: 4),
-                                Text(f.subtitle,
-                                    style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.75),
-                                        fontSize: 13)),
-                                const SizedBox(height: 10),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: const Text('Get Started →',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700)),
-                                ),
-                              ],
-                            ),
+                        ),
+                        Text(
+                          'Select a resume to continue',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
                           ),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 44, height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text(f.emoji,
-                                  style: const TextStyle(fontSize: 22)),
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(f.title,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 3),
-                          Text(f.subtitle,
-                              style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.7),
-                                  fontSize: 11)),
-                        ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              Divider(color: AppColors.borderDark),
+              SizedBox(height: 8),
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollCtrl,
+                  itemCount: resumes.length,
+                  separatorBuilder: (_, _) => SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final r = resumes[i];
+                    final scoreColor = AppColors.scoreColor(r.atsScore);
+                    return ListTile(
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
                       ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      tileColor: AppColors.surfaceDark,
+                      leading: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: scoreColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${r.atsScore}',
+                            style: TextStyle(
+                              color: scoreColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        r.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Text(
+                        r.targetRole.isNotEmpty
+                            ? r.targetRole
+                            : 'No target role set',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.textMuted,
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('${f.resumeRoute}/${r.id}');
+                      },
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -787,9 +871,327 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = widget.feature;
+    final isHero = f.cardType == _CardType.hero;
+    final isWide = f.cardType == _CardType.wide;
+    final isCompact = f.cardType == _CardType.compact;
+
+    Widget cardContent;
+
+    if (isHero) {
+      // ── Hero: horizontal layout with arrow button ──
+      cardContent = Padding(
+        padding: EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(f.icon, color: Colors.white, size: 26),
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    f.title,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    f.subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.72),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (isWide) {
+      // ── Wide: vertical with large watermark icon ──
+      cardContent = Stack(
+        children: [
+          Positioned(
+            right: -16,
+            bottom: -16,
+            child: Icon(
+              f.icon,
+              size: 110,
+              color: Colors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(f.icon, color: Colors.white, size: 24),
+                ),
+                Spacer(),
+                Text(
+                  f.title,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  f.subtitle,
+                  maxLines: 3,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontSize: 11.5,
+                    height: 1.45,
+                  ),
+                ),
+                SizedBox(height: 14),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  child: Text(
+                    'Try it →',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    } else if (isCompact) {
+      // ── Compact: icon top, text bottom — uses full SizedBox height from parent ──
+      cardContent = Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned(
+            right: -8,
+            bottom: -8,
+            child: Icon(
+              f.icon,
+              size: 52,
+              color: Colors.white.withValues(alpha: 0.09),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(f.icon, color: Colors.white, size: 18),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      f.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      f.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: 9.5,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    } else {
+      // ── Tall: icon top, text bottom — uses full SizedBox height from parent ──
+      cardContent = Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned(
+            right: -10,
+            bottom: -10,
+            child: Icon(
+              f.icon,
+              size: 72,
+              color: Colors.white.withValues(alpha: 0.09),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(f.icon, color: Colors.white, size: 21),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      f.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      f.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.68),
+                        fontSize: 10.5,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        _onTap();
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          // Height is fully controlled by parent SizedBox — no height set here.
+          decoration: BoxDecoration(
+            gradient: f.gradient,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: f.gradient.colors.first.withValues(alpha: 0.30),
+                blurRadius: 18,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: cardContent,
+        ),
+      ),
+    );
+  }
 }
 
-// ─── Supporting Widgets ───
+// ── Small icon box helper ──────────────────────────────────────────────────────
+class _FeatureIconBox extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final double iconSize;
+  const _FeatureIconBox({
+    required this.icon,
+    required this.size,
+    required this.iconSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(size * 0.28),
+      ),
+      child: Icon(icon, color: AppColors.primaryLight, size: iconSize),
+    );
+  }
+}
+
+// ─── Supporting Widgets ────────────────────────────────────────────────────────
 
 class _DrawerItem extends StatelessWidget {
   final IconData icon;
@@ -809,8 +1211,10 @@ class _DrawerItem extends StatelessWidget {
     final color = isDestructive ? AppColors.error : AppColors.textSecondary;
     return ListTile(
       leading: Icon(icon, color: color, size: 22),
-      title: Text(label,
-          style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+      title: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.w600),
+      ),
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       horizontalTitleGap: 12,
@@ -831,12 +1235,11 @@ class _ResumeCard extends ConsumerWidget {
       onTap: () => context.push('/editor/${resume.id}'),
       onLongPress: () => _showOptions(context, ref),
       child: GlassCard(
-        padding: const EdgeInsets.all(18),
+        padding: EdgeInsets.all(18),
         showGlow: score >= 80,
         glowColor: scoreColor,
         child: Row(
           children: [
-            // Score ring
             SizedBox(
               width: 64,
               height: 64,
@@ -853,60 +1256,63 @@ class _ResumeCard extends ConsumerWidget {
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('$score',
-                          style: TextStyle(
-                              color: scoreColor,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800)),
-                      Text('ATS',
-                          style: TextStyle(
-                              color: scoreColor.withValues(alpha: 0.7),
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700)),
+                      Text(
+                        '$score',
+                        style: TextStyle(
+                          color: scoreColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        'ATS',
+                        style: TextStyle(
+                          color: scoreColor.withValues(alpha: 0.7),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 16),
-
-            // Info
+            SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(resume.title,
-                      style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 4),
-                  Row(
+                  Text(
+                    resume.title,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 4),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 4,
                     children: [
-                      const Icon(Icons.access_time_rounded,
-                          size: 12, color: AppColors.textMuted),
-                      const SizedBox(width: 4),
-                      Text(_formatDate(resume.lastEdited),
-                          style: const TextStyle(
-                              color: AppColors.textMuted, fontSize: 12)),
-                      const SizedBox(width: 12),
-                      const Icon(Icons.download_outlined,
-                          size: 12, color: AppColors.textMuted),
-                      const SizedBox(width: 4),
-                      Text('${resume.downloadCount}',
-                          style: const TextStyle(
-                              color: AppColors.textMuted, fontSize: 12)),
+                      _MetaChip(
+                        icon: Icons.access_time_rounded,
+                        label: _formatDate(resume.lastEdited),
+                      ),
+                      _MetaChip(
+                        icon: Icons.download_outlined,
+                        label: '${resume.downloadCount}',
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   _ScoreBar(score: score, color: scoreColor),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
-            // Quick actions column
+            SizedBox(width: 12),
             Column(
               children: [
                 _MiniAction(
@@ -914,7 +1320,7 @@ class _ResumeCard extends ConsumerWidget {
                   color: AppColors.primary,
                   onTap: () => context.push('/preview/${resume.id}'),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 _MiniAction(
                   icon: Icons.chevron_right_rounded,
                   color: AppColors.textMuted,
@@ -939,10 +1345,11 @@ class _ResumeCard extends ConsumerWidget {
     showModalBottomSheet(
       context: ctx,
       backgroundColor: AppColors.cardDark,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        padding: EdgeInsets.fromLTRB(20, 12, 20, 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -950,52 +1357,64 @@ class _ResumeCard extends ConsumerWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                  color: AppColors.borderDark,
-                  borderRadius: BorderRadius.circular(2)),
+                color: AppColors.borderDark,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            const SizedBox(height: 20),
-            Text(resume.title,
-                style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700)),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
+            Text(
+              resume.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(height: 20),
             _OptionTile(
-                icon: Icons.edit_outlined,
-                label: 'Edit Resume',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ctx.push('/editor/${resume.id}');
-                }),
+              icon: Icons.edit_outlined,
+              label: 'Edit Resume',
+              onTap: () {
+                Navigator.pop(ctx);
+                ctx.push('/editor/${resume.id}');
+              },
+            ),
             _OptionTile(
-                icon: Icons.visibility_outlined,
-                label: 'Preview Resume',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ctx.push('/preview/${resume.id}');
-                }),
+              icon: Icons.visibility_outlined,
+              label: 'Preview Resume',
+              onTap: () {
+                Navigator.pop(ctx);
+                ctx.push('/preview/${resume.id}');
+              },
+            ),
             _OptionTile(
-                icon: Icons.analytics_outlined,
-                label: 'Check ATS Score',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ctx.push('/ats/${resume.id}');
-                }),
+              icon: Icons.analytics_outlined,
+              label: 'Check ATS Score',
+              onTap: () {
+                Navigator.pop(ctx);
+                ctx.push('/ats/${resume.id}');
+              },
+            ),
             _OptionTile(
-                icon: Icons.work_outline_rounded,
-                label: 'Match Job Description',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ctx.push('/jd/${resume.id}');
-                }),
+              icon: Icons.work_outline_rounded,
+              label: 'Match Job Description',
+              onTap: () {
+                Navigator.pop(ctx);
+                ctx.push('/jd/${resume.id}');
+              },
+            ),
             _OptionTile(
-                icon: Icons.delete_outline_rounded,
-                label: 'Delete',
-                isDestructive: true,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ref.read(resumeActionsProvider).deleteResume(resume.id);
-                }),
+              icon: Icons.delete_outline_rounded,
+              label: 'Delete',
+              isDestructive: true,
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(resumeActionsProvider).deleteResume(resume.id);
+              },
+            ),
           ],
         ),
       ),
@@ -1007,20 +1426,51 @@ class _MiniAction extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  const _MiniAction({required this.icon, required this.color, required this.onTap});
+  const _MiniAction({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 32, height: 32,
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, size: 16, color: color),
       ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _MetaChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: AppColors.textMuted),
+        SizedBox(width: 4),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 140),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1049,11 +1499,12 @@ class _OptionTile extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final bool isDestructive;
-  const _OptionTile(
-      {required this.icon,
-      required this.label,
-      required this.onTap,
-      this.isDestructive = false});
+  const _OptionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isDestructive = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1068,16 +1519,21 @@ class _OptionTile extends StatelessWidget {
         ),
         child: Icon(icon, color: color, size: 20),
       ),
-      title: Text(label,
-          style: TextStyle(
-              color: color, fontWeight: FontWeight.w600, fontSize: 15)),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+        ),
+      ),
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }
 
-// ─── LinkedIn Import Card (homepage) ──────────────────────────────────────────
+// ─── LinkedIn Import Card ──────────────────────────────────────────────────────
 class _LinkedInImportCard extends StatelessWidget {
   const _LinkedInImportCard();
 
@@ -1088,13 +1544,13 @@ class _LinkedInImportCard extends StatelessWidget {
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => const _LinkedInImportSheet(),
+        builder: (_) => _LinkedInImportSheet(),
       ),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             colors: [Color(0xFF0077B5), Color(0xFF004471)],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
@@ -1102,22 +1558,22 @@ class _LinkedInImportCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0077B5).withValues(alpha: 0.4),
+              color: Color(0xFF0077B5).withValues(alpha: 0.35),
               blurRadius: 20,
-              offset: const Offset(0, 8),
+              offset: Offset(0, 8),
             ),
           ],
         ),
         child: Row(
           children: [
-            // LinkedIn "in" logo box
             Container(
-              width: 52, height: 52,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
                   'in',
                   style: TextStyle(
@@ -1129,12 +1585,12 @@ class _LinkedInImportCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Import from LinkedIn',
                     style: TextStyle(
                       color: Colors.white,
@@ -1142,7 +1598,7 @@ class _LinkedInImportCard extends StatelessWidget {
                       fontSize: 16,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  SizedBox(height: 3),
                   Text(
                     'Auto-build your resume from LinkedIn data',
                     style: TextStyle(
@@ -1154,19 +1610,17 @@ class _LinkedInImportCard extends StatelessWidget {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white24),
               ),
-              child: const Text(
-                'Import →',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
+              child: Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.white,
+                size: 20,
               ),
             ),
           ],
@@ -1176,114 +1630,105 @@ class _LinkedInImportCard extends StatelessWidget {
   }
 }
 
-// ─── LinkedIn Import Bottom Sheet ─────────────────────────────────────────────
+// ─── LinkedIn Import Sheet ─────────────────────────────────────────────────────
 class _LinkedInImportSheet extends ConsumerStatefulWidget {
   const _LinkedInImportSheet();
 
   @override
-  ConsumerState<_LinkedInImportSheet> createState() => _LinkedInImportSheetState();
+  ConsumerState<_LinkedInImportSheet> createState() =>
+      _LinkedInImportSheetState();
 }
 
 class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
-  bool _loading = false;
-  String _status = '';
-
-  // ── ZIP import ──────────────────────────────────────────────────────────────
   Future<void> _importZip() async {
-    Navigator.pop(context); // close sheet
-    setState(() { _loading = true; _status = 'Reading ZIP…'; });
-
+    Navigator.pop(context);
     try {
       final service = ref.read(linkedInImportServiceProvider);
       final data = await service.importFromZip();
-      if (data == null) return; // user cancelled
+      if (data == null) return;
 
-      _setState('Creating resume…');
-
-      // Create a new blank resume
-      final newId = await ref.read(resumeActionsProvider).createNewResume('modern');
-
+      final newId = await ref
+          .read(resumeActionsProvider)
+          .createNewResume('modern');
       if (newId.isEmpty) throw Exception('Failed to create resume');
 
-      _setState('Filling in your data…');
-
       final notifier = ref.read(resumeNotifierProvider(newId).notifier);
-
-      // Personal info
       notifier.updateSection('personal', {
-        'name':     data['name'] ?? '',
-        'email':    data['email'] ?? '',
-        'phone':    data['phone'] ?? '',
-        'summary':  data['summary'] ?? '',
+        'name': data['name'] ?? '',
+        'email': data['email'] ?? '',
+        'phone': data['phone'] ?? '',
+        'summary': data['summary'] ?? '',
         'headline': data['headline'] ?? '',
         'location': data['location'] ?? '',
       });
 
-      // Experience
-      if (data['experience'] is List && (data['experience'] as List).isNotEmpty) {
+      if (data['experience'] is List &&
+          (data['experience'] as List).isNotEmpty) {
         notifier.updateSection(
           'experience',
           List<Map<String, dynamic>>.from(
-            (data['experience'] as List).map((e) => {
-              'title':       e['title'] ?? '',
-              'company':     e['company'] ?? '',
-              'dates':       e['dates'] ?? '',
-              'location':    e['location'] ?? '',
-              'description': e['description'] ?? '',
-            }),
+            (data['experience'] as List).map(
+              (e) => {
+                'title': e['title'] ?? '',
+                'company': e['company'] ?? '',
+                'dates': e['dates'] ?? '',
+                'location': e['location'] ?? '',
+                'description': e['description'] ?? '',
+              },
+            ),
           ),
         );
       }
-
-      // Education
       if (data['education'] is List && (data['education'] as List).isNotEmpty) {
         notifier.updateSection(
           'education',
           List<Map<String, dynamic>>.from(
-            (data['education'] as List).map((e) => {
-              'degree':      e['degree'] ?? '',
-              'institution': e['institution'] ?? '',
-              'year':        e['year'] ?? '',
-            }),
+            (data['education'] as List).map(
+              (e) => {
+                'degree': e['degree'] ?? '',
+                'institution': e['institution'] ?? '',
+                'year': e['year'] ?? '',
+              },
+            ),
           ),
         );
       }
-
-      // Skills
       if (data['skills'] is List && (data['skills'] as List).isNotEmpty) {
-        notifier.updateSection('skills', List<String>.from(data['skills'] as List));
+        notifier.updateSection(
+          'skills',
+          List<String>.from(data['skills'] as List),
+        );
       }
 
       await notifier.save();
-
       if (mounted) {
-        _showSnack('✅ Resume built from LinkedIn! Review and edit it.', success: true);
-        // Navigate straight to editor
+        _showSnack(
+          'Resume built from LinkedIn! Review and edit it.',
+          success: true,
+        );
         if (context.mounted) context.push('/editor/$newId');
       }
     } catch (e) {
       if (mounted) {
-        _showSnack(e.toString().replaceFirst('Exception: ', ''), success: false);
+        _showSnack(
+          e.toString().replaceFirst('Exception: ', ''),
+          success: false,
+        );
       }
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _setState(String msg) {
-    if (mounted) setState(() => _status = msg);
-  }
-
   void _showSnack(String msg, {required bool success}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: success ? const Color(0xFF0077B5) : AppColors.scoreRed,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: success ? Color(0xFF0077B5) : AppColors.scoreRed,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
-  // ── OAuth (placeholder — requires LinkedIn app setup) ──────────────────────
   void _importOAuth() {
     Navigator.pop(context);
     showDialog(
@@ -1291,20 +1736,32 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.cardDark,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('LinkedIn OAuth',
-            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
-        content: const Text(
+        title: Text(
+          'LinkedIn OAuth',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
           'To enable "Sign in with LinkedIn", you need to:\n\n'
           '1. Create a LinkedIn app at linkedin.com/developers\n'
           '2. Add LINKEDIN_CLIENT_ID & LINKEDIN_CLIENT_SECRET to your Render env vars\n'
           '3. Set redirect URI to:\nhttps://ats-resume-server.onrender.com/api/linkedin/callback\n\n'
-          'Until then, use the ZIP import — it gives you the most complete data.',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.6),
+          'Until then, use the ZIP import - it gives you the most complete data.',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+            height: 1.6,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Got it', style: TextStyle(color: AppColors.primary)),
+            child: Text(
+              'Got it',
+              style: TextStyle(color: AppColors.primary),
+            ),
           ),
         ],
       ),
@@ -1314,90 +1771,97 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: EdgeInsets.fromLTRB(
-          20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 32),
+        20,
+        16,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 32,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle
           Container(
-            width: 44, height: 4,
+            width: 44,
+            height: 4,
             decoration: BoxDecoration(
               color: AppColors.borderDark,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 22),
-
-          // Header
+          SizedBox(height: 22),
           Row(
             children: [
               Container(
-                width: 46, height: 46,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0077B5).withValues(alpha: 0.15),
+                  color: Color(0xFF0077B5).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Center(
-                  child: Text('in',
-                      style: TextStyle(
-                          color: Color(0xFF0077B5),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 20)),
+                child: Center(
+                  child: Text(
+                    'in',
+                    style: TextStyle(
+                      color: Color(0xFF0077B5),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 14),
-              const Expanded(
+              SizedBox(width: 14),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Import from LinkedIn',
-                        style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 17)),
+                    Text(
+                      'Import from LinkedIn',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                      ),
+                    ),
                     SizedBox(height: 2),
-                    Text('Choose how to import your profile',
-                        style: TextStyle(
-                            color: AppColors.textSecondary, fontSize: 12)),
+                    Text(
+                      'Choose how to import your profile',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-
-          // ── Option 1: LinkedIn Login (OAuth) ──
+          SizedBox(height: 24),
           _SheetOption(
             icon: Icons.person_rounded,
-            iconBg: const Color(0xFF0077B5),
+            iconBg: Color(0xFF0077B5),
             title: 'Sign in with LinkedIn',
-            subtitle: 'Quick login — imports name & email',
+            subtitle: 'Quick login - imports name and email',
             badge: 'Requires Setup',
             badgeColor: AppColors.scoreOrange,
             onTap: _importOAuth,
           ),
-          const SizedBox(height: 12),
-
-          // ── Option 2: ZIP Upload ──
+          SizedBox(height: 12),
           _SheetOption(
             icon: Icons.upload_file_rounded,
             iconBg: AppColors.primary,
             title: 'Upload LinkedIn Data ZIP',
-            subtitle: 'Full import — work history, education, skills & more',
+            subtitle: 'Full import - work history, education, skills and more',
             badge: 'Recommended',
             badgeColor: AppColors.scoreGreen,
             onTap: _importZip,
           ),
-          const SizedBox(height: 16),
-
-          // Info box
+          SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: AppColors.cardDark,
               borderRadius: BorderRadius.circular(14),
@@ -1406,15 +1870,20 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('💡', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 10),
-                const Expanded(
+                Icon(
+                  Icons.lightbulb_outline_rounded,
+                  color: AppColors.accentGold,
+                  size: 18,
+                ),
+                SizedBox(width: 10),
+                Expanded(
                   child: Text(
-                    'To get your ZIP: LinkedIn → Me → Settings & Privacy → Data Privacy → Get a copy of your data → Select "Want something in particular?" → Profile data → Request archive',
+                    'To get your ZIP: LinkedIn > Me > Settings & Privacy > Data Privacy > Get a copy of your data > Select "Want something in particular?" > Profile data > Request archive',
                     style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
-                        height: 1.55),
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                      height: 1.55,
+                    ),
                   ),
                 ),
               ],
@@ -1426,7 +1895,6 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
   }
 }
 
-// ─── Sheet Option Row ──────────────────────────────────────────────────────────
 class _SheetOption extends StatelessWidget {
   final IconData icon;
   final Color iconBg;
@@ -1456,59 +1924,84 @@ class _SheetOption extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         splashColor: iconBg.withValues(alpha: 0.08),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           child: Row(
             children: [
               Container(
-                width: 48, height: 48,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: iconBg.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(icon, color: iconBg, size: 22),
               ),
-              const SizedBox(width: 14),
+              SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Text(title,
-                            style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14)),
-                        const SizedBox(width: 8),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: 190),
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: badgeColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(5),
                             border: Border.all(
-                                color: badgeColor.withValues(alpha: 0.3), width: 1),
+                              color: badgeColor.withValues(alpha: 0.3),
+                            ),
                           ),
-                          child: Text(badge,
-                              style: TextStyle(
-                                  fontSize: 9,
-                                  color: badgeColor,
-                                  fontWeight: FontWeight.w800)),
+                          child: Text(
+                            badge,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: badgeColor,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
-                    Text(subtitle,
-                        style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                            height: 1.4)),
+                    SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textMuted, size: 20),
+              SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textMuted,
+                size: 20,
+              ),
             ],
           ),
         ),

@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../services/ai_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../providers/resume_provider.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../core/constants/app_colors.dart';
 
 class PersonalInfoSection extends ConsumerStatefulWidget {
   final String resumeId;
@@ -56,7 +57,7 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
     final picker = ImagePicker();
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 70,
+      imageQuality: 85,
     );
     if (picked == null) return;
 
@@ -65,16 +66,32 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
 
     setState(() => _isUploadingPhoto = true);
     try {
-      final file = File(picked.path);
+      // Read as bytes to avoid FileSystemException on content:// URIs (Android 13+)
+      final bytes = await picked.readAsBytes();
+
+      // Determine extension from original filename
+      final ext = picked.name.contains('.')
+          ? picked.name.split('.').last.toLowerCase()
+          : 'jpg';
+
+      // Write to app cache dir so File() path always works
+      final tmpDir = await getTemporaryDirectory();
+      final tmpFile = File('${tmpDir.path}/profile_upload.$ext');
+      await tmpFile.writeAsBytes(bytes, flush: true);
+
       final url = await ref
           .read(storageServiceProvider)
-          .uploadProfilePhoto(user.uid, file);
+          .uploadProfilePhoto(user.uid, tmpFile, ext: ext);
+
       _update('photoUrl', url);
+
+      // Clean up temp file
+      await tmpFile.delete();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to upload photo: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload photo: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isUploadingPhoto = false);
@@ -135,14 +152,14 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
     super.build(context);
     return Card(
       child: ExpansionTile(
-        title: const Text(
+        title: Text(
           'Personal Information',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         initiallyExpanded: true,
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12),
             child: Column(
               children: [
                 Row(
@@ -151,28 +168,28 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                       onTap: _pickAndUploadPhoto,
                       child: CircleAvatar(
                         radius: 36,
-                        backgroundColor: AppColors.surfaceDark,
+                        backgroundColor: context.appColors.surface,
                         backgroundImage:
                             _data['photoUrl'] != null &&
                                 _data['photoUrl'].toString().isNotEmpty
                             ? NetworkImage(_data['photoUrl'])
                             : null,
                         child: _isUploadingPhoto
-                            ? const CircularProgressIndicator()
+                            ? CircularProgressIndicator()
                             : _data['photoUrl'] == null ||
                                   _data['photoUrl'].toString().isEmpty
-                            ? const Icon(
+                            ? Icon(
                                 Icons.add_a_photo_rounded,
-                                color: AppColors.textSecondary,
+                                color: context.appColors.textSecondary,
                               )
                             : null,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: 16),
                     Expanded(
                       child: TextFormField(
                         initialValue: _data['name'] ?? '',
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Full Name',
                           border: OutlineInputBorder(),
                         ),
@@ -181,24 +198,24 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
                       child: TextFormField(
                         initialValue: _data['email'] ?? '',
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Email',
                           border: OutlineInputBorder(),
                         ),
                         onChanged: (v) => _update('email', v),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Expanded(
                       child: TextFormField(
                         initialValue: _data['phone'] ?? '',
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Phone',
                           border: OutlineInputBorder(),
                         ),
@@ -207,24 +224,24 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
                       child: TextFormField(
                         initialValue: _data['location'] ?? '',
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Location',
                           border: OutlineInputBorder(),
                         ),
                         onChanged: (v) => _update('location', v),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Expanded(
                       child: TextFormField(
                         initialValue: _data['linkedin'] ?? '',
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'LinkedIn URL',
                           border: OutlineInputBorder(),
                         ),
@@ -233,14 +250,14 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 TextFormField(
                   controller: _summaryController,
                   decoration: InputDecoration(
                     labelText: 'Professional Summary',
-                    border: const OutlineInputBorder(),
+                    border: OutlineInputBorder(),
                     suffixIcon: _isGeneratingSummary
-                        ? const Padding(
+                        ? Padding(
                             padding: EdgeInsets.all(12.0),
                             child: SizedBox(
                               width: 20,
@@ -252,7 +269,7 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                             ),
                           )
                         : IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.auto_awesome,
                               color: Color(0xFF6366F1),
                             ),
@@ -263,7 +280,7 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                   maxLines: 4,
                   onChanged: (v) => _update('summary', v),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
               ],
             ),
           ),

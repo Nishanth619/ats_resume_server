@@ -30,7 +30,9 @@ class PDFService {
     final edu = r.sections['education'] as List? ?? [];
     final skills = r.sections['skills'] as List? ?? [];
     final certs = r.sections['certifications'] as List? ?? [];
+    final awards = r.sections['awards'] as List? ?? [];
     final projs = r.sections['projects'] as List? ?? [];
+    final langs = r.sections['languages'] as List? ?? [];
 
     pw.Widget sectionTitle(String title) {
       return pw.Container(
@@ -391,6 +393,82 @@ class PDFService {
                     .toList(),
               ),
             ],
+
+            // Awards
+            if (awards.isNotEmpty) ...[
+              sectionTitle('Awards & Achievements'),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: awards
+                    .map(
+                      (a) => pw.Padding(
+                        padding: const pw.EdgeInsets.only(bottom: 6),
+                        child: pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.only(
+                                top: 3.5,
+                                right: 6,
+                                left: 4,
+                              ),
+                              child: pw.Container(
+                                width: 3,
+                                height: 3,
+                                decoration: const pw.BoxDecoration(
+                                  color: PdfColors.black,
+                                  shape: pw.BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                            pw.Expanded(
+                              child: pw.Column(
+                                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                children: [
+                                  pw.Text(
+                                    '${a['title'] ?? ''}${a['issuer'] != null && a['issuer'].toString().isNotEmpty ? ' — ${a['issuer']}' : ''}${a['date'] != null && a['date'].toString().isNotEmpty ? ' (${a['date']})' : ''}',
+                                    style: pw.TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: pw.FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (a['description'] != null &&
+                                      a['description']
+                                          .toString()
+                                          .isNotEmpty) ...[
+                                    pw.SizedBox(height: 2),
+                                    pw.Text(
+                                      a['description'],
+                                      style: const pw.TextStyle(fontSize: 9.5),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+
+            // Languages
+            if (langs.isNotEmpty) ...[
+              sectionTitle('Languages'),
+              pw.Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: langs.map((l) {
+                  final lang = l['language'] ?? '';
+                  final level = l['level'] ?? '';
+                  return pw.Text(
+                    '$lang ($level)',
+                    style: const pw.TextStyle(fontSize: 10),
+                  );
+                }).toList(),
+              ),
+            ],
           ];
         },
       ),
@@ -411,6 +489,8 @@ class PDFService {
     final edu = r.sections['education'] as List? ?? [];
     final skills = r.sections['skills'] as List? ?? [];
     final projs = r.sections['projects'] as List? ?? [];
+    final langs = r.sections['languages'] as List? ?? [];
+    final awards = r.sections['awards'] as List? ?? [];
 
     pw.Widget sectionTitle(String title) {
       return pw.Container(
@@ -450,10 +530,14 @@ class PDFService {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Padding(
-                padding: const pw.EdgeInsets.only(top: 3.5, right: 6, left: 2),
-                child: pw.Text(
-                  '•',
-                  style: pw.TextStyle(color: color, fontSize: 10),
+                padding: const pw.EdgeInsets.only(top: 5.5, right: 6, left: 2),
+                child: pw.Container(
+                  width: 3,
+                  height: 3,
+                  decoration: pw.BoxDecoration(
+                    color: color,
+                    shape: pw.BoxShape.circle,
+                  ),
                 ),
               ),
               pw.Expanded(
@@ -818,6 +902,94 @@ class PDFService {
                 ),
               ),
             ],
+
+            // Awards
+            if (awards.isNotEmpty) ...[
+              sectionTitle('Awards & Achievements'),
+              ...awards.map(
+                (a) => pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 8),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          pw.Text(
+                            a['title'] ?? '',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.black,
+                            ),
+                          ),
+                          pw.Text(
+                            a['date'] ?? '',
+                            style: const pw.TextStyle(
+                              fontSize: 9,
+                              color: PdfColors.grey700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (a['issuer'] != null &&
+                          a['issuer'].toString().isNotEmpty) ...[
+                        pw.SizedBox(height: 1),
+                        pw.Text(
+                          a['issuer'],
+                          style: pw.TextStyle(
+                            fontSize: 9.5,
+                            color: color,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                      if (a['description'] != null &&
+                          a['description'].toString().isNotEmpty) ...[
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          a['description'],
+                          style: const pw.TextStyle(
+                            fontSize: 9.5,
+                            color: PdfColors.grey800,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            // Languages
+            if (langs.isNotEmpty) ...[
+              sectionTitle('Languages'),
+              pw.Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: langs.map((l) {
+                  final lang = l['language'] ?? '';
+                  final level = l['level'] ?? '';
+                  return pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: color.shade(0.2)),
+                      borderRadius: const pw.BorderRadius.all(
+                        pw.Radius.circular(2),
+                      ),
+                    ),
+                    child: pw.Text(
+                      '$lang ($level)',
+                      style: const pw.TextStyle(fontSize: 9),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ];
         },
       ),
@@ -840,6 +1012,8 @@ class PDFService {
 
     final projs = r.sections['projects'] as List? ?? [];
     final certs = r.sections['certifications'] as List? ?? [];
+    final langs = r.sections['languages'] as List? ?? [];
+    final awards = r.sections['awards'] as List? ?? [];
 
     pw.Widget sectionTitle(String title) {
       return pw.Container(
@@ -1085,7 +1259,7 @@ class PDFService {
             if (skills.isNotEmpty) ...[
               sectionTitle('Skills'),
               pw.Text(
-                skills.join('  •  '),
+                skills.join('  |  '),
                 style: const pw.TextStyle(
                   fontSize: 10,
                   color: PdfColors.grey800,
@@ -1157,6 +1331,78 @@ class PDFService {
                 ),
               ),
             ],
+
+            // Awards
+            if (awards.isNotEmpty) ...[
+              sectionTitle('Awards & Achievements'),
+              ...awards.map(
+                (a) => pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 8),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          pw.Text(
+                            a['title'] ?? '',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                          pw.Text(
+                            a['date'] ?? '',
+                            style: const pw.TextStyle(
+                              fontSize: 9,
+                              color: PdfColors.grey600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (a['issuer'] != null &&
+                          a['issuer'].toString().isNotEmpty) ...[
+                        pw.SizedBox(height: 1),
+                        pw.Text(
+                          a['issuer'],
+                          style: const pw.TextStyle(
+                            fontSize: 9.5,
+                            color: PdfColors.grey800,
+                          ),
+                        ),
+                      ],
+                      if (a['description'] != null &&
+                          a['description'].toString().isNotEmpty) ...[
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          a['description'],
+                          style: const pw.TextStyle(
+                            fontSize: 9.5,
+                            color: PdfColors.grey800,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            // Languages
+            if (langs.isNotEmpty) ...[
+              sectionTitle('Languages'),
+              pw.Text(
+                langs
+                    .map((l) => '${l["language"]} (${l["level"]})')
+                    .join('  |  '),
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.grey800,
+                  lineSpacing: 1.5,
+                ),
+              ),
+            ],
           ];
         },
       ),
@@ -1178,8 +1424,12 @@ class PDFService {
 
     switch (resume.templateId) {
       case 'modern':
+      case 'tech':
+      case 'pro_startup':
         return _buildModernPdf(resume, color, photo);
       case 'minimal':
+      case 'clean':
+      case 'simple':
         return _buildMinimalPdf(resume, color, photo);
       case 'classic':
       default:

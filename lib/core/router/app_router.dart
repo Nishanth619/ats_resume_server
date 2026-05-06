@@ -38,10 +38,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
-      GoRoute(path: '/templates', builder: (_, __) => const TemplatePickerScreen()),
+      GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
+      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(path: '/dashboard', builder: (_, _) => const DashboardScreen()),
+      GoRoute(path: '/templates', builder: (_, _) => const TemplatePickerScreen()),
       GoRoute(path: '/editor/:id', builder: (_, s) =>
           ResumeEditorScreen(
             resumeId: s.pathParameters['id']!,
@@ -57,8 +57,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           ResumePreviewScreen(resumeId: s.pathParameters['id']!)),
       GoRoute(path: '/download/:id', builder: (_, s) =>
           DownloadScreen(resumeId: s.pathParameters['id']!)),
-      GoRoute(path: '/job-tracker', builder: (_, __) => const JobTrackerScreen()),
-      GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+      GoRoute(path: '/job-tracker', builder: (_, _) => const JobTrackerScreen()),
+      GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
     ],
   );
 });

@@ -21,8 +21,8 @@ class ResumePreviewScreen extends ConsumerWidget {
       final asyncVal = ref.watch(resumeStreamProvider(resumeId));
       if (asyncVal.isLoading) {
         return Scaffold(
-          backgroundColor: AppColors.bgDark,
-          body: const Center(
+          backgroundColor: context.appColors.bg,
+          body: Center(
               child: CircularProgressIndicator(color: AppColors.primaryLight)),
         );
       }
@@ -31,22 +31,22 @@ class ResumePreviewScreen extends ConsumerWidget {
 
     if (resume == null) {
       return Scaffold(
-        backgroundColor: AppColors.bgDark,
+        backgroundColor: context.appColors.bg,
         appBar: GradientAppBar(title: 'Preview'),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('📄', style: TextStyle(fontSize: 48)),
-              const SizedBox(height: 16),
-              const Text('Could not load resume',
+              Text('📄', style: TextStyle(fontSize: 48)),
+              SizedBox(height: 16),
+              Text('Could not load resume',
                   style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              const Text('Please save your resume first.',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+              SizedBox(height: 8),
+              Text('Please save your resume first.',
+                  style: TextStyle(color: context.appColors.textSecondary, fontSize: 14)),
             ],
           ),
         ),
@@ -54,26 +54,26 @@ class ResumePreviewScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: context.appColors.bg,
       appBar: GradientAppBar(
         title: 'Preview',
         actions: [
           IconButton(
-            icon: const Icon(Icons.print_rounded,
-                color: AppColors.textPrimary, size: 22),
+            icon: Icon(Icons.print_rounded,
+                color: context.appColors.textPrimary, size: 22),
             onPressed: () async {
               await PDFService().printResume(resume!);
             },
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
         ],
       ),
       body: Container(
-        margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+        margin: EdgeInsets.fromLTRB(12, 12, 12, 0),
         decoration: BoxDecoration(
-          color: AppColors.cardDark,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border.all(color: AppColors.borderDark),
+          color: context.appColors.card,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border.all(color: context.appColors.border),
         ),
         clipBehavior: Clip.antiAlias,
         child: PdfPreview(
@@ -90,7 +90,7 @@ class ResumePreviewScreen extends ConsumerWidget {
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.3),
                 blurRadius: 12,
-                offset: const Offset(0, 4),
+                offset: Offset(0, 4),
               ),
             ],
           ),
@@ -98,11 +98,11 @@ class ResumePreviewScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 16),
           child: GradientButton(
             label: 'Download for Free — Watch Ad',
             onPressed: () => context.push('/download/$resumeId'),
-            icon: const Icon(Icons.download_rounded,
+            icon: Icon(Icons.download_rounded,
                 color: Colors.white, size: 20),
           ),
         ),
