@@ -4,13 +4,18 @@ class LanguagesSection extends StatefulWidget {
   final List<Map<String, dynamic>> data;
   final ValueChanged<List<Map<String, dynamic>>> onChanged;
 
-  const LanguagesSection({super.key, required this.data, required this.onChanged});
+  const LanguagesSection({
+    super.key,
+    required this.data,
+    required this.onChanged,
+  });
 
   @override
   State<LanguagesSection> createState() => _LanguagesState();
 }
 
-class _LanguagesState extends State<LanguagesSection> with AutomaticKeepAliveClientMixin {
+class _LanguagesState extends State<LanguagesSection>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -23,13 +28,15 @@ class _LanguagesState extends State<LanguagesSection> with AutomaticKeepAliveCli
     'Fluent',
     'Professional',
     'Conversational',
-    'Basic'
+    'Basic',
   ];
 
   @override
   void initState() {
     super.initState();
-    _languages = List.from(widget.data.map((e) => Map<String, dynamic>.from(e)));
+    _languages = List.from(
+      widget.data.map((e) => Map<String, dynamic>.from(e)),
+    );
   }
 
   @override
@@ -41,12 +48,11 @@ class _LanguagesState extends State<LanguagesSection> with AutomaticKeepAliveCli
   void _addLanguage() {
     final lang = _ctrl.text.trim();
     if (lang.isNotEmpty) {
-      if (!_languages.any((e) => e['language'].toString().toLowerCase() == lang.toLowerCase())) {
+      if (!_languages.any(
+        (e) => e['language'].toString().toLowerCase() == lang.toLowerCase(),
+      )) {
         setState(() {
-          _languages.add({
-            'language': lang,
-            'level': _selectedLevel,
-          });
+          _languages.add({'language': lang, 'level': _selectedLevel});
         });
         widget.onChanged(_languages);
       }
@@ -64,8 +70,10 @@ class _LanguagesState extends State<LanguagesSection> with AutomaticKeepAliveCli
     super.build(context);
     return Card(
       child: ExpansionTile(
-        title: const Text('Languages',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Languages',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         initiallyExpanded: false,
         children: [
           Padding(
@@ -96,10 +104,17 @@ class _LanguagesState extends State<LanguagesSection> with AutomaticKeepAliveCli
                           labelText: 'Level',
                           border: OutlineInputBorder(),
                         ),
-                        items: _levels.map((l) => DropdownMenuItem(
-                          value: l,
-                          child: Text(l, style: const TextStyle(fontSize: 14)),
-                        )).toList(),
+                        items: _levels
+                            .map(
+                              (l) => DropdownMenuItem(
+                                value: l,
+                                child: Text(
+                                  l,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            )
+                            .toList(),
                         onChanged: (v) {
                           if (v != null) setState(() => _selectedLevel = v);
                         },
@@ -109,7 +124,11 @@ class _LanguagesState extends State<LanguagesSection> with AutomaticKeepAliveCli
                     Padding(
                       padding: const EdgeInsets.only(top: 4.0),
                       child: IconButton(
-                        icon: const Icon(Icons.add_circle, color: Color(0xFF6366F1), size: 40),
+                        icon: Icon(
+                          Icons.add_circle,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 40,
+                        ),
                         onPressed: _addLanguage,
                       ),
                     ),

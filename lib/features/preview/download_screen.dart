@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/admob_service.dart';
 import '../../services/pdf_service.dart';
+import '../../services/storage_service.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/resume_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
@@ -27,8 +29,9 @@ class _DLState extends ConsumerState<DownloadScreen>
     super.initState();
     ref.read(adServiceProvider).loadRewardedAd();
     _pulseCtrl = AnimationController(
-        vsync: this, duration: Duration(milliseconds: 1200))
-      ..repeat(reverse: true);
+      vsync: this,
+      duration: Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
   }
 
   @override
@@ -39,40 +42,58 @@ class _DLState extends ConsumerState<DownloadScreen>
 
   Future<void> _executeDownload() async {
     try {
-      final resume = await fetchResumeRobustly(ref, widget.resumeId);
+      final resume = await fetchResumeForExport(ref, widget.resumeId);
       final file = await PDFService().generatePDF(resume);
-      
+      final user = ref.read(authStateProvider).value;
+      if (user != null && widget.resumeId != 'new') {
+        try {
+          await ref
+              .read(storageServiceProvider)
+              .uploadResumePDF(user.uid, widget.resumeId, file);
+        } catch (_) {
+          // Keep the local download successful even if cloud PDF refresh fails.
+        }
+      }
+
       try {
-         await ref.read(resumeNotifierProvider(widget.resumeId).notifier).incrementDownload();
+        await ref
+            .read(resumeNotifierProvider(widget.resumeId).notifier)
+            .incrementDownload();
       } catch (_) {}
 
       if (mounted) {
-        setState(() { 
-          _done = true; 
+        setState(() {
+          _done = true;
           _loading = false;
           _filePath = file.path;
-          _status = 'Resume downloaded successfully!'; 
+          _status = 'Resume downloaded successfully!';
         });
       }
-    } catch (e) { 
+    } catch (e) {
       if (mounted) {
-        setState(() { _loading = false; _status = 'Error: $e'; }); 
+        setState(() {
+          _loading = false;
+          _status = 'Error: $e';
+        });
       }
     }
   }
 
   Future<void> _download() async {
     final adSvc = ref.read(adServiceProvider);
-    
+
     // If ad is not ready, try loading it once
     if (!adSvc.isRewardedReady) {
       setState(() => _status = 'Preparing download...');
       await adSvc.loadRewardedAd();
       await Future.delayed(Duration(seconds: 2));
-      
+
       // If the ad network is failing or blocked (no fill), bypass it to ensure UX.
       if (!adSvc.isRewardedReady) {
-        setState(() { _loading = true; _status = 'Generating PDF...'; });
+        setState(() {
+          _loading = true;
+          _status = 'Generating PDF...';
+        });
         await _executeDownload();
         return;
       }
@@ -118,7 +139,8 @@ class _DLState extends ConsumerState<DownloadScreen>
                 decoration: BoxDecoration(
                   gradient: _done
                       ? LinearGradient(
-                          colors: [AppColors.scoreGreen, Color(0xFF059669)])
+                          colors: [AppColors.scoreGreen, Color(0xFF059669)],
+                        )
                       : context.appColors.primaryGradient,
                   borderRadius: BorderRadius.circular(32),
                   boxShadow: [
@@ -198,14 +220,20 @@ class _DLState extends ConsumerState<DownloadScreen>
                   decoration: BoxDecoration(
                     color: context.appColors.card,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: context.appColors.border, width: 1.5),
+                    border: Border.all(
+                      color: context.appColors.border,
+                      width: 1.5,
+                    ),
                   ),
                   child: Center(
-                    child: Text('Back to Editor',
-                        style: TextStyle(
-                            color: context.appColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15)),
+                    child: Text(
+                      'Back to Editor',
+                      style: TextStyle(
+                        color: context.appColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -213,14 +241,23 @@ class _DLState extends ConsumerState<DownloadScreen>
               CircularProgressIndicator(color: AppColors.primaryLight),
               SizedBox(height: 16),
               Text(
-                _status.contains('Generating') ? 'Creating your PDF...' : 'Loading ad...',
-                style: TextStyle(color: context.appColors.textMuted, fontSize: 13),
+                _status.contains('Generating')
+                    ? 'Creating your PDF...'
+                    : 'Loading ad...',
+                style: TextStyle(
+                  color: context.appColors.textMuted,
+                  fontSize: 13,
+                ),
               ),
             ] else ...[
               GradientButton(
                 label: 'Watch Ad & Download FREE',
                 onPressed: _download,
-                icon: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                icon: Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ],
 
@@ -231,19 +268,27 @@ class _DLState extends ConsumerState<DownloadScreen>
                 decoration: BoxDecoration(
                   color: AppColors.scoreGreen.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.scoreGreen.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: AppColors.scoreGreen.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.verified_rounded,
-                        color: AppColors.scoreGreen, size: 16),
+                    Icon(
+                      Icons.verified_rounded,
+                      color: AppColors.scoreGreen,
+                      size: 16,
+                    ),
                     SizedBox(width: 8),
-                    Text('FREE • No payment required',
-                        style: TextStyle(
-                            color: AppColors.scoreGreen,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      'FREE • No payment required',
+                      style: TextStyle(
+                        color: AppColors.scoreGreen,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -253,4 +298,3 @@ class _DLState extends ConsumerState<DownloadScreen>
     ),
   );
 }
-

@@ -19,7 +19,7 @@ class DashboardScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).value;
 
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: context.appColors.bg,
       body: CustomScrollView(
         slivers: [
           // ─── Premium SliverAppBar ───
@@ -27,13 +27,13 @@ class DashboardScreen extends ConsumerWidget {
             expandedHeight: 220,
             floating: false,
             pinned: true,
-            backgroundColor: AppColors.surfaceDark,
+            backgroundColor: context.appColors.surface,
             elevation: 0,
             leading: Builder(
               builder: (ctx) => IconButton(
                 icon: Icon(
                   Icons.menu_rounded,
-                  color: AppColors.textPrimary,
+                  color: context.appColors.textPrimary,
                 ),
                 onPressed: () => Scaffold.of(ctx).openDrawer(),
               ),
@@ -104,7 +104,7 @@ class DashboardScreen extends ConsumerWidget {
                     SizedBox(height: 16),
                     Text(
                       'Loading your resumes...',
-                      style: TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(color: context.appColors.textSecondary),
                     ),
                   ],
                 ),
@@ -114,7 +114,7 @@ class DashboardScreen extends ConsumerWidget {
               child: Center(
                 child: Text(
                   'Error: $e',
-                  style: TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: context.appColors.textSecondary),
                 ),
               ),
             ),
@@ -142,7 +142,7 @@ class DashboardScreen extends ConsumerWidget {
       floatingActionButton: _buildFAB(context),
       bottomNavigationBar: ref.watch(bannerAdProvider) != null
           ? Container(
-              color: AppColors.surfaceDark,
+              color: context.appColors.surface,
               padding: EdgeInsets.only(top: 4),
               child: ref.watch(bannerAdProvider)!,
             )
@@ -206,7 +206,7 @@ class DashboardScreen extends ConsumerWidget {
             Text(
               'No resumes yet',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.appColors.textPrimary,
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
               ),
@@ -216,7 +216,7 @@ class DashboardScreen extends ConsumerWidget {
               'Create your first ATS-optimised resume\nand land your dream job.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: context.appColors.textSecondary,
                 fontSize: 14,
                 height: 1.6,
               ),
@@ -226,11 +226,7 @@ class DashboardScreen extends ConsumerWidget {
               label: 'Create My First Resume',
               onPressed: () => context.push('/templates'),
               width: 260,
-              icon: Icon(
-                Icons.add_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
+              icon: Icon(Icons.add_rounded, color: Colors.white, size: 18),
             ),
           ],
         ),
@@ -240,15 +236,13 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildDrawer(BuildContext context, WidgetRef ref) {
     return Drawer(
-      backgroundColor: AppColors.surfaceDark,
+      backgroundColor: context.appColors.surface,
       child: Column(
         children: [
           Container(
             width: double.infinity,
             padding: EdgeInsets.fromLTRB(24, 60, 24, 28),
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-            ),
+            decoration: BoxDecoration(gradient: AppColors.primaryGradient),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -307,7 +301,7 @@ class DashboardScreen extends ConsumerWidget {
             },
           ),
           Spacer(),
-          Divider(color: AppColors.borderDark),
+          Divider(color: context.appColors.border),
           _DrawerItem(
             icon: Icons.logout_rounded,
             label: 'Sign Out',
@@ -337,14 +331,21 @@ class _AppBarBackground extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF120D2A), Color(0xFF1A1035), AppColors.bgDark],
-          stops: [0.0, 0.5, 1.0],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+        gradient: isDark
+            ? LinearGradient(
+                colors: [
+                  Color(0xFF120D2A),
+                  Color(0xFF1A1035),
+                  context.appColors.bg,
+                ],
+                stops: [0.0, 0.5, 1.0],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              )
+            : context.appColors.bgGradient,
       ),
       child: Stack(
         children: [
@@ -373,8 +374,6 @@ class _AppBarBackground extends ConsumerWidget {
               ),
             ),
           ),
-          // Subtle dot grid
-          Positioned.fill(child: CustomPaint(painter: _DotGridPainter())),
           Align(
             alignment: Alignment.bottomLeft,
             child: SafeArea(
@@ -404,7 +403,7 @@ class _AppBarBackground extends ConsumerWidget {
                     Text(
                       'Your AI-powered career toolkit is ready.',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: context.appColors.textSecondary,
                         fontSize: 13,
                         height: 1.4,
                       ),
@@ -420,25 +419,6 @@ class _AppBarBackground extends ConsumerWidget {
   }
 }
 
-// Subtle dot grid background painter
-class _DotGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.03)
-      ..strokeWidth = 1;
-    final spacing = 24.0;
-    for (double x = 0; x < size.width; x += spacing) {
-      for (double y = 0; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), 1.5, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}
-
 // ─── Feature Grid ──────────────────────────────────────────────────────────────
 class _FeatureGrid extends ConsumerWidget {
   // Hero card (full width)
@@ -451,46 +431,34 @@ class _FeatureGrid extends ConsumerWidget {
     cardType: _CardType.hero,
   );
 
-  // Tall cards (left column, 2 stacked)
-  static final _tallLeft = [
-    _FeatureItem(
-      icon: Icons.center_focus_strong_rounded,
-      title: 'ATS Score',
-      subtitle: 'Beat the bots',
-      gradient: LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)]),
-      resumeRoute: '/ats',
-      cardType: _CardType.tall,
-    ),
-    _FeatureItem(
-      icon: Icons.manage_search_rounded,
-      title: 'JD Matcher',
-      subtitle: 'Match & auto-tailor',
-      gradient: AppColors.accentGradient,
-      resumeRoute: '/jd',
-      cardType: _CardType.tall,
-    ),
-  ];
+  static final _scoreCard = _FeatureItem(
+    icon: Icons.center_focus_strong_rounded,
+    title: 'ATS Score',
+    subtitle: 'Beat the bots',
+    gradient: LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)]),
+    resumeRoute: '/ats',
+    cardType: _CardType.tall,
+  );
 
-  // Wide card (right column, spans full height of the 2 tall cards)
-  static final _wideRight = _FeatureItem(
+  static final _autoTailorCard = _FeatureItem(
     icon: Icons.auto_fix_high_rounded,
     title: 'Auto-Tailor',
     subtitle: 'AI rewrites your resume to perfectly match a job description',
     gradient: LinearGradient(colors: [Color(0xFF059669), Color(0xFF0D9488)]),
-    resumeRoute: '/jd',
+    resumeRoute: '/auto-tailor',
     cardType: _CardType.wide,
   );
 
-  // Bottom row (3 equal cards)
+  static final _coverLetterCard = _FeatureItem(
+    icon: Icons.mail_rounded,
+    title: 'Cover Letter',
+    subtitle: 'AI generated',
+    gradient: LinearGradient(colors: [Color(0xFFD97706), Color(0xFFDC2626)]),
+    resumeRoute: '/cover-letter',
+    cardType: _CardType.tall,
+  );
+
   static final _bottomRow = [
-    _FeatureItem(
-      icon: Icons.mail_rounded,
-      title: 'Cover Letter',
-      subtitle: 'AI generated',
-      gradient: LinearGradient(colors: [Color(0xFFD97706), Color(0xFFDC2626)]),
-      resumeRoute: '/cover-letter',
-      cardType: _CardType.compact,
-    ),
     _FeatureItem(
       icon: Icons.work_rounded,
       title: 'Job Tracker',
@@ -503,7 +471,7 @@ class _FeatureGrid extends ConsumerWidget {
       icon: Icons.file_download_rounded,
       title: 'Export PDF',
       subtitle: 'Download & share',
-      gradient: LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+      gradient: AppColors.primaryGradient,
       resumeRoute: '/preview',
       cardType: _CardType.compact,
     ),
@@ -511,10 +479,9 @@ class _FeatureGrid extends ConsumerWidget {
 
   // All heights are explicit — no IntrinsicHeight, no Expanded height inference.
   static final double _heroH = 108.0;
-  static final double _tallH = 130.0; // each tall card
+  static final double _tallH = 130.0;
   static final double _gap = 12.0;
-  static final double _wideH =
-      _tallH * 2 + _gap; // matches both tall cards + gap
+  static final double _wideH = _tallH * 2 + _gap;
   static final double _compactH = 116.0;
 
   const _FeatureGrid();
@@ -538,14 +505,13 @@ class _FeatureGrid extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Left column: 2 equal tall cards
               Expanded(
                 child: Column(
                   children: [
                     SizedBox(
                       height: _tallH,
                       child: _FeatureCard(
-                        feature: _tallLeft[0],
+                        feature: _scoreCard,
                         resumes: resumes,
                       ),
                     ),
@@ -553,7 +519,7 @@ class _FeatureGrid extends ConsumerWidget {
                     SizedBox(
                       height: _tallH,
                       child: _FeatureCard(
-                        feature: _tallLeft[1],
+                        feature: _coverLetterCard,
                         resumes: resumes,
                       ),
                     ),
@@ -561,16 +527,15 @@ class _FeatureGrid extends ConsumerWidget {
                 ),
               ),
               SizedBox(width: _gap),
-              // Right column: single card exactly matching combined left height
               Expanded(
-                child: _FeatureCard(feature: _wideRight, resumes: resumes),
+                child: _FeatureCard(feature: _autoTailorCard, resumes: resumes),
               ),
             ],
           ),
         ),
         SizedBox(height: _gap),
 
-        // ── Row 3: 3 perfectly equal compact cards ──
+        // ── Row 3: 2 perfectly equal compact cards ──
         SizedBox(
           height: _compactH,
           child: Row(
@@ -580,7 +545,7 @@ class _FeatureGrid extends ConsumerWidget {
                 child: Padding(
                   padding: EdgeInsets.only(
                     left: entry.key == 0 ? 0 : 6,
-                    right: entry.key == 2 ? 0 : 6,
+                    right: entry.key == _bottomRow.length - 1 ? 0 : 6,
                   ),
                   child: _FeatureCard(feature: entry.value, resumes: resumes),
                 ),
@@ -681,7 +646,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
   void _showNoResumeSheet(_FeatureItem f) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.cardDark,
+      backgroundColor: context.appColors.card,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -694,7 +659,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.borderDark,
+                color: context.appColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -704,7 +669,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
             Text(
               'No resumes yet',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.appColors.textPrimary,
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
               ),
@@ -714,7 +679,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
               'Create a resume first, then use "${f.title}" from within the editor.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: context.appColors.textSecondary,
                 fontSize: 13,
                 height: 1.5,
               ),
@@ -726,11 +691,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
                 Navigator.pop(context);
                 context.push('/templates');
               },
-              icon: Icon(
-                Icons.add_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
+              icon: Icon(Icons.add_rounded, color: Colors.white, size: 18),
             ),
           ],
         ),
@@ -741,7 +702,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
   void _showResumePicker(_FeatureItem f, List<ResumeModel> resumes) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.cardDark,
+      backgroundColor: context.appColors.card,
       isScrollControlled: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -760,7 +721,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.borderDark,
+                    color: context.appColors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -779,7 +740,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: AppColors.textPrimary,
+                            color: context.appColors.textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                           ),
@@ -787,7 +748,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
                         Text(
                           'Select a resume to continue',
                           style: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: context.appColors.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -797,7 +758,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
                 ],
               ),
               SizedBox(height: 16),
-              Divider(color: AppColors.borderDark),
+              Divider(color: context.appColors.border),
               SizedBox(height: 8),
               Expanded(
                 child: ListView.separated(
@@ -815,7 +776,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      tileColor: AppColors.surfaceDark,
+                      tileColor: context.appColors.surface,
                       leading: Container(
                         width: 48,
                         height: 48,
@@ -839,7 +800,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.appColors.textPrimary,
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                         ),
@@ -849,13 +810,13 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
                             ? r.targetRole
                             : 'No target role set',
                         style: TextStyle(
-                          color: AppColors.textMuted,
+                          color: context.appColors.textMuted,
                           fontSize: 12,
                         ),
                       ),
                       trailing: Icon(
                         Icons.chevron_right_rounded,
-                        color: AppColors.textMuted,
+                        color: context.appColors.textMuted,
                       ),
                       onTap: () {
                         Navigator.pop(context);
@@ -874,6 +835,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final f = widget.feature;
     final isHero = f.cardType == _CardType.hero;
     final isWide = f.cardType == _CardType.wide;
@@ -988,10 +950,7 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
                 ),
                 SizedBox(height: 14),
                 Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(20),
@@ -1153,7 +1112,9 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: f.gradient.colors.first.withValues(alpha: 0.30),
+                color: f.gradient.colors.first.withValues(
+                  alpha: isDark ? 0.30 : 0.16,
+                ),
                 blurRadius: 18,
                 offset: Offset(0, 6),
               ),
@@ -1208,7 +1169,9 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? AppColors.error : AppColors.textSecondary;
+    final color = isDestructive
+        ? AppColors.error
+        : context.appColors.textSecondary;
     return ListTile(
       leading: Icon(icon, color: color, size: 22),
       title: Text(
@@ -1240,44 +1203,8 @@ class _ResumeCard extends ConsumerWidget {
         glowColor: scoreColor,
         child: Row(
           children: [
-            SizedBox(
-              width: 64,
-              height: 64,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    value: score / 100,
-                    strokeWidth: 5,
-                    backgroundColor: AppColors.borderDark,
-                    valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
-                    strokeCap: StrokeCap.round,
-                  ),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '$score',
-                        style: TextStyle(
-                          color: scoreColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      Text(
-                        'ATS',
-                        style: TextStyle(
-                          color: scoreColor.withValues(alpha: 0.7),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(width: 16),
+            _CompactScoreRing(score: score, color: scoreColor),
+            SizedBox(width: 18),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1285,7 +1212,7 @@ class _ResumeCard extends ConsumerWidget {
                   Text(
                     resume.title,
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
@@ -1323,7 +1250,7 @@ class _ResumeCard extends ConsumerWidget {
                 SizedBox(height: 8),
                 _MiniAction(
                   icon: Icons.chevron_right_rounded,
-                  color: AppColors.textMuted,
+                  color: context.appColors.textMuted,
                   onTap: () => context.push('/editor/${resume.id}'),
                 ),
               ],
@@ -1344,7 +1271,7 @@ class _ResumeCard extends ConsumerWidget {
   void _showOptions(BuildContext ctx, WidgetRef ref) {
     showModalBottomSheet(
       context: ctx,
-      backgroundColor: AppColors.cardDark,
+      backgroundColor: ctx.appColors.card,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1357,7 +1284,7 @@ class _ResumeCard extends ConsumerWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.borderDark,
+                color: ctx.appColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -1368,7 +1295,7 @@ class _ResumeCard extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: ctx.appColors.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
@@ -1399,11 +1326,11 @@ class _ResumeCard extends ConsumerWidget {
               },
             ),
             _OptionTile(
-              icon: Icons.work_outline_rounded,
-              label: 'Match Job Description',
+              icon: Icons.auto_fix_high_rounded,
+              label: 'Auto-Tailor Resume',
               onTap: () {
                 Navigator.pop(ctx);
-                ctx.push('/jd/${resume.id}');
+                ctx.push('/auto-tailor/${resume.id}');
               },
             ),
             _OptionTile(
@@ -1449,6 +1376,68 @@ class _MiniAction extends StatelessWidget {
   }
 }
 
+class _CompactScoreRing extends StatelessWidget {
+  final int score;
+  final Color color;
+
+  const _CompactScoreRing({required this.score, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 78,
+      height: 78,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.07),
+            ),
+          ),
+          SizedBox(
+            width: 68,
+            height: 68,
+            child: CircularProgressIndicator(
+              value: score / 100,
+              strokeWidth: 7,
+              backgroundColor: context.appColors.border.withValues(alpha: 0.8),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+              strokeCap: StrokeCap.round,
+            ),
+          ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '$score',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 22,
+                  height: 0.95,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'ATS',
+                style: TextStyle(
+                  color: context.appColors.textMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MetaChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1459,7 +1448,7 @@ class _MetaChip extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: AppColors.textMuted),
+        Icon(icon, size: 12, color: context.appColors.textMuted),
         SizedBox(width: 4),
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: 140),
@@ -1467,7 +1456,7 @@ class _MetaChip extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+            style: TextStyle(color: context.appColors.textMuted, fontSize: 12),
           ),
         ),
       ],
@@ -1486,7 +1475,7 @@ class _ScoreBar extends StatelessWidget {
       borderRadius: BorderRadius.circular(4),
       child: LinearProgressIndicator(
         value: score / 100,
-        backgroundColor: AppColors.borderDark,
+        backgroundColor: context.appColors.border,
         valueColor: AlwaysStoppedAnimation<Color>(color),
         minHeight: 4,
       ),
@@ -1508,7 +1497,9 @@ class _OptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? AppColors.error : AppColors.textPrimary;
+    final color = isDestructive
+        ? AppColors.error
+        : context.appColors.textPrimary;
     return ListTile(
       leading: Container(
         width: 40,
@@ -1734,12 +1725,12 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: AppColors.cardDark,
+        backgroundColor: context.appColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'LinkedIn OAuth',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.appColors.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -1750,7 +1741,7 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
           '3. Set redirect URI to:\nhttps://ats-resume-server.onrender.com/api/linkedin/callback\n\n'
           'Until then, use the ZIP import - it gives you the most complete data.',
           style: TextStyle(
-            color: AppColors.textSecondary,
+            color: context.appColors.textSecondary,
             fontSize: 13,
             height: 1.6,
           ),
@@ -1758,10 +1749,7 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Got it',
-              style: TextStyle(color: AppColors.primary),
-            ),
+            child: Text('Got it', style: TextStyle(color: AppColors.primary)),
           ),
         ],
       ),
@@ -1772,7 +1760,7 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
+        color: context.appColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: EdgeInsets.fromLTRB(
@@ -1788,7 +1776,7 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
             width: 44,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.borderDark,
+              color: context.appColors.border,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -1821,7 +1809,7 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
                     Text(
                       'Import from LinkedIn',
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: context.appColors.textPrimary,
                         fontWeight: FontWeight.w800,
                         fontSize: 17,
                       ),
@@ -1830,7 +1818,7 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
                     Text(
                       'Choose how to import your profile',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: context.appColors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
@@ -1863,9 +1851,9 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
           Container(
             padding: EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.cardDark,
+              color: context.appColors.card,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.borderDark),
+              border: Border.all(color: context.appColors.border),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1880,7 +1868,7 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
                   child: Text(
                     'To get your ZIP: LinkedIn > Me > Settings & Privacy > Data Privacy > Get a copy of your data > Select "Want something in particular?" > Profile data > Request archive',
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: context.appColors.textSecondary,
                       fontSize: 11,
                       height: 1.55,
                     ),
@@ -1917,7 +1905,7 @@ class _SheetOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.cardDark,
+      color: context.appColors.card,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -1953,7 +1941,7 @@ class _SheetOption extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: AppColors.textPrimary,
+                              color: context.appColors.textPrimary,
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
                             ),
@@ -1988,7 +1976,7 @@ class _SheetOption extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: context.appColors.textSecondary,
                         fontSize: 11,
                         height: 1.4,
                       ),
@@ -1999,7 +1987,7 @@ class _SheetOption extends StatelessWidget {
               SizedBox(width: 8),
               Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.textMuted,
+                color: context.appColors.textMuted,
                 size: 20,
               ),
             ],

@@ -192,9 +192,9 @@ class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
               itemBuilder: (_) => [
                 _menuItem('ats', Icons.analytics_outlined, 'Check ATS Score'),
                 _menuItem(
-                  'jd',
-                  Icons.work_outline_rounded,
-                  'Match Job Description',
+                  'tailor',
+                  Icons.auto_fix_high_rounded,
+                  'Auto-Tailor Resume',
                 ),
                 _menuItem(
                   'cover',
@@ -204,7 +204,9 @@ class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
               ],
               onSelected: (val) {
                 if (val == 'ats') context.push('/ats/${widget.resumeId}');
-                if (val == 'jd') context.push('/jd/${widget.resumeId}');
+                if (val == 'tailor') {
+                  context.push('/auto-tailor/${widget.resumeId}');
+                }
                 if (val == 'cover') {
                   context.push('/cover-letter/${widget.resumeId}');
                 }

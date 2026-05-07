@@ -22,19 +22,18 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(borderRadius),
-        gradient: LinearGradient(
-          colors: [Color(0xFF1E1B33), Color(0xFF14122A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: context.appColors.cardGradient,
         border: Border.all(color: context.appColors.border, width: 1),
         boxShadow: showGlow
             ? [
                 BoxShadow(
-                  color: (glowColor ?? AppColors.primary).withValues(alpha: 0.25),
+                  color: (glowColor ?? AppColors.primary).withValues(
+                    alpha: 0.25,
+                  ),
                   blurRadius: 24,
                   spreadRadius: 0,
                   offset: Offset(0, 4),
@@ -42,16 +41,15 @@ class GlassCard extends StatelessWidget {
               ]
             : [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.3)
+                      : AppColors.primaryDark.withValues(alpha: 0.08),
                   blurRadius: 12,
                   offset: Offset(0, 4),
                 ),
               ],
       ),
-      child: Padding(
-        padding: padding ?? EdgeInsets.all(20),
-        child: child,
-      ),
+      child: Padding(padding: padding ?? EdgeInsets.all(20), child: child),
     );
   }
 }
@@ -90,9 +88,13 @@ class _GradientButtonState extends State<GradientButton>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: Duration(milliseconds: 120));
-    _scale = Tween<double>(begin: 1.0, end: 0.96).animate(
-        CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+      vsync: this,
+      duration: Duration(milliseconds: 120),
+    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.96,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -112,7 +114,8 @@ class _GradientButtonState extends State<GradientButton>
       onTapCancel: () => _ctrl.reverse(),
       child: AnimatedBuilder(
         animation: _scale,
-        builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
+        builder: (_, child) =>
+            Transform.scale(scale: _scale.value, child: child),
         child: Container(
           width: widget.width ?? double.infinity,
           height: 56,
@@ -133,7 +136,10 @@ class _GradientButtonState extends State<GradientButton>
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2.5, color: Colors.white))
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -141,12 +147,15 @@ class _GradientButtonState extends State<GradientButton>
                         widget.icon!,
                         SizedBox(width: 10),
                       ],
-                      Text(widget.label,
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3)),
+                      Text(
+                        widget.label,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
                     ],
                   ),
           ),
@@ -173,12 +182,15 @@ class GradientBadge extends StatelessWidget {
         gradient: gradient ?? AppColors.accentGradient,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(text,
-          style: TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5)),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
+      ),
     );
   }
 }
@@ -191,8 +203,12 @@ class SectionHeader extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
 
-  const SectionHeader(
-      {super.key, required this.title, this.subtitle, this.trailing});
+  const SectionHeader({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -202,16 +218,23 @@ class SectionHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: TextStyle(
-                      color: context.appColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700)),
+              Text(
+                title,
+                style: TextStyle(
+                  color: context.appColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               if (subtitle != null) ...[
                 SizedBox(height: 2),
-                Text(subtitle!,
-                    style: TextStyle(
-                        color: context.appColors.textSecondary, fontSize: 13)),
+                Text(
+                  subtitle!,
+                  style: TextStyle(
+                    color: context.appColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ],
           ),
@@ -244,9 +267,13 @@ class _ScoreRingState extends State<ScoreRing>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: Duration(milliseconds: 1200));
-    _anim = Tween<double>(begin: 0, end: widget.score / 100)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+      vsync: this,
+      duration: Duration(milliseconds: 1200),
+    );
+    _anim = Tween<double>(
+      begin: 0,
+      end: widget.score / 100,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _ctrl.forward();
   }
 
@@ -259,21 +286,42 @@ class _ScoreRingState extends State<ScoreRing>
   @override
   Widget build(BuildContext context) {
     final color = AppColors.scoreColor(widget.score);
+    final diameter = widget.radius * 2;
+    final strokeWidth = (widget.radius * 0.17).clamp(12.0, 16.0);
+    final numberSize = (widget.radius * 0.62).clamp(42.0, 58.0);
+    final labelSize = (widget.radius * 0.17).clamp(12.0, 15.0);
+
     return AnimatedBuilder(
       animation: _anim,
       builder: (_, _) => SizedBox(
-        width: widget.radius * 2 + 20,
-        height: widget.radius * 2 + 20,
+        width: diameter + 28,
+        height: diameter + 28,
         child: Stack(
           alignment: Alignment.center,
           children: [
+            Container(
+              width: diameter + 12,
+              height: diameter + 12,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withValues(alpha: 0.06),
+                border: Border.all(
+                  color: color.withValues(alpha: 0.12),
+                  width: 1,
+                ),
+              ),
+            ),
             SizedBox(
-              width: widget.radius * 2,
-              height: widget.radius * 2,
+              width: diameter,
+              height: diameter,
               child: CircularProgressIndicator(
                 value: _anim.value,
-                strokeWidth: 10,
-                backgroundColor: context.appColors.border,
+                strokeWidth: strokeWidth,
+                backgroundColor: context.appColors.border.withValues(
+                  alpha: Theme.of(context).brightness == Brightness.dark
+                      ? 1
+                      : 0.7,
+                ),
                 valueColor: AlwaysStoppedAnimation<Color>(color),
                 strokeCap: StrokeCap.round,
               ),
@@ -284,16 +332,20 @@ class _ScoreRingState extends State<ScoreRing>
                 Text(
                   '${((_anim.value) * 100).round()}',
                   style: TextStyle(
-                      color: color,
-                      fontSize: 36,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1),
+                    color: color,
+                    fontSize: numberSize,
+                    fontWeight: FontWeight.w900,
+                    height: 0.95,
+                  ),
                 ),
-                Text('/ 100',
-                    style: TextStyle(
-                        color: color.withValues(alpha: 0.6),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
+                Text(
+                  '/ 100',
+                  style: TextStyle(
+                    color: context.appColors.textSecondary,
+                    fontSize: labelSize,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ],
@@ -311,8 +363,12 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final bool showBack;
 
-  const GradientAppBar(
-      {super.key, required this.title, this.actions, this.showBack = true});
+  const GradientAppBar({
+    super.key,
+    required this.title,
+    this.actions,
+    this.showBack = true,
+  });
 
   @override
   Size get preferredSize => Size.fromHeight(64);
@@ -323,7 +379,8 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
       decoration: BoxDecoration(
         color: context.appColors.surface,
         border: Border(
-            bottom: BorderSide(color: context.appColors.border, width: 1)),
+          bottom: BorderSide(color: context.appColors.border, width: 1),
+        ),
       ),
       child: SafeArea(
         child: Padding(
@@ -332,19 +389,25 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
             children: [
               if (showBack)
                 IconButton(
-                  icon: Icon(Icons.arrow_back_ios_new_rounded,
-                      size: 18, color: context.appColors.textPrimary),
+                  icon: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 18,
+                    color: context.appColors.textPrimary,
+                  ),
                   onPressed: () => Navigator.of(context).maybePop(),
                 ),
               Expanded(
                 child: ShaderMask(
                   shaderCallback: (bounds) =>
                       context.appColors.primaryGradient.createShader(bounds),
-                  child: Text(title,
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800)),
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ),
               if (actions != null) ...actions!,

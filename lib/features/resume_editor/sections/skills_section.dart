@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 class SkillsSection extends StatefulWidget {
@@ -21,6 +22,18 @@ class _SkillsState extends State<SkillsSection> with AutomaticKeepAliveClientMix
   void initState() {
     super.initState();
     _skills = List.from(widget.data);
+  }
+
+  @override
+  void didUpdateWidget(covariant SkillsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    try {
+      final newJson = jsonEncode(widget.data);
+      final currentJson = jsonEncode(_skills);
+      if (newJson != currentJson) {
+        _skills = List.from(widget.data);
+      }
+    } catch (_) {}
   }
 
   void _addSkill(String s) {

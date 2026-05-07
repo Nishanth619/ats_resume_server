@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +41,21 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
     super.initState();
     _data = Map.from(widget.data);
     _summaryController = TextEditingController(text: _data['summary'] ?? '');
+  }
+
+  @override
+  void didUpdateWidget(covariant PersonalInfoSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    try {
+      final newJson = jsonEncode(widget.data);
+      final currentJson = jsonEncode(_data);
+      if (newJson != currentJson) {
+        _data = Map.from(widget.data);
+        if (_summaryController.text != (_data['summary'] ?? '')) {
+          _summaryController.text = _data['summary'] ?? '';
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -89,9 +105,9 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
       await tmpFile.delete();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload photo: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to upload photo: $e')));
       }
     } finally {
       if (mounted) setState(() => _isUploadingPhoto = false);
@@ -264,14 +280,14 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Color(0xFF6366F1),
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           )
                         : IconButton(
                             icon: Icon(
                               Icons.auto_awesome,
-                              color: Color(0xFF6366F1),
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                             tooltip: 'Improve with AI',
                             onPressed: _generateSummary,

@@ -10,7 +10,7 @@ import '../../features/preview/resume_preview_screen.dart';
 import '../../features/preview/download_screen.dart';
 import '../../features/job_tracker/job_tracker_screen.dart';
 import '../../features/ats_checker/ats_score_screen.dart';
-import '../../features/jd_matcher/jd_matcher_screen.dart';
+import '../../features/auto_tailor/auto_tailor_screen.dart';
 import '../../features/cover_letter/cover_letter_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../providers/auth_provider.dart';
@@ -49,8 +49,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           )),
       GoRoute(path: '/ats/:id', builder: (_, s) =>
           ATSScoreScreen(resumeId: s.pathParameters['id']!)),
-      GoRoute(path: '/jd/:id', builder: (_, s) =>
-          JDMatcherScreen(resumeId: s.pathParameters['id']!)),
+      GoRoute(path: '/auto-tailor/:id', builder: (_, s) =>
+          AutoTailorScreen(resumeId: s.pathParameters['id']!)),
       GoRoute(path: '/cover-letter/:id', builder: (_, s) =>
           CoverLetterScreen(resumeId: s.pathParameters['id']!)),
       GoRoute(path: '/preview/:id', builder: (_, s) =>

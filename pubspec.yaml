@@ -1,5 +1,5 @@
 name: ats_resume_builder
-description: "ATS Resume Builder — AI-powered resume builder with ATS score analysis, JD matching, and professional PDF export."
+description: "ATS Resume Builder — AI-powered resume builder with ATS score analysis, auto-tailoring, and professional PDF export."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -39,6 +39,7 @@ dependencies:
   firebase_analytics: any
   purchases_flutter: ^8.3.0
   image_picker: ^1.1.2
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:

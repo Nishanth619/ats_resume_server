@@ -74,5 +74,20 @@ class SubscriptionNotifier extends Notifier<bool> {
   }
 }
 
+// ─── Price provider ────────────────────────────────────────────────────────
+// In production: replace the static value with a call to your IAP package
+// (e.g. RevenueCat / in_app_purchase) that returns the localised price
+// string from the store listing so the correct currency is always shown.
+//
+// Example with in_app_purchase:
+//   final products = await InAppPurchase.instance.queryProductDetails({...});
+//   return products.productDetails.first.price; // '₹299.00'
+//
+// For now we return a fixed fallback string.
+final subscriptionPriceProvider = Provider<String?>((ref) {
+  // TODO: replace with real IAP product price lookup
+  return '₹299 / month';
+});
+
 // ─── Convenience re-export so call sites don't need to change ─────────────
 final firestoreServiceRef = firestoreServiceProvider;

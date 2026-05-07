@@ -6,14 +6,14 @@ import '../../providers/resume_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 
-class JDMatcherScreen extends ConsumerStatefulWidget {
+class AutoTailorScreen extends ConsumerStatefulWidget {
   final String resumeId;
-  const JDMatcherScreen({super.key, required this.resumeId});
+  const AutoTailorScreen({super.key, required this.resumeId});
   @override
-  ConsumerState<JDMatcherScreen> createState() => _JDState();
+  ConsumerState<AutoTailorScreen> createState() => _AutoTailorState();
 }
 
-class _JDState extends ConsumerState<JDMatcherScreen>
+class _AutoTailorState extends ConsumerState<AutoTailorScreen>
     with SingleTickerProviderStateMixin {
   final _jdCtrl = TextEditingController();
   KeywordMatchResult? _result;
@@ -151,7 +151,7 @@ class _JDState extends ConsumerState<JDMatcherScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.appColors.bg,
-      appBar: GradientAppBar(title: 'JD Matcher'),
+      appBar: GradientAppBar(title: 'Auto-Tailor'),
       body: (_loading || _tailoring) ? _buildLoading() : _buildContent(),
     );
   }
