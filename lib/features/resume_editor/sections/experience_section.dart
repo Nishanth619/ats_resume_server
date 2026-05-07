@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
 import '../../../services/ai_service.dart';
 
 class ExperienceSection extends ConsumerStatefulWidget {
@@ -30,18 +31,39 @@ class _ExpState extends ConsumerState<ExperienceSection>
   @override
   void initState() {
     super.initState();
-    _items = List.from(widget.data);
+    _syncItemsFromWidget();
+  }
+
+  @override
+  void didUpdateWidget(covariant ExperienceSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    try {
+      final incoming = jsonEncode(widget.data);
+      final current = jsonEncode(_items);
+      if (incoming != current) {
+        _disposeDescriptionControllers();
+        _syncItemsFromWidget();
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _disposeDescriptionControllers();
+    super.dispose();
+  }
+
+  void _syncItemsFromWidget() {
+    _items = widget.data.map((e) => Map<String, dynamic>.from(e)).toList();
     _descControllers = _items
         .map((e) => TextEditingController(text: e['description'] ?? ''))
         .toList();
   }
 
-  @override
-  void dispose() {
+  void _disposeDescriptionControllers() {
     for (final c in _descControllers) {
       c.dispose();
     }
-    super.dispose();
   }
 
   void _addEntry() {

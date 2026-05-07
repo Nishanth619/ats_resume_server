@@ -52,10 +52,6 @@ const hasAiProvider = Boolean(genAI || groq);
 const atsRateLimitDisabled = process.env.DISABLE_ATS_RATE_LIMIT === 'true';
 const atsFreeDailyLimit = Math.max(1, Number.parseInt(process.env.ATS_FREE_DAILY_LIMIT || '3', 10) || 3);
 
-function shouldUseMockAI() {
-  return !isProduction && !hasAiProvider;
-}
-
 function rejectMissingAI(res) {
   return res.status(503).json({ error: 'AI service is not configured on this server.' });
 }
@@ -282,17 +278,27 @@ function normalizeTailoredResume(raw, originalSections) {
       company: oldItem.company || proposed.company || '',
       dates: oldItem.dates || proposed.dates || '',
       location: oldItem.location || proposed.location || '',
-      description: toText(proposed.description || oldItem.description),
+      description: toText(proposed.description || oldItem.description).slice(0, 1800),
     };
   });
-  const skills = toArray(raw.skills, 60);
+  const skills = [...new Set(toArray(raw.skills, 60))];
   return {
     targetRole: toText(raw.targetRole).slice(0, 160),
     summary: toText(raw.summary, originalSummary).slice(0, 1200),
     experience,
     skills: skills.length ? skills : toArray(originalSkills, 60),
     warnings: toArray(raw.warnings, 8),
-    changes: Array.isArray(raw.changes) ? raw.changes.slice(0, 20) : [],
+    changes: Array.isArray(raw.changes)
+      ? raw.changes
+          .map((item) => ({
+            section: toText(item?.section).slice(0, 80),
+            before: toText(item?.before).slice(0, 500),
+            after: toText(item?.after).slice(0, 500),
+            reason: toText(item?.reason).slice(0, 300),
+          }))
+          .filter((item) => item.section && (item.after || item.reason))
+          .slice(0, 20)
+      : [],
   };
 }
 
@@ -418,7 +424,6 @@ app.get('/', (req, res) => {
     ai: {
       gemini: Boolean(genAI),
       groq: Boolean(groq),
-      mockEnabled: shouldUseMockAI(),
     },
   });
 });
@@ -431,9 +436,6 @@ app.post('/api/ai/improve-bullet', auth,
   ]),
   async (req, res) => {
     const { rawDuty, role } = req.body;
-
-    if (shouldUseMockAI())
-      return res.json({ bullet: rawDuty.trim() });
 
     if (!hasAiProvider) return rejectMissingAI(res);
 
@@ -506,24 +508,6 @@ app.post('/api/ai/ats-check', auth, validateAtsInput, async (req, res) => {
     return res.json({ ...cached, _cached: true });
   }
 
-  if (shouldUseMockAI()) {
-    return res.json({
-      total_score: 72,
-      categories: {
-        keyword_match: { score: 14, reasoning: 'Mock: good keyword presence.' },
-        impact_language: { score: 15, reasoning: 'Mock: some action verbs present.' },
-        structure: { score: 16, reasoning: 'Mock: clear sections.' },
-        relevance: { score: 14, reasoning: 'Mock: mostly relevant.' },
-        ats_compatibility: { score: 13, reasoning: 'Mock: no tables or images detected.' }
-      },
-      critical_issues: [{ issue: 'Missing quantified achievements', fix: 'Add metrics (%, $, #)', priority: 'high' }],
-      matched_keywords: ['Flutter', 'Dart'],
-      missing_keywords: ['Firebase', 'REST API'],
-      top_3_wins: ['Clear structure', 'Relevant skills', 'Good contact info'],
-      top_3_improvements: ['Add metrics', 'Stronger action verbs', 'Include missing keywords']
-    });
-  }
-
   if (!hasAiProvider) return rejectMissingAI(res);
 
   const resumeBody = sections ? formatStructuredResume(sections) : resumeText;
@@ -582,9 +566,6 @@ app.post('/api/ai/summary', auth,
   ]),
   async (req, res) => {
     const { name, targetRole, experiences = [], skills = [] } = req.body;
-
-    if (shouldUseMockAI())
-      return res.json({ summary: 'Mock summary for testing.' });
 
     if (!hasAiProvider) return rejectMissingAI(res);
 
@@ -646,9 +627,6 @@ app.post('/api/ai/match-jd', auth,
   ]),
   async (req, res) => {
     const { resumeText, jd } = req.body;
-
-    if (shouldUseMockAI())
-      return res.json({ required_keywords: [], matched: [], missing: [], match_percentage: 50 });
 
     if (!hasAiProvider) return rejectMissingAI(res);
 
@@ -757,11 +735,6 @@ ${resumeText}${jdSection}`;
 app.post('/api/ai/cover-letter', auth, validateCoverLetterInput, async (req, res) => {
   const { resumeText, jd, company, name } = req.body;
 
-  if (shouldUseMockAI()) {
-    const mock = `Dear Hiring Team,\n\nI am excited to apply for the position at ${company}. With a strong background and a proven track record of delivering high-quality results, I am confident in my ability to make an immediate and positive impact on your team. I have long admired ${company}'s commitment to innovation and excellence, and I am eager to bring my expertise to support your strategic goals.\n\nThroughout my career, I have consistently demonstrated a commitment to excellence. As highlighted in my resume, I have successfully managed complex projects, collaborated with cross-functional teams, and implemented solutions that significantly improved efficiency. My recent work involved streamlining processes that reduced turnaround times by 30% and increased overall productivity across the team. These experiences have equipped me with the technical skills and problem-solving mindset required to thrive in this role.\n\nI would welcome the opportunity to discuss how my background, skills, and enthusiasm align with the needs of ${company}. Thank you for your time and consideration. I look forward to the possibility of contributing to your continued success.\n\nSincerely,\n${name}`;
-    return res.json({ letter: mock, engine: 'mock', wordCount: mock.split(/\s+/).length });
-  }
-
   if (!hasAiProvider) return rejectMissingAI(res);
 
   const prompt = buildCoverLetterPrompt(name.trim(), company.trim(), resumeText.trim(), jd?.trim());
@@ -814,27 +787,35 @@ app.post('/api/ai/tailor-resume', auth,
     if (resumeJson.length > 20000)
       return res.status(400).json({ error: 'Resume data too large.' });
 
-    if (shouldUseMockAI()) {
-      return res.json({
-        summary: 'Mock tailored summary matching the job description.',
-        experience: resume.sections?.experience || [],
-        skills: resume.sections?.skills || [],
-        targetRole: 'Mock Role'
-      });
-    }
-
     if (!hasAiProvider) return rejectMissingAI(res);
 
-    const prompt = `You are an expert resume tailoring editor. Tailor the resume to the job description without changing the candidate's factual history.
+    const prompt = `You are a senior resume tailoring editor building an ATS-ready resume for a real job application.
 
-Non-negotiable rules:
+Your job is not to lightly paraphrase. You must meaningfully tailor the resume to the JD while staying 100% truthful to the candidate's resume evidence.
+
+Process:
+1. Read the JOB_DESCRIPTION and infer the target role, must-have responsibilities, tools, domain terms, and seniority signals.
+2. Read the RESUME_JSON and identify what evidence supports those JD requirements.
+3. Rewrite the professional summary so it directly positions the candidate for the inferred target role using only resume evidence.
+4. Rewrite each experience.description so the most relevant, supported responsibilities and keywords appear naturally in bullet-style lines.
+5. Reorder the skills list so JD-relevant supported skills come first, then preserve other existing skills.
+6. Put every important JD requirement that is not supported by the resume into warnings.
+
+Non-negotiable truth rules:
 - Do not invent employers, job titles, dates, degrees, certifications, tools, metrics, revenue, users, team sizes, or outcomes.
 - Use numbers only if they already exist in the resume JSON.
 - Preserve every experience object's original company, title, dates, location, and order.
-- Improve only summary, experience.description, and genuinely supported skills.
-- Add a skill only when it is clearly supported by existing resume evidence or already present in the resume.
-- If a JD requirement is missing from the resume, put it in warnings instead of fabricating it.
-- Keep bullets concise, action-led, and ATS-friendly.
+- Only edit personal.summary, experience.description, skills, targetRole, warnings, and changes.
+- Add a new skill only when it is clearly supported by existing resume evidence or is already present in the resume.
+- Do not stuff keywords. Include JD terms only where they fit the evidence.
+
+Output quality rules:
+- Summary: 2-3 concise sentences, role-specific, no first person.
+- Experience descriptions: newline-separated bullets. Each job should have 2-4 bullets when enough source material exists; otherwise improve what exists.
+- Bullets must start with strong action verbs and include JD language only when supported.
+- Prefer concrete phrasing over generic words like responsible for, worked on, helped with.
+- Keep the same number of experience objects as the input.
+- Include 3-10 changes explaining the biggest edits.
 
 Return ONLY valid JSON with this exact schema:
 {

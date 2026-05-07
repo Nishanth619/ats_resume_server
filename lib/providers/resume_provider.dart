@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/resume_model.dart';
 import '../services/firestore_service.dart';
 import '../providers/auth_provider.dart';
+import '../services/ai_service.dart';
 
 final resumeListProvider = StreamProvider<List<ResumeModel>>((ref) {
   final user = ref.watch(authStateProvider).value;
@@ -79,6 +80,33 @@ Future<ResumeModel> fetchResumeRobustly(WidgetRef ref, String id) async {
       );
 }
 
+Future<ResumeModel> fetchResumeForExport(WidgetRef ref, String id) async {
+  final local = ref.read(resumeNotifierProvider(id));
+  if (local != null) return local;
+
+  if (id == 'new') {
+    throw Exception(
+      'Cannot export an empty unsaved resume. Please save your resume first.',
+    );
+  }
+
+  try {
+    ref.invalidate(resumeStreamProvider(id));
+    return await ref
+        .read(resumeStreamProvider(id).future)
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => throw Exception(
+            'Resume took too long to refresh from cloud. Please check your connection.',
+          ),
+        );
+  } catch (_) {
+    final cached = ref.read(resumeStreamProvider(id)).value;
+    if (cached != null) return cached;
+    rethrow;
+  }
+}
+
 final resumeNotifierProvider =
     NotifierProvider.family<ResumeNotifier, ResumeModel?, String>(
       ResumeNotifier.new,
@@ -92,6 +120,62 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
   ResumeModel? build() {
     // We get the initial state from the stream provider
     return ref.watch(resumeStreamProvider(resumeId)).value;
+  }
+
+  Future<ResumeModel> _ensureResumeLoaded({
+    String emptyResumeMessage =
+        'Cannot tailor an empty unsaved resume. Please save your resume first.',
+  }) async {
+    if (state != null) return state!;
+
+    final cached = ref.read(resumeStreamProvider(resumeId)).value;
+    if (cached != null) {
+      state = cached;
+      return cached;
+    }
+
+    final list = ref.read(resumeListProvider).value;
+    if (list != null) {
+      for (final resume in list) {
+        if (resume.id == resumeId) {
+          state = resume;
+
+          Future.microtask(() async {
+            try {
+              final fresh = await ref
+                  .read(resumeStreamProvider(resumeId).future)
+                  .timeout(const Duration(seconds: 15));
+              state = fresh;
+            } catch (_) {
+              // The cached resume is enough to keep the action moving.
+            }
+          });
+
+          return resume;
+        }
+      }
+    }
+
+    if (resumeId == 'new') {
+      throw Exception(emptyResumeMessage);
+    }
+
+    try {
+      final loaded = await ref
+          .read(resumeStreamProvider(resumeId).future)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw Exception(
+              'Resume took too long to load from cloud. Please check your connection.',
+            ),
+          );
+      state = loaded;
+      return loaded;
+    } catch (_) {
+      throw Exception(
+        'Unable to load this resume. Please open it once in the editor and try again.',
+      );
+    }
   }
 
   void updateSection(String section, dynamic data) {
@@ -133,19 +217,22 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
   }
 
   Future<void> updateTargetJD(String jd) async {
-    if (state == null) return;
+    final resume = await _ensureResumeLoaded(
+      emptyResumeMessage:
+          'Cannot save a job description for an unsaved resume. Please save your resume first.',
+    );
     state = ResumeModel(
-      id: state!.id,
-      title: state!.title,
-      templateId: state!.templateId,
-      colorTheme: state!.colorTheme,
-      atsScore: state!.atsScore,
-      sections: state!.sections,
-      targetRole: state!.targetRole,
+      id: resume.id,
+      title: resume.title,
+      templateId: resume.templateId,
+      colorTheme: resume.colorTheme,
+      atsScore: resume.atsScore,
+      sections: resume.sections,
+      targetRole: resume.targetRole,
       targetJD: jd,
       lastEdited: DateTime.now(),
-      downloadCount: state!.downloadCount,
-      versions: state!.versions,
+      downloadCount: resume.downloadCount,
+      versions: resume.versions,
     );
     await save();
   }
@@ -194,9 +281,11 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
     await ref.read(firestoreServiceProvider).saveResume(user.uid, state!);
   }
 
-  Future<void> tailorToJD(String jd, dynamic aiService) async {
-    if (state == null) return;
-    final original = state!;
+  Future<TailoredResumeResult> tailorToJD(
+    String jd,
+    AIService aiService,
+  ) async {
+    final original = await _ensureResumeLoaded();
     final result = await aiService.tailorResume(
       resumeSections: original.sections,
       jd: jd,
@@ -219,34 +308,59 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
 
     // Update personal summary
     final personal = Map<String, dynamic>.from(newSections['personal'] ?? {});
-    personal['summary'] = result.summary;
+    if (result.summary.trim().isNotEmpty) {
+      personal['summary'] = result.summary;
+    }
     newSections['personal'] = personal;
 
-    // Update experience descriptions
-    newSections['experience'] = result.experience;
+    // Update experience descriptions while preserving original metadata and order.
+    if (result.experience.isNotEmpty) {
+      final originalExperience =
+          (original.sections['experience'] as List? ?? [])
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+      final tailoredExperience = <Map<String, dynamic>>[];
 
-    // Merge skills (union of old + new)
+      for (var i = 0; i < originalExperience.length; i++) {
+        final originalItem = originalExperience[i];
+        final tailoredItem = i < result.experience.length
+            ? result.experience[i]
+            : <String, dynamic>{};
+        final description = (tailoredItem['description'] ?? '').toString();
+
+        tailoredExperience.add({
+          ...originalItem,
+          if (description.trim().isNotEmpty) 'description': description,
+        });
+      }
+
+      newSections['experience'] = tailoredExperience;
+    }
+
+    // Keep tailored/JD-relevant skills first, then preserve existing skills.
     final existingSkills = List<String>.from(newSections['skills'] ?? []);
-    final mergedSkills = {...existingSkills, ...result.skills}.toList();
+    final mergedSkills = {...result.skills, ...existingSkills}.toList();
     newSections['skills'] = mergedSkills;
 
     state = ResumeModel(
-      id: state!.id,
-      title: state!.title,
-      templateId: state!.templateId,
-      colorTheme: state!.colorTheme,
-      atsScore: state!.atsScore,
+      id: original.id,
+      title: original.title,
+      templateId: original.templateId,
+      colorTheme: original.colorTheme,
+      atsScore: original.atsScore,
       sections: newSections,
       targetRole: result.targetRole.isNotEmpty
           ? result.targetRole
-          : state!.targetRole,
+          : original.targetRole,
       targetJD: jd,
       lastEdited: DateTime.now(),
-      downloadCount: state!.downloadCount,
-      versions: state!.versions,
+      downloadCount: original.downloadCount,
+      versions: original.versions,
     );
 
     await save();
+    return result;
   }
 }
 
