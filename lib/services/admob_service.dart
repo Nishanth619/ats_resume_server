@@ -128,29 +128,44 @@ class AdMobService {
     loadInterstitialAd();
   }
 
-  Future<void> showInterstitialAdAndWait() async {
-    if (_interstitial == null) {
-      await loadInterstitialAd();
-      if (_interstitial == null) return;
+  Future<void> showRewardedAdAndWait({
+    required VoidCallback onAdWatched,
+    required VoidCallback onAdFailed,
+  }) async {
+    if (!_rewardedLoaded || _rewarded == null) {
+      onAdFailed();
+      return;
     }
     final completer = Completer<void>();
-    final ad = _interstitial!;
-    ad.fullScreenContentCallback = FullScreenContentCallback(
+    bool rewarded = false;
+    _rewarded!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
-        _interstitial = null;
-        loadInterstitialAd();
+        _rewarded = null;
+        _rewardedLoaded = false;
+        loadRewardedAd();
+        if (rewarded) {
+          onAdWatched();
+        } else {
+          onAdFailed();
+        }
         if (!completer.isCompleted) completer.complete();
       },
       onAdFailedToShowFullScreenContent: (ad, err) {
         ad.dispose();
-        _interstitial = null;
-        loadInterstitialAd();
+        _rewarded = null;
+        _rewardedLoaded = false;
+        onAdFailed();
+        loadRewardedAd();
         if (!completer.isCompleted) completer.complete();
       },
     );
-    await ad.show();
-    await completer.future.timeout(Duration(seconds: 15), onTimeout: () {});
+    await _rewarded!.show(
+      onUserEarnedReward: (ad, reward) {
+        rewarded = true;
+      },
+    );
+    await completer.future.timeout(Duration(seconds: 30), onTimeout: () {});
   }
 
   bool get isRewardedReady => _rewardedLoaded && _rewarded != null;

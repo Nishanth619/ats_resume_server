@@ -68,8 +68,11 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
     final isPro = ref.read(subscriptionProvider);
     if (isPro) return;
     final adSvc = ref.read(adServiceProvider);
-    await adSvc.loadInterstitialAd();
-    await adSvc.showInterstitialAdAndWait();
+    await adSvc.loadRewardedAd();
+    await adSvc.showRewardedAdAndWait(
+      onAdWatched: () {},
+      onAdFailed: () {},
+    );
   }
 
   Future<void> _incrementTailorUsage() async {

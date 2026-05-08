@@ -118,8 +118,11 @@ class _ExpState extends ConsumerState<ExperienceSection>
     final isPro = ref.read(subscriptionProvider);
     if (isPro) return;
     final adSvc = ref.read(adServiceProvider);
-    await adSvc.loadInterstitialAd();
-    await adSvc.showInterstitialAdAndWait();
+    await adSvc.loadRewardedAd();
+    await adSvc.showRewardedAdAndWait(
+      onAdWatched: () {},
+      onAdFailed: () {},
+    );
   }
 
   Future<void> _incrementUsage() async {

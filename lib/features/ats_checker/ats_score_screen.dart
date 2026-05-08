@@ -65,8 +65,11 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
     if (isPro) return;
 
     final adSvc = ref.read(adServiceProvider);
-    await adSvc.loadInterstitialAd();
-    await adSvc.showInterstitialAdAndWait();
+    await adSvc.loadRewardedAd();
+    await adSvc.showRewardedAdAndWait(
+      onAdWatched: () {},
+      onAdFailed: () {},
+    );
   }
 
   Future<void> _run() async {
