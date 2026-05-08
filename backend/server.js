@@ -429,7 +429,7 @@ function normalizeTailoredResume(raw, originalSections) {
     projects,
     education,
     certifications,
-    warnings: toArray(raw.warnings, 10),
+    warnings: toArray(raw.warnings, 5),
     changes: Array.isArray(raw.changes)
       ? raw.changes
           .map((item) => ({
@@ -1104,31 +1104,68 @@ app.post(
 
 Your job is to meaningfully tailor the resume to the JD while staying 100% truthful to the candidate's resume evidence.
 
-=== WHAT YOU MAY EDIT ===
-- personal.summary — rewrite to directly position the candidate for the target role
-- experience[*].description — rewrite bullet lines to surface JD-relevant evidence
-- skills — reorder so JD-relevant skills come first; you may add a skill only if it is clearly supported by existing resume content
-- targetRole — set to the inferred role title from the JD
-- warnings — list every important JD requirement not supported by the resume
-- changes — list 3-10 of the most significant edits made
+=== SUMMARY ===
+Rewrite personal.summary completely.
+- 2-3 sentences, no first-person pronouns.
+- Open with the target job title and years of experience if determinable.
+- Include 3-5 high-value keywords from the JD that the resume genuinely supports.
+
+=== EXPERIENCE ===
+For each job, rewrite the description bullets to:
+- Lead with the most JD-relevant responsibilities first.
+- Replace generic phrases like "worked on", "responsible for", and "helped with" with strong past-tense action verbs.
+- Naturally incorporate JD terminology where the original description supports it.
+- 3-5 bullets per job. Keep all original factual content; reframe it toward the JD.
+- Preserve title, company, dates, location exactly as given.
+
+=== SKILLS - THIS IS THE MOST IMPORTANT SECTION ===
+Build the best possible skills list for this specific JD. Be generous in adding skills.
+- Include explicitly listed skills from the JD when the resume plausibly supports them.
+- Infer adjacent skills from job titles and descriptions where reasonable.
+- Reorder: JD must-have skills first, then JD preferred skills, then remaining original skills.
+- Keep all original skills. Only add, never remove.
+- Only put a skill in warnings if it requires deep specialized certification or niche experience with zero resume signal.
+
+=== PROJECTS ===
+Rewrite each project description to highlight aspects most relevant to the JD.
+- Emphasize technologies, outcomes, and responsibilities that align with JD requirements.
+- Keep name and dates unchanged.
+
+=== EDUCATION ===
+Add a "highlights" field, one sentence max, if the degree is relevant to the JD. Set it to "" if not relevant.
+- Never change degree, institution, year, or gpa.
+
+=== CERTIFICATIONS ===
+Return certifications array reordered, most JD-relevant first. Never change content.
 
 === WHAT YOU MUST NOT TOUCH ===
 - experience[*].title, company, dates, location — preserve exactly as given
 - experience order — keep the same array order as the input, no reordering
-- education, certifications, projects, awards, languages — do not edit these sections at all; omit them entirely from your output
-- Do not add new experience entries
+- projects, education, and certifications may be returned for full-depth tailoring, but only editable fields may change
+- awards and languages must be omitted from the output
+- Do not add new experience, project, education, or certification entries
 
 === TRUTH RULES ===
 - Do not invent employers, job titles, dates, degrees, certifications, tools, metrics, revenue, users, team sizes, or outcomes
 - Use numbers only if they already exist in the resume JSON
 - Do not keyword-stuff. Include JD terms only where they fit the evidence naturally
 
+=== WARNINGS (KEEP SHORT) ===
+Only include warnings when:
+- The JD requires a specific certification or license the candidate clearly does not have.
+- The JD requires deep domain expertise with zero resume signal.
+Do not warn about common skills, soft skills, tools that can be inferred, or anything you already added to skills.
+Maximum 5 warnings total. An empty array is fine and preferred over over-warning.
+
+=== CHANGES ===
+List 5-15 of the most impactful edits. Be specific.
+
 === OUTPUT QUALITY ===
 - Summary: 2–3 concise sentences, role-specific, no first-person pronouns
-- Experience descriptions: newline-separated bullet lines starting with strong action verbs. 2–4 bullets per job where evidence exists
+- Experience descriptions: newline-separated bullet lines starting with strong action verbs. 3-5 bullets per job where evidence exists
 - Prefer concrete phrasing over generic terms like "responsible for" or "worked on"
 
-Return ONLY valid JSON with this exact schema (no markdown, no explanation):
+Return ONLY valid JSON. The compact fields below are required, and the full-depth fields that follow are also required:
 {
   "targetRole": "string",
   "summary": "string",
@@ -1168,7 +1205,7 @@ ${jd}`;
       if (genAI) {
         const model = genAI.getGenerativeModel({
           model: 'gemini-2.5-flash',
-          generationConfig: { temperature: 0.2, topP: 0.8 },
+          generationConfig: { temperature: 0.25, topP: 0.85 },
         });
         const result = await withTimeout(model.generateContent(prompt), 60000);
         const parsed = normalizeTailoredResume(
@@ -1189,7 +1226,7 @@ ${jd}`;
               {
                 role: 'system',
                 content:
-                  'You are an expert resume coach. Return ONLY valid JSON matching the exact schema provided. No markdown, no explanation.',
+                  'You are an expert resume coach. Return ONLY valid JSON matching the exact schema. No markdown, no explanation, no preamble.',
               },
               { role: 'user', content: prompt },
             ],
