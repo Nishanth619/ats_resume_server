@@ -78,5 +78,32 @@ void main() {
       expect(result.warnings.single, contains('Kubernetes'));
       expect(result.changes.single['section'], 'summary');
     });
+
+    test('parses nested tailored resume sections', () {
+      final result = TailoredResumeResult.fromJson({
+        'tailoredResume': {
+          'sections': {
+            'personal': {
+              'summary': 'AI generated summary for the target role.',
+            },
+            'experience': [
+              {
+                'title': 'Developer',
+                'description': 'Built JD-aligned Flutter features.',
+              },
+            ],
+            'skills': ['Flutter', 'REST APIs'],
+          },
+        },
+      });
+
+      expect(result.summary, 'AI generated summary for the target role.');
+      expect(
+        result.experience.single['description'],
+        'Built JD-aligned Flutter features.',
+      );
+      expect(result.skills, ['Flutter', 'REST APIs']);
+      expect(result.sections['personal'], isA<Map<String, dynamic>>());
+    });
   });
 }

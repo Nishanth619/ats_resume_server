@@ -281,6 +281,28 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
     await ref.read(firestoreServiceProvider).saveResume(user.uid, state!);
   }
 
+  Map<String, dynamic> _mapFrom(dynamic value) {
+    if (value is Map<String, dynamic>) return Map<String, dynamic>.from(value);
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return <String, dynamic>{};
+  }
+
+  List<Map<String, dynamic>> _mapListFrom(dynamic value) {
+    if (value is! List) return <Map<String, dynamic>>[];
+    return value
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  List<String> _stringListFrom(dynamic value) {
+    if (value is! List) return <String>[];
+    return value
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+
   Future<TailoredResumeResult> tailorToJD(
     String jd,
     AIService aiService,
@@ -303,23 +325,25 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       }
     }
 
-    // Merge tailored sections back into existing resume
+    // Merge tailored sections back into the existing resume. Some backend
+    // versions return flat fields, while others return a full sections object.
     final newSections = Map<String, dynamic>.from(original.sections);
+    final tailoredSections = result.sections;
 
     // Update personal summary
-    final personal = Map<String, dynamic>.from(newSections['personal'] ?? {});
-    if (result.summary.trim().isNotEmpty) {
-      personal['summary'] = result.summary;
+    final personal = _mapFrom(newSections['personal']);
+    final tailoredPersonal = _mapFrom(tailoredSections['personal']);
+    final tailoredSummary = result.summary.trim().isNotEmpty
+        ? result.summary
+        : (tailoredPersonal['summary'] ?? '').toString();
+    if (tailoredSummary.trim().isNotEmpty) {
+      personal['summary'] = tailoredSummary;
     }
     newSections['personal'] = personal;
 
     // Update experience descriptions while preserving original metadata and order.
     if (result.experience.isNotEmpty) {
-      final originalExperience =
-          (original.sections['experience'] as List? ?? [])
-              .whereType<Map>()
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList();
+      final originalExperience = _mapListFrom(original.sections['experience']);
       final tailoredExperience = <Map<String, dynamic>>[];
 
       for (var i = 0; i < originalExperience.length; i++) {
@@ -339,7 +363,7 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
     }
 
     // Keep tailored/JD-relevant skills first, then preserve existing skills.
-    final existingSkills = List<String>.from(newSections['skills'] ?? []);
+    final existingSkills = _stringListFrom(newSections['skills']);
     final mergedSkills = {...result.skills, ...existingSkills}.toList();
     newSections['skills'] = mergedSkills;
 

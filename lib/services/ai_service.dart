@@ -116,7 +116,8 @@ class AIService {
       Uri.parse('$_baseUrl/api/ai/ats-check'),
       headers: await _getHeaders(),
       body: jsonEncode({
-        'resumeText': '[SYSTEM NOTE: The current date/year is ${DateTime.now().year}. Do not flag any dates before ${DateTime.now().year} as future dates.]\n\n$resumeText',
+        'resumeText':
+            '[SYSTEM NOTE: The current date/year is ${DateTime.now().year}. Do not flag any dates before ${DateTime.now().year} as future dates.]\n\n$resumeText',
         'targetJD': targetJD,
         ...?((sections != null) ? {'sections': sections} : null),
       }),
@@ -140,7 +141,11 @@ class AIService {
     final response = await http.post(
       Uri.parse('$_baseUrl/api/ai/match-jd'),
       headers: await _getHeaders(),
-      body: jsonEncode({'resumeText': '[SYSTEM NOTE: The current date/year is ${DateTime.now().year}.]\n\n$resumeText', 'jd': jd}),
+      body: jsonEncode({
+        'resumeText':
+            '[SYSTEM NOTE: The current date/year is ${DateTime.now().year}.]\n\n$resumeText',
+        'jd': jd,
+      }),
     );
     if (response.statusCode != 200) {
       return KeywordMatchResult(
@@ -400,6 +405,7 @@ class TailoredResumeResult {
   final String summary;
   final List<Map<String, dynamic>> experience;
   final List<String> skills;
+  final Map<String, dynamic> sections;
   final List<String> warnings;
   final List<Map<String, dynamic>> changes;
 
@@ -408,21 +414,65 @@ class TailoredResumeResult {
     required this.summary,
     required this.experience,
     required this.skills,
+    this.sections = const {},
     this.warnings = const [],
     this.changes = const [],
   });
 
-  factory TailoredResumeResult.fromJson(Map<String, dynamic> j) =>
-      TailoredResumeResult(
-        targetRole: j['targetRole'] ?? '',
-        summary: j['summary'] ?? '',
-        experience: List<Map<String, dynamic>>.from(
-          (j['experience'] ?? []).map((e) => Map<String, dynamic>.from(e)),
-        ),
-        skills: List<String>.from(j['skills'] ?? []),
-        warnings: List<String>.from(j['warnings'] ?? []),
-        changes: List<Map<String, dynamic>>.from(
-          (j['changes'] ?? []).map((e) => Map<String, dynamic>.from(e)),
-        ),
-      );
+  factory TailoredResumeResult.fromJson(Map<String, dynamic> j) {
+    final nestedResume =
+        _asMap(j['resume']) ??
+        _asMap(j['tailoredResume']) ??
+        _asMap(j['tailored_resume']);
+    final sections =
+        _asMap(j['sections']) ?? _asMap(nestedResume?['sections']) ?? {};
+    final personal = _asMap(sections['personal']) ?? {};
+
+    final experienceSource = j['experience'] ?? sections['experience'];
+    final skillsSource = j['skills'] ?? sections['skills'];
+
+    return TailoredResumeResult(
+      targetRole: _toTextValue(
+        j['targetRole'] ??
+            j['target_role'] ??
+            nestedResume?['targetRole'] ??
+            nestedResume?['target_role'],
+      ),
+      summary: _toTextValue(j['summary'] ?? personal['summary']),
+      experience: _mapList(experienceSource),
+      skills: _stringList(skillsSource),
+      sections: Map<String, dynamic>.from(sections),
+      warnings: _stringList(j['warnings'] ?? nestedResume?['warnings']),
+      changes: _mapList(j['changes'] ?? nestedResume?['changes']),
+    );
+  }
+}
+
+Map<String, dynamic>? _asMap(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return null;
+}
+
+List<Map<String, dynamic>> _mapList(dynamic value) {
+  if (value is! List) return const [];
+  return value
+      .whereType<Map>()
+      .map((e) => Map<String, dynamic>.from(e))
+      .toList();
+}
+
+List<String> _stringList(dynamic value) {
+  if (value is! List) return const [];
+  return value
+      .map(_toTextValue)
+      .where((text) => text.trim().isNotEmpty)
+      .toList();
+}
+
+String _toTextValue(dynamic value) {
+  if (value == null) return '';
+  if (value is String) return value;
+  if (value is num || value is bool) return value.toString();
+  return '';
 }

@@ -11,7 +11,8 @@ class SkillsSection extends StatefulWidget {
   State<SkillsSection> createState() => _SkillsState();
 }
 
-class _SkillsState extends State<SkillsSection> with AutomaticKeepAliveClientMixin {
+class _SkillsState extends State<SkillsSection>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -21,19 +22,39 @@ class _SkillsState extends State<SkillsSection> with AutomaticKeepAliveClientMix
   @override
   void initState() {
     super.initState();
-    _skills = List.from(widget.data);
+    _syncFromWidget();
+  }
+
+  /// Normalize incoming data safely, coercing every element
+  /// to a non-empty String. This guards against the tailoring merge returning
+  /// non-String elements.
+  void _syncFromWidget() {
+    _skills = _normalize(widget.data);
+  }
+
+  static List<String> _normalize(List<dynamic> raw) {
+    return raw
+        .map((e) => e?.toString().trim() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   @override
   void didUpdateWidget(covariant SkillsSection oldWidget) {
     super.didUpdateWidget(oldWidget);
     try {
-      final newJson = jsonEncode(widget.data);
-      final currentJson = jsonEncode(_skills);
-      if (newJson != currentJson) {
-        _skills = List.from(widget.data);
+      if (jsonEncode(widget.data) != jsonEncode(_skills)) {
+        setState(() => _syncFromWidget());
       }
-    } catch (_) {}
+    } catch (_) {
+      setState(() => _syncFromWidget());
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
   }
 
   void _addSkill(String s) {
@@ -55,8 +76,10 @@ class _SkillsState extends State<SkillsSection> with AutomaticKeepAliveClientMix
     super.build(context);
     return Card(
       child: ExpansionTile(
-        title: const Text('Skills',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Skills',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         initiallyExpanded: false,
         children: [
           Padding(
@@ -67,7 +90,7 @@ class _SkillsState extends State<SkillsSection> with AutomaticKeepAliveClientMix
                 TextField(
                   controller: _ctrl,
                   decoration: InputDecoration(
-                    labelText: 'Add a skill (press Enter to add)',
+                    labelText: 'Add a skill (press Enter or tap +)',
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.add),
@@ -80,10 +103,14 @@ class _SkillsState extends State<SkillsSection> with AutomaticKeepAliveClientMix
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _skills.map((s) => Chip(
-                    label: Text(s),
-                    onDeleted: () => _removeSkill(s),
-                  )).toList(),
+                  children: _skills
+                      .map(
+                        (s) => Chip(
+                          label: Text(s),
+                          onDeleted: () => _removeSkill(s),
+                        ),
+                      )
+                      .toList(),
                 ),
               ],
             ),
