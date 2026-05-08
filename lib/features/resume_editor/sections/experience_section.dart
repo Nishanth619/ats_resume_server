@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import '../../../services/ai_service.dart';
+import '../../../services/usage_tracker.dart';
+import '../../../services/admob_service.dart';
+import '../../../services/subscription_service.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../core/widgets/pro_upgrade_sheet.dart';
 
 class ExperienceSection extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> data;
@@ -94,13 +99,51 @@ class _ExpState extends ConsumerState<ExperienceSection>
     widget.onChanged(_items);
   }
 
+  Future<bool> _checkUsage() async {
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) return true;
+
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid == null) return false;
+
+    final count = await UsageTracker.getUsageCount(AiFeature.improveBullet, uid);
+    if (count >= UsageTracker.getLimit(AiFeature.improveBullet)) {
+      if (mounted) showProUpgradeSheet(context, ref);
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _showAd() async {
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) return;
+    final adSvc = ref.read(adServiceProvider);
+    await adSvc.loadInterstitialAd();
+    await adSvc.showInterstitialAdAndWait();
+  }
+
+  Future<void> _incrementUsage() async {
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) return;
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid != null) {
+      await UsageTracker.incrementUsage(AiFeature.improveBullet, uid);
+    }
+  }
+
   Future<void> _improveWithAI(int i) async {
     final raw = _items[i]['description'] ?? '';
     if (raw.isEmpty) return;
 
+    final canUse = await _checkUsage();
+    if (!canUse) return;
+
     setState(() => _generatingIndices.add(i));
 
     try {
+      await _showAd();
+      await _incrementUsage();
+
       final improved = await ref
           .read(aiServiceProvider)
           .improveBullet(raw, widget.targetRole);

@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/resume_model.dart';
 import '../../services/ai_service.dart';
+import '../../services/usage_tracker.dart';
+import '../../services/admob_service.dart';
+import '../../services/subscription_service.dart';
 import '../../providers/resume_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
+import '../../core/widgets/pro_upgrade_sheet.dart';
 
 class ATSScoreScreen extends ConsumerStatefulWidget {
   final String resumeId;
@@ -41,12 +46,44 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
     super.dispose();
   }
 
+  Future<void> _ensureCanUse() async {
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) return;
+
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid == null) return;
+
+    final count = await UsageTracker.getUsageCount(AiFeature.atsCheck, uid);
+    if (count >= UsageTracker.getLimit(AiFeature.atsCheck)) {
+      if (mounted) showProUpgradeSheet(context, ref);
+      throw Exception('limit_exceeded');
+    }
+  }
+
+  Future<void> _showAdAndProceed() async {
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) return;
+
+    final adSvc = ref.read(adServiceProvider);
+    await adSvc.loadInterstitialAd();
+    await adSvc.showInterstitialAdAndWait();
+  }
+
   Future<void> _run() async {
+    try {
+      await _ensureCanUse();
+    } catch (_) {
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
+      // Show ad FIRST for free users
+      await _showAdAndProceed();
+
       final resume = await fetchResumeRobustly(ref, widget.resumeId);
 
       final text = _serialize(resume);
@@ -57,6 +94,13 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
             targetJD: resume.targetJD.isNotEmpty ? resume.targetJD : null,
             sections: resume.sections,
           );
+
+      // Increment usage count AFTER successful API call
+      final uid = ref.read(authStateProvider).value?.uid;
+      if (uid != null) {
+        await UsageTracker.incrementUsage(AiFeature.atsCheck, uid);
+      }
+
       // Only save score if it is meaningful (> 0)
       if (result.score > 0) {
         await ref

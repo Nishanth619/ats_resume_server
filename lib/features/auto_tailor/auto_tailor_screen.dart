@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/ai_service.dart';
+import '../../services/usage_tracker.dart';
+import '../../services/admob_service.dart';
+import '../../services/subscription_service.dart';
 import '../../providers/resume_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
+import '../../core/widgets/pro_upgrade_sheet.dart';
 
 class AutoTailorScreen extends ConsumerStatefulWidget {
   final String resumeId;
@@ -44,6 +49,38 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
     super.dispose();
   }
 
+  Future<bool> _checkUsage() async {
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) return true;
+
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid == null) return false;
+
+    final count = await UsageTracker.getUsageCount(AiFeature.autoTailor, uid);
+    if (count >= UsageTracker.getLimit(AiFeature.autoTailor)) {
+      if (mounted) showProUpgradeSheet(context, ref);
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _showAdForTailor() async {
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) return;
+    final adSvc = ref.read(adServiceProvider);
+    await adSvc.loadInterstitialAd();
+    await adSvc.showInterstitialAdAndWait();
+  }
+
+  Future<void> _incrementTailorUsage() async {
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) return;
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid != null) {
+      await UsageTracker.incrementUsage(AiFeature.autoTailor, uid);
+    }
+  }
+
   Future<void> _analyse() async {
     if (_jdCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -55,15 +92,24 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
       );
       return;
     }
+    final canUse = await _checkUsage();
+    if (!canUse) return;
+
     setState(() => _loading = true);
     try {
       final resume = await fetchResumeRobustly(ref, widget.resumeId);
       await ref
           .read(resumeNotifierProvider(widget.resumeId).notifier)
           .updateTargetJD(_jdCtrl.text.trim());
+
+      await _showAdForTailor();
+
       final result = await ref
           .read(aiServiceProvider)
           .matchJD(_resumeTextForMatching(resume.sections), _jdCtrl.text);
+
+      await _incrementTailorUsage();
+
       setState(() {
         _result = result;
         _loading = false;
@@ -85,9 +131,17 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
   Future<void> _tailorResume() async {
     final jd = _jdCtrl.text.trim();
     if (jd.isEmpty) return;
+
+    final canUse = await _checkUsage();
+    if (!canUse) return;
+
     setState(() => _tailoring = true);
     try {
       final aiService = ref.read(aiServiceProvider);
+
+      await _showAdForTailor();
+      await _incrementTailorUsage();
+
       final result = await ref
           .read(resumeNotifierProvider(widget.resumeId).notifier)
           .tailorToJD(jd, aiService);

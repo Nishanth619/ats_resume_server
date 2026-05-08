@@ -4,11 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../services/ai_service.dart';
+import '../../services/usage_tracker.dart';
+import '../../services/admob_service.dart';
+import '../../services/subscription_service.dart';
 import '../../services/firestore_service.dart';
 import '../../providers/resume_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
+import '../../core/widgets/pro_upgrade_sheet.dart';
 
 // ─── Screen state machine ─────────────────────────────────────────────────────
 enum _ScreenState { idle, generating, done, error }
@@ -68,11 +72,50 @@ class _CLState extends ConsumerState<CoverLetterScreen>
   }
 
   // ── Generate ─────────────────────────────────────────────────────────────────
+  Future<bool> _checkUsage() async {
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) return true;
+
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid == null) return false;
+
+    final count = await UsageTracker.getUsageCount(AiFeature.coverLetter, uid);
+    if (count >= UsageTracker.getLimit(AiFeature.coverLetter)) {
+      if (mounted) showProUpgradeSheet(context, ref);
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _showAd() async {
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) return;
+    final adSvc = ref.read(adServiceProvider);
+    await adSvc.loadInterstitialAd();
+    await adSvc.showInterstitialAdAndWait();
+  }
+
+  Future<void> _incrementUsage() async {
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) return;
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid != null) {
+      await UsageTracker.incrementUsage(AiFeature.coverLetter, uid);
+    }
+  }
+
   Future<void> _generate() async {
     // Double-tap guard
     if (_state == _ScreenState.generating) return;
     if (!_formKey.currentState!.validate()) return;
+
+    final canUse = await _checkUsage();
+    if (!canUse) return;
+
     FocusScope.of(context).unfocus();
+
+    // Show ad BEFORE API call
+    await _showAd();
 
     setState(() {
       _state       = _ScreenState.generating;
@@ -109,6 +152,9 @@ class _CLState extends ConsumerState<CoverLetterScreen>
         name:       (p['name'] as String?)?.isNotEmpty == true ? p['name'] as String : 'Applicant',
         jd:         _jdCtrl.text.trim().isEmpty ? null : _jdCtrl.text.trim(),
       );
+
+      // Increment usage count AFTER successful call
+      await _incrementUsage();
 
       _letterCtrl.text = result.letter;
       setState(() {

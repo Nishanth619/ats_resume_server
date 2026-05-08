@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -125,6 +126,31 @@ class AdMobService {
     await _interstitial?.show();
     _interstitial = null;
     loadInterstitialAd();
+  }
+
+  Future<void> showInterstitialAdAndWait() async {
+    if (_interstitial == null) {
+      await loadInterstitialAd();
+      if (_interstitial == null) return;
+    }
+    final completer = Completer<void>();
+    final ad = _interstitial!;
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        _interstitial = null;
+        loadInterstitialAd();
+        if (!completer.isCompleted) completer.complete();
+      },
+      onAdFailedToShowFullScreenContent: (ad, err) {
+        ad.dispose();
+        _interstitial = null;
+        loadInterstitialAd();
+        if (!completer.isCompleted) completer.complete();
+      },
+    );
+    await ad.show();
+    await completer.future.timeout(Duration(seconds: 15), onTimeout: () {});
   }
 
   bool get isRewardedReady => _rewardedLoaded && _rewarded != null;
