@@ -105,5 +105,29 @@ void main() {
       expect(result.skills, ['Flutter', 'REST APIs']);
       expect(result.sections['personal'], isA<Map<String, dynamic>>());
     });
+
+    test('parses full-depth tailored sections', () {
+      final result = TailoredResumeResult.fromJson({
+        'targetRole': 'Mobile Engineer',
+        'summary': 'Tailored summary.',
+        'experience': [
+          {'description': 'Built mobile features.'},
+        ],
+        'skills': ['Flutter', 'Firebase'],
+        'projects': [
+          {'name': 'Portfolio App', 'description': 'Highlighted mobile work.'},
+        ],
+        'education': [
+          {'degree': 'BS CS', 'highlights': 'Relevant mobile coursework.'},
+        ],
+        'certifications': [
+          {'name': 'Firebase Certified', 'issuer': 'Google'},
+        ],
+      });
+
+      expect(result.projects.single['description'], 'Highlighted mobile work.');
+      expect(result.education.single['highlights'], contains('mobile'));
+      expect(result.certifications.single['name'], 'Firebase Certified');
+    });
   });
 }

@@ -331,10 +331,6 @@ function normalizeTailoredResume(raw, originalSections) {
   const originalExperience = Array.isArray(originalSections.experience)
     ? originalSections.experience
     : [];
-  const originalSkills = Array.isArray(originalSections.skills)
-    ? originalSections.skills
-    : [];
-  const originalSummary = toText(originalSections.personal?.summary);
   const proposedExperience = Array.isArray(raw.experience) ? raw.experience : [];
 
   const experience = originalExperience.map((oldItem, index) => {
@@ -353,13 +349,87 @@ function normalizeTailoredResume(raw, originalSections) {
     };
   });
 
-  const skills = [...new Set(toArray(raw.skills, 60))];
+  const originalSkills = Array.isArray(originalSections.skills)
+    ? originalSections.skills
+    : [];
+  const rawSkills = toArray(raw.skills, 80);
+  const rawSkillKeys = rawSkills.map((skill) => skill.toLowerCase());
+  const skills = [
+    ...rawSkills,
+    ...originalSkills
+      .map((skill) => toText(skill))
+      .filter(
+        (skill) => skill && !rawSkillKeys.includes(skill.toLowerCase())
+      ),
+  ].slice(0, 80);
+
+  const originalProjects = Array.isArray(originalSections.projects)
+    ? originalSections.projects
+    : [];
+  const proposedProjects = Array.isArray(raw.projects) ? raw.projects : [];
+  const projects = originalProjects.map((oldItem, index) => {
+    const proposed =
+      proposedProjects[index] && typeof proposedProjects[index] === 'object'
+        ? proposedProjects[index]
+        : {};
+    return {
+      ...oldItem,
+      description: toText(
+        proposed.description || oldItem.description
+      ).slice(0, 1200),
+    };
+  });
+
+  const originalEducation = Array.isArray(originalSections.education)
+    ? originalSections.education
+    : [];
+  const proposedEducation = Array.isArray(raw.education) ? raw.education : [];
+  const education = originalEducation.map((oldItem, index) => {
+    const proposed =
+      proposedEducation[index] && typeof proposedEducation[index] === 'object'
+        ? proposedEducation[index]
+        : {};
+    return {
+      ...oldItem,
+      highlights: toText(
+        proposed.highlights || oldItem.highlights || ''
+      ).slice(0, 300),
+    };
+  });
+
+  const originalCertifications = Array.isArray(originalSections.certifications)
+    ? originalSections.certifications
+    : [];
+  const proposedCertifications = Array.isArray(raw.certifications)
+    ? raw.certifications
+    : [];
+  let certifications = originalCertifications;
+  if (proposedCertifications.length > 0) {
+    const aiOrder = proposedCertifications
+      .map((cert) =>
+        toText(cert?.name || cert?.certification_name || '').toLowerCase()
+      )
+      .filter(Boolean);
+    certifications = [...originalCertifications].sort((a, b) => {
+      const ai = aiOrder.indexOf(toText(a.name).toLowerCase());
+      const bi = aiOrder.indexOf(toText(b.name).toLowerCase());
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }
+
+  const originalSummary = toText(originalSections.personal?.summary);
   return {
     targetRole: toText(raw.targetRole).slice(0, 160),
     summary: toText(raw.summary, originalSummary).slice(0, 1200),
     experience,
-    skills: skills.length ? skills : toArray(originalSkills, 60),
-    warnings: toArray(raw.warnings, 8),
+    skills,
+    projects,
+    education,
+    certifications,
+    warnings: toArray(raw.warnings, 10),
     changes: Array.isArray(raw.changes)
       ? raw.changes
           .map((item) => ({
@@ -369,7 +439,7 @@ function normalizeTailoredResume(raw, originalSections) {
             reason: toText(item?.reason).slice(0, 300),
           }))
           .filter((item) => item.section && (item.after || item.reason))
-          .slice(0, 20)
+          .slice(0, 30)
       : [],
   };
 }
@@ -1030,10 +1100,7 @@ app.post(
 
     if (!hasAiProvider) return rejectMissingAI(res);
 
-    // FIX: prompt now explicitly tells the AI which fields are read-only vs editable,
-    // and calls out that experience order must be preserved. Also clarifies that
-    // certifications, education, projects, and awards are NOT to be touched.
-    const prompt = `You are a senior resume tailoring editor building an ATS-ready resume for a real job application.
+    const prompt = `You are a senior resume tailoring editor. Your goal is to transform the candidate's entire resume to maximally match the job description, while staying 100% truthful to the facts in the resume.
 
 Your job is to meaningfully tailor the resume to the JD while staying 100% truthful to the candidate's resume evidence.
 
@@ -1071,6 +1138,26 @@ Return ONLY valid JSON with this exact schema (no markdown, no explanation):
   "changes": [{"section":"summary|experience|skills","before":"string","after":"string","reason":"string"}]
 }
 
+FINAL FULL-DEPTH OUTPUT CONTRACT:
+- In addition to summary, experience, and skills, tailor project descriptions, education highlights, and certification order.
+- Preserve protected metadata exactly. Only rewrite experience.description, projects.description, education.highlights, skills order, targetRole, warnings, and changes.
+- Return projects, education, and certifications in the same array lengths as the input.
+- Do not add unsupported facts, entries, metrics, tools, employers, degrees, certifications, or dates.
+- Include 5-15 changes across summary, experience, skills, projects, education, and certifications.
+
+Full-depth JSON fields that must be present:
+{
+  "targetRole": "string",
+  "summary": "string",
+  "experience": [{"description": "rewritten bullet lines separated by newlines"}],
+  "skills": ["jd-relevant skills first", "then remaining original skills"],
+  "projects": [{"description": "rewritten to highlight JD relevance"}],
+  "education": [{"highlights": "optional one-sentence relevance note, or empty string"}],
+  "certifications": [{"name": "copy from input", "issuer": "copy from input", "year": "copy from input"}],
+  "warnings": ["specific JD requirement not supported by resume"],
+  "changes": [{"section":"summary|experience|skills|projects|education|certifications","before":"string","after":"string","reason":"string"}]
+}
+
 RESUME_JSON:
 ${resumeJson}
 
@@ -1083,7 +1170,7 @@ ${jd}`;
           model: 'gemini-2.5-flash',
           generationConfig: { temperature: 0.2, topP: 0.8 },
         });
-        const result = await withTimeout(model.generateContent(prompt), 45000);
+        const result = await withTimeout(model.generateContent(prompt), 60000);
         const parsed = normalizeTailoredResume(
           safeParseJson(result.response.text()),
           resume.sections || {}
@@ -1102,14 +1189,14 @@ ${jd}`;
               {
                 role: 'system',
                 content:
-                  'You are an expert resume coach. Return ONLY valid JSON, no markdown, no explanation.',
+                  'You are an expert resume coach. Return ONLY valid JSON matching the exact schema provided. No markdown, no explanation.',
               },
               { role: 'user', content: prompt },
             ],
             model: 'llama-3.3-70b-versatile',
-            max_tokens: 4096,
+            max_tokens: 6000,
           }),
-          45000
+          60000
         );
         const parsed = normalizeTailoredResume(
           safeParseJson(result.choices[0]?.message?.content || ''),

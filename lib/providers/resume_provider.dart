@@ -303,6 +303,9 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
         .toList();
   }
 
+  String _normaliseKey(dynamic value) =>
+      value == null ? '' : value.toString().trim().toLowerCase();
+
   Future<TailoredResumeResult> tailorToJD(
     String jd,
     AIService aiService,
@@ -364,8 +367,85 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
 
     // Keep tailored/JD-relevant skills first, then preserve existing skills.
     final existingSkills = _stringListFrom(newSections['skills']);
-    final mergedSkills = {...result.skills, ...existingSkills}.toList();
-    newSections['skills'] = mergedSkills;
+    final tailoredSkillKeys = result.skills
+        .map((skill) => skill.toLowerCase())
+        .toSet();
+    final remainingSkills = existingSkills
+        .where((skill) => !tailoredSkillKeys.contains(skill.toLowerCase()))
+        .toList();
+    newSections['skills'] = [...result.skills, ...remainingSkills];
+
+    // Update project descriptions while preserving project metadata and order.
+    if (result.projects.isNotEmpty) {
+      final originalProjects = _mapListFrom(original.sections['projects']);
+      final tailoredProjects = <Map<String, dynamic>>[];
+
+      for (var i = 0; i < originalProjects.length; i++) {
+        final originalItem = originalProjects[i];
+        final tailoredItem = i < result.projects.length
+            ? result.projects[i]
+            : <String, dynamic>{};
+        final description = (tailoredItem['description'] ?? '').toString();
+
+        tailoredProjects.add({
+          ...originalItem,
+          if (description.trim().isNotEmpty) 'description': description,
+        });
+      }
+
+      newSections['projects'] = tailoredProjects;
+    }
+
+    // Add optional education highlights without changing degree metadata.
+    if (result.education.isNotEmpty) {
+      final originalEducation = _mapListFrom(original.sections['education']);
+      final tailoredEducation = <Map<String, dynamic>>[];
+
+      for (var i = 0; i < originalEducation.length; i++) {
+        final originalItem = originalEducation[i];
+        final tailoredItem = i < result.education.length
+            ? result.education[i]
+            : <String, dynamic>{};
+        final highlights = (tailoredItem['highlights'] ?? '').toString().trim();
+
+        tailoredEducation.add({
+          ...originalItem,
+          if (highlights.isNotEmpty) 'highlights': highlights,
+        });
+      }
+
+      newSections['education'] = tailoredEducation;
+    }
+
+    // Reorder certifications by JD relevance while preserving original content.
+    if (result.certifications.isNotEmpty) {
+      final originalCertifications = _mapListFrom(
+        original.sections['certifications'],
+      );
+      final certsByName = <String, Map<String, dynamic>>{};
+      final unnamedCerts = <Map<String, dynamic>>[];
+
+      for (final cert in originalCertifications) {
+        final key = _normaliseKey(cert['name']);
+        if (key.isEmpty) {
+          unnamedCerts.add(cert);
+        } else {
+          certsByName[key] = cert;
+        }
+      }
+
+      final reorderedCertifications = <Map<String, dynamic>>[];
+      for (final cert in result.certifications) {
+        final key = _normaliseKey(cert['name']);
+        final originalCert = certsByName.remove(key);
+        if (originalCert != null) reorderedCertifications.add(originalCert);
+      }
+
+      reorderedCertifications
+        ..addAll(certsByName.values)
+        ..addAll(unnamedCerts);
+      newSections['certifications'] = reorderedCertifications;
+    }
 
     state = ResumeModel(
       id: original.id,

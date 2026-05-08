@@ -405,6 +405,9 @@ class TailoredResumeResult {
   final String summary;
   final List<Map<String, dynamic>> experience;
   final List<String> skills;
+  final List<Map<String, dynamic>> projects;
+  final List<Map<String, dynamic>> education;
+  final List<Map<String, dynamic>> certifications;
   final Map<String, dynamic> sections;
   final List<String> warnings;
   final List<Map<String, dynamic>> changes;
@@ -414,6 +417,9 @@ class TailoredResumeResult {
     required this.summary,
     required this.experience,
     required this.skills,
+    this.projects = const [],
+    this.education = const [],
+    this.certifications = const [],
     this.sections = const {},
     this.warnings = const [],
     this.changes = const [],
@@ -430,6 +436,10 @@ class TailoredResumeResult {
 
     final experienceSource = j['experience'] ?? sections['experience'];
     final skillsSource = j['skills'] ?? sections['skills'];
+    final projectsSource = j['projects'] ?? sections['projects'];
+    final educationSource = j['education'] ?? sections['education'];
+    final certificationsSource =
+        j['certifications'] ?? sections['certifications'];
 
     return TailoredResumeResult(
       targetRole: _toTextValue(
@@ -441,6 +451,9 @@ class TailoredResumeResult {
       summary: _toTextValue(j['summary'] ?? personal['summary']),
       experience: _mapList(experienceSource),
       skills: _stringList(skillsSource),
+      projects: _mapList(projectsSource),
+      education: _mapList(educationSource),
+      certifications: _mapList(certificationsSource),
       sections: Map<String, dynamic>.from(sections),
       warnings: _stringList(j['warnings'] ?? nestedResume?['warnings']),
       changes: _mapList(j['changes'] ?? nestedResume?['changes']),
