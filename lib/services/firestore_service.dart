@@ -61,9 +61,9 @@ class FirestoreService {
       }
     }
 
-    // Clean up ATS rate limit records
+    // Clean up ATS rate limit records (server writes to 'rate_limits')
     final limitSnap = await _db
-        .collection('ats_limits')
+        .collection('rate_limits')
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${uid}_')
         .where(FieldPath.documentId, isLessThan: '${uid}_\uf8ff')
         .get();
@@ -75,7 +75,7 @@ class FirestoreService {
       await batch.commit();
     }
 
-    // Clean up cover-letter rate limit records (now Firestore-backed)
+    // Clean up cover-letter rate limit records (server writes to 'cover_limits')
     final coverLimitSnap = await _db
         .collection('cover_limits')
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${uid}_')
@@ -87,6 +87,22 @@ class FirestoreService {
         batch.delete(doc.reference);
       }
       await batch.commit();
+    }
+
+    // Clean up client-managed feature limits (autoTailor, improveBullet)
+    for (final col in ['tailor_limits', 'bullet_limits']) {
+      final snap = await _db
+          .collection(col)
+          .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${uid}_')
+          .where(FieldPath.documentId, isLessThan: '${uid}_\uf8ff')
+          .get();
+      for (var i = 0; i < snap.docs.length; i += 450) {
+        final batch = _db.batch();
+        for (final doc in snap.docs.skip(i).take(450)) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
     }
 
     await userRef.delete();
@@ -230,17 +246,4 @@ class FirestoreService {
     });
   }
 
-  // -- ATS RATE LIMITS --
-  Future<bool> checkAndIncrementATSLimit(String uid, bool isPro) async {
-    if (isPro) return true;
-    final today = DateTime.now().toIso8601String().split('T')[0];
-    final ref = _db.collection('ats_limits').doc('${uid}_$today');
-    return _db.runTransaction((txn) async {
-      final doc = await txn.get(ref);
-      final count = (doc.data()?['count'] ?? 0) as int;
-      if (count >= 3) return false;
-      txn.set(ref, {'count': count + 1}, SetOptions(merge: true));
-      return true;
-    });
-  }
 }

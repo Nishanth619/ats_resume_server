@@ -1,43 +1,76 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Users can only read/write their own data
+
+    // ── Users ──────────────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
-      
+
       match /resumes/{resumeId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
+
+        // Versions subcollection (migrated from embedded array)
+        match /versions/{versionId} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
       }
-      
+
       match /coverLetters/{coverId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
-      
+
       match /applications/{appId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
-    
-    // Templates are public read, only admin write
+
+    // ── Templates (public read, admin-only write) ──────────────────────────────
     match /templates/{templateId} {
       allow read: if true;
       allow write: if false; // Only via Admin SDK
     }
-    
-    // Rate limits: users can read their own, only backend writes
+
+    // ── ATS Rate Limits (server writes via Admin SDK, client reads own) ────────
+    // Doc IDs are "{uid}_{date}" — regex enforces ownership.
     match /rate_limits/{docId} {
-      allow read: if request.auth != null && docId.matches(request.auth.uid + '_.*');
-      allow write: if false; // Only backend writes via Admin SDK
+      allow read: if request.auth != null
+                  && docId.matches(request.auth.uid + '_.*');
+      allow write: if false; // Backend Admin SDK only
     }
-    
-    // Share links: public read, authenticated write
+
+    // ── Cover Letter Rate Limits (server writes, client reads own) ─────────────
+    match /cover_limits/{docId} {
+      allow read: if request.auth != null
+                  && docId.matches(request.auth.uid + '_.*');
+      allow write: if false; // Backend Admin SDK only
+    }
+
+    // ── Client-managed feature limits (autoTailor / improveBullet) ────────────
+    // Client reads AND writes these (no server-side enforcement for these features).
+    match /tailor_limits/{docId} {
+      allow read, write: if request.auth != null
+                         && docId.matches(request.auth.uid + '_.*');
+    }
+
+    match /bullet_limits/{docId} {
+      allow read, write: if request.auth != null
+                         && docId.matches(request.auth.uid + '_.*');
+    }
+
+    // ── AI Output Reports (authenticated users can create, not read/edit) ──────
+    match /ai_reports/{reportId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if false; // Admin-only via console
+    }
+
+    // ── Share Links (public read, authenticated create) ────────────────────────
     match /share_links/{token} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false; // Immutable once created
     }
-    
-    // Block all other paths
+
+    // ── Block everything else ──────────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }

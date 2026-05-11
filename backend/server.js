@@ -56,7 +56,7 @@ const hasAiProvider = Boolean(genAI || groq);
 const atsRateLimitDisabled = process.env.DISABLE_ATS_RATE_LIMIT === 'true';
 const atsFreeDailyLimit = Math.max(
   1,
-  Number.parseInt(process.env.ATS_FREE_DAILY_LIMIT || '3', 10) || 3
+  Number.parseInt(process.env.ATS_FREE_DAILY_LIMIT || '5', 10) || 5
 );
 
 function rejectMissingAI(res) {

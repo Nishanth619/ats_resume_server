@@ -38,13 +38,15 @@ class UsageTracker {
   static String get _today =>
       DateTime.now().toUtc().toIso8601String().split('T')[0];
 
-  /// Firestore collection for each feature — matches the server naming.
+  /// Maps each feature to its Firestore collection.
+  /// atsCheck and coverLetter are server-managed (Admin SDK writes);
+  /// the client only reads for display. tailor/bullet are client-managed.
   static String _collection(AiFeature feature) {
     switch (feature) {
       case AiFeature.atsCheck:
-        return 'ats_limits';
+        return 'rate_limits';   // Server writes here via rateLimit()
       case AiFeature.coverLetter:
-        return 'cover_limits';
+        return 'cover_limits';  // Server writes here via checkCoverLetterLimit()
       case AiFeature.autoTailor:
         return 'tailor_limits';
       case AiFeature.improveBullet:
