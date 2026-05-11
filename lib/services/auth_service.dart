@@ -109,17 +109,39 @@ class AuthService {
   }
 
   Future<void> _deleteKnownUserData(String uid) async {
-    final userRef = _db.collection('users').doc(uid);
+    final db = _db;
+    final userRef = db.collection('users').doc(uid);
+
+    // Delete user subcollections
     for (final collection in ['resumes', 'applications', 'coverLetters']) {
       final snap = await userRef.collection(collection).get();
       for (var i = 0; i < snap.docs.length; i += 450) {
-        final batch = _db.batch();
+        final batch = db.batch();
         for (final doc in snap.docs.skip(i).take(450)) {
           batch.delete(doc.reference);
         }
         await batch.commit();
       }
     }
+
+    // Delete all rate-limit / usage-limit records for this user
+    // Covers: ATS (rate_limits), cover letter (cover_limits),
+    //         autoTailor (tailor_limits), improveBullet (bullet_limits)
+    for (final col in ['rate_limits', 'cover_limits', 'tailor_limits', 'bullet_limits']) {
+      final snap = await db
+          .collection(col)
+          .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${uid}_')
+          .where(FieldPath.documentId, isLessThan: '${uid}_\uf8ff')
+          .get();
+      for (var i = 0; i < snap.docs.length; i += 450) {
+        final batch = db.batch();
+        for (final doc in snap.docs.skip(i).take(450)) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
+    }
+
     await userRef.delete();
   }
 }

@@ -63,6 +63,13 @@ service cloud.firestore {
       allow read, update, delete: if false; // Admin-only via console
     }
 
+    // ── Account Deletion Requests (user creates own, admin reads) ─────────────
+    // Required for Play Store: proves the deletion flow can write a log entry.
+    match /account_deletion_requests/{uid} {
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow read, update, delete: if false; // Admin-only via Firebase Console
+    }
+
     // ── Share Links (public read, authenticated create) ────────────────────────
     match /share_links/{token} {
       allow read: if true;
