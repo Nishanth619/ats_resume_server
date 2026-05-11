@@ -12,10 +12,10 @@
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">
         
-        <!-- AdMob App ID - Test ID -->
+        <!-- AdMob App ID -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/>
+            android:value="ca-app-pub-4025737666505759~5729427291"/>
             
         <activity
             android:name=".MainActivity"

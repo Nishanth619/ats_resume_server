@@ -7,6 +7,7 @@ import '../../../services/admob_service.dart';
 import '../../../services/subscription_service.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../core/widgets/pro_upgrade_sheet.dart';
+import '../../../core/widgets/ai_report_dialog.dart';
 
 class ExperienceSection extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> data;
@@ -243,14 +244,32 @@ class _ExpState extends ConsumerState<ExperienceSection>
                                 ),
                               ),
                             )
-                          : IconButton(
-                              icon: const Icon(
-                                Icons.auto_awesome,
-                                color: Color(0xFF6366F1),
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_descControllers[i].text.trim().isNotEmpty)
+                                  IconButton(
+                                    icon: const Icon(Icons.flag_outlined),
+                                    tooltip: 'Report AI output',
+                                    onPressed: () => showAiReportDialog(
+                                      context: context,
+                                      ref: ref,
+                                      feature: 'bullet_improvement',
+                                      output: _descControllers[i].text,
+                                      inputContext:
+                                          'Target role: ${widget.targetRole}',
+                                    ),
+                                  ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.auto_awesome,
+                                    color: Color(0xFF6366F1),
+                                  ),
+                                  tooltip: 'Improve with AI',
+                                  onPressed: () => _improveWithAI(i),
+                                ),
+                              ],
                               ),
-                              tooltip: 'Improve with AI',
-                              onPressed: () => _improveWithAI(i),
-                            ),
                     ),
                     maxLines: 4,
                     onChanged: (v) => _update(i, 'description', v),

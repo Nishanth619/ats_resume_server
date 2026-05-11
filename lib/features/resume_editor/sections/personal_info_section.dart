@@ -9,6 +9,7 @@ import '../../../services/ai_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../providers/resume_provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../core/widgets/ai_report_dialog.dart';
 
 class PersonalInfoSection extends ConsumerStatefulWidget {
   final String resumeId;
@@ -284,14 +285,33 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                               ),
                             ),
                           )
-                        : IconButton(
-                            icon: Icon(
-                              Icons.auto_awesome,
-                              color: Theme.of(context).colorScheme.primary,
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_summaryController.text.trim().isNotEmpty)
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.flag_outlined,
+                                    color: context.appColors.textSecondary,
+                                  ),
+                                  tooltip: 'Report AI output',
+                                  onPressed: () => showAiReportDialog(
+                                    context: context,
+                                    ref: ref,
+                                    feature: 'summary_generation',
+                                    output: _summaryController.text,
+                                  ),
+                                ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.auto_awesome,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                tooltip: 'Improve with AI',
+                                onPressed: _generateSummary,
+                              ),
+                            ],
                             ),
-                            tooltip: 'Improve with AI',
-                            onPressed: _generateSummary,
-                          ),
                   ),
                   maxLines: 4,
                   onChanged: (v) => _update('summary', v),

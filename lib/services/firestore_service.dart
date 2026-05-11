@@ -48,13 +48,62 @@ class FirestoreService {
   Future<void> deleteResume(String uid, String resumeId) =>
       _db.collection('users').doc(uid).collection('resumes').doc(resumeId).delete();
 
+  Future<void> deleteUserData(String uid) async {
+    final userRef = _db.collection('users').doc(uid);
+    for (final collection in ['resumes', 'applications', 'coverLetters']) {
+      final snap = await userRef.collection(collection).get();
+      for (var i = 0; i < snap.docs.length; i += 450) {
+        final batch = _db.batch();
+        for (final doc in snap.docs.skip(i).take(450)) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
+    }
+
+    // Clean up ATS rate limit records
+    final limitSnap = await _db
+        .collection('ats_limits')
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${uid}_')
+        .where(FieldPath.documentId, isLessThan: '${uid}_\uf8ff')
+        .get();
+    for (var i = 0; i < limitSnap.docs.length; i += 450) {
+      final batch = _db.batch();
+      for (final doc in limitSnap.docs.skip(i).take(450)) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+
+    // Clean up cover-letter rate limit records (now Firestore-backed)
+    final coverLimitSnap = await _db
+        .collection('cover_limits')
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: '${uid}_')
+        .where(FieldPath.documentId, isLessThan: '${uid}_\uf8ff')
+        .get();
+    for (var i = 0; i < coverLimitSnap.docs.length; i += 450) {
+      final batch = _db.batch();
+      for (final doc in coverLimitSnap.docs.skip(i).take(450)) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+
+    await userRef.delete();
+  }
+
   Future<void> saveVersionSnapshot(String uid, String resumeId, Map<String, dynamic> snapshot) async {
-    await _db.collection('users').doc(uid).collection('resumes').doc(resumeId)
-        .update({
-          'versions': FieldValue.arrayUnion([{
-            'data': snapshot,
-            'savedAt': Timestamp.now(),
-          }])
+    // Write to a subcollection to avoid the 1 MB Firestore document limit.
+    // Previously used arrayUnion which would overflow for power users.
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('resumes')
+        .doc(resumeId)
+        .collection('versions')
+        .add({
+          'data': snapshot,
+          'savedAt': Timestamp.now(),
         });
   }
 
@@ -159,6 +208,26 @@ class FirestoreService {
   Future<List<Map<String,dynamic>>> getTemplates() async {
     final snap = await _db.collection('templates').get();
     return snap.docs.map((d) => {...d.data(), 'id': d.id}).toList();
+  }
+
+  Future<void> reportAiOutput({
+    required String uid,
+    required String feature,
+    required String reason,
+    required String output,
+    String inputContext = '',
+  }) {
+    return _db.collection('ai_reports').add({
+      'uid': uid,
+      'feature': feature,
+      'reason': reason,
+      'output': output.length > 5000 ? output.substring(0, 5000) : output,
+      'inputContext': inputContext.length > 2000
+          ? inputContext.substring(0, 2000)
+          : inputContext,
+      'status': 'new',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   // -- ATS RATE LIMITS --

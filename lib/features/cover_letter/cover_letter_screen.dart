@@ -13,6 +13,7 @@ import '../../providers/auth_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 import '../../core/widgets/pro_upgrade_sheet.dart';
+import '../../core/widgets/ai_report_dialog.dart';
 
 // ─── Screen state machine ─────────────────────────────────────────────────────
 enum _ScreenState { idle, generating, done, error }
@@ -98,24 +99,18 @@ class _CLState extends ConsumerState<CoverLetterScreen>
     );
   }
 
-  Future<void> _incrementUsage() async {
-    final isPro = ref.read(subscriptionProvider);
-    if (isPro) return;
-    final uid = ref.read(authStateProvider).value?.uid;
-    if (uid != null) {
-      await UsageTracker.incrementUsage(AiFeature.coverLetter, uid);
-    }
-  }
+
 
   Future<void> _generate() async {
     // Double-tap guard
     if (_state == _ScreenState.generating) return;
     if (!_formKey.currentState!.validate()) return;
 
+    // Unfocus BEFORE any await to satisfy use_build_context_synchronously
+    FocusScope.of(context).unfocus();
+
     final canUse = await _checkUsage();
     if (!canUse) return;
-
-    FocusScope.of(context).unfocus();
 
     // Show ad BEFORE API call
     await _showAd();
@@ -156,8 +151,7 @@ class _CLState extends ConsumerState<CoverLetterScreen>
         jd:         _jdCtrl.text.trim().isEmpty ? null : _jdCtrl.text.trim(),
       );
 
-      // Increment usage count AFTER successful call
-      await _incrementUsage();
+      // Note: usage counter is incremented server-side. No client increment needed.
 
       _letterCtrl.text = result.letter;
       setState(() {
@@ -446,6 +440,19 @@ class _CLState extends ConsumerState<CoverLetterScreen>
                             icon: Icon(Icons.share_outlined, size: 18, color: context.appColors.textSecondary),
                             tooltip: 'Share',
                             onPressed: _share,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.flag_outlined, size: 18, color: context.appColors.textSecondary),
+                            tooltip: 'Report AI output',
+                            onPressed: () => showAiReportDialog(
+                              context: context,
+                              ref: ref,
+                              feature: 'cover_letter',
+                              output: _letterCtrl.text,
+                              inputContext:
+                                  'Company: ${_companyCtrl.text.trim()}\nJD: ${_jdCtrl.text.trim()}',
+                            ),
                             visualDensity: VisualDensity.compact,
                           ),
                         ],

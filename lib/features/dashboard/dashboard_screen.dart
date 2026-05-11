@@ -39,19 +39,23 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
             actions: [
-              GradientBadge(text: 'PRO'),
-              SizedBox(width: 12),
+              IconButton(
+                icon: Icon(Icons.notifications_none_rounded,
+                    color: context.appColors.textSecondary),
+                onPressed: () {},
+              ),
               CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.primary,
+                radius: 17,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.18),
                 child: Text(
                   (user?.displayName?.isNotEmpty == true
                           ? user!.displayName![0]
                           : user?.email?[0] ?? 'U')
                       .toUpperCase(),
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.primaryLight,
                     fontWeight: FontWeight.w800,
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -140,13 +144,6 @@ class DashboardScreen extends ConsumerWidget {
       ),
       drawer: _buildDrawer(context, ref),
       floatingActionButton: _buildFAB(context),
-      bottomNavigationBar: ref.watch(bannerAdProvider) != null
-          ? Container(
-              color: context.appColors.surface,
-              padding: EdgeInsets.only(top: 4),
-              child: ref.watch(bannerAdProvider)!,
-            )
-          : null,
     );
   }
 
@@ -333,70 +330,95 @@ class _AppBarBackground extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      decoration: BoxDecoration(
-        gradient: isDark
-            ? LinearGradient(
-                colors: [
-                  Color(0xFF120D2A),
-                  Color(0xFF1A1035),
-                  context.appColors.bg,
-                ],
-                stops: [0.0, 0.5, 1.0],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              )
-            : context.appColors.bgGradient,
-      ),
+      color: isDark ? AppColors.bgDark : AppColors.bgLight,
       child: Stack(
         children: [
-          // Glow blobs
+          // Structured right-side accent stripe — clean, geometric, intentional
           Positioned(
-            top: -40,
-            right: -40,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: Row(
+              children: [
+                Container(
+                  width: 3,
+                  color: AppColors.primary.withValues(alpha: isDark ? 0.35 : 0.2),
+                ),
+                SizedBox(width: 4),
+                Container(
+                  width: 3,
+                  color: AppColors.accent.withValues(alpha: isDark ? 0.25 : 0.15),
+                ),
+                SizedBox(width: 6),
+                Container(
+                  width: 1.5,
+                  color: AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.1),
+                ),
+              ],
+            ),
+          ),
+          // Bottom accent rule
+          Positioned(
+            left: 24,
+            right: 80,
+            bottom: 20,
             child: Container(
-              width: 180,
-              height: 180,
+              height: 1.5,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary.withValues(alpha: 0.15),
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.6),
+                    AppColors.accent.withValues(alpha: 0.4),
+                    Colors.transparent,
+                  ],
+                ),
               ),
             ),
           ),
-          Positioned(
-            top: 40,
-            left: -30,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.accent.withValues(alpha: 0.1),
-              ),
-            ),
-          ),
+          // Greeting content
           Align(
             alignment: Alignment.bottomLeft,
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(24, 0, 24, 22),
+                padding: EdgeInsets.fromLTRB(24, 0, 80, 28),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ShaderMask(
-                      shaderCallback: (b) =>
-                          AppColors.primaryGradient.createShader(b),
-                      child: Text(
-                        'Hello, ${_firstName(user?.displayName)} 👋',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
+                    Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: AppColors.accent,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
+                        SizedBox(width: 8),
+                        Text(
+                          'CAREER DASHBOARD',
+                          style: TextStyle(
+                            color: AppColors.accent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      'Hello, ${_firstName(user?.displayName)} 👋',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: context.appColors.textPrimary,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        height: 1.1,
                       ),
                     ),
                     SizedBox(height: 6),
@@ -426,7 +448,7 @@ class _FeatureGrid extends ConsumerWidget {
     icon: Icons.description_rounded,
     title: 'Build Resume',
     subtitle: 'ATS-optimised templates',
-    gradient: AppColors.primaryGradient,
+    gradient: AppColors.heroGradient,
     directRoute: '/templates',
     cardType: _CardType.hero,
   );
@@ -435,7 +457,7 @@ class _FeatureGrid extends ConsumerWidget {
     icon: Icons.center_focus_strong_rounded,
     title: 'ATS Score',
     subtitle: 'Beat the bots',
-    gradient: LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)]),
+    gradient: AppColors.featureNavy,
     resumeRoute: '/ats',
     cardType: _CardType.tall,
   );
@@ -444,7 +466,7 @@ class _FeatureGrid extends ConsumerWidget {
     icon: Icons.auto_fix_high_rounded,
     title: 'Auto-Tailor',
     subtitle: 'AI rewrites your resume to perfectly match a job description',
-    gradient: LinearGradient(colors: [Color(0xFF059669), Color(0xFF0D9488)]),
+    gradient: AppColors.featureGreen,
     resumeRoute: '/auto-tailor',
     cardType: _CardType.wide,
   );
@@ -453,7 +475,7 @@ class _FeatureGrid extends ConsumerWidget {
     icon: Icons.mail_rounded,
     title: 'Cover Letter',
     subtitle: 'AI generated',
-    gradient: LinearGradient(colors: [Color(0xFFD97706), Color(0xFFDC2626)]),
+    gradient: AppColors.featureOrange,
     resumeRoute: '/cover-letter',
     cardType: _CardType.tall,
   );
@@ -463,7 +485,7 @@ class _FeatureGrid extends ConsumerWidget {
       icon: Icons.work_rounded,
       title: 'Job Tracker',
       subtitle: 'Track applications',
-      gradient: LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF2563EB)]),
+      gradient: AppColors.featureSlate,
       directRoute: '/job-tracker',
       cardType: _CardType.compact,
     ),
@@ -471,7 +493,7 @@ class _FeatureGrid extends ConsumerWidget {
       icon: Icons.file_download_rounded,
       title: 'Export PDF',
       subtitle: 'Download & share',
-      gradient: AppColors.primaryGradient,
+      gradient: AppColors.featureBlue,
       resumeRoute: '/preview',
       cardType: _CardType.compact,
     ),

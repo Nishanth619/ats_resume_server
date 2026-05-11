@@ -582,11 +582,7 @@ const upload = multer({
   },
 });
 
-// ─── Cover letter rate-limit store (in-memory token bucket) ──────────────────
-// FIX: cover-letter had no rate limiting at all. Simple per-uid daily counter.
-const coverLetterUsage = new Map();
-setInterval(() => coverLetterUsage.clear(), 24 * 60 * 60 * 1000); // reset daily
-
+// ─── Cover letter rate-limit (Firestore-backed, survives restarts) ───────────
 const COVER_LETTER_FREE_LIMIT = Math.max(
   1,
   Number.parseInt(process.env.COVER_LETTER_FREE_DAILY_LIMIT || '5', 10)
@@ -603,9 +599,20 @@ async function checkCoverLetterLimit(uid) {
     } catch (_) {}
   }
 
-  const count = coverLetterUsage.get(uid) || 0;
-  if (count >= COVER_LETTER_FREE_LIMIT) return false;
-  coverLetterUsage.set(uid, count + 1);
+  // Firestore-backed daily counter — survives server restarts
+  if (db) {
+    const today = new Date().toISOString().split('T')[0];
+    const ref = db.collection('cover_limits').doc(`${uid}_${today}`);
+    return db.runTransaction(async (t) => {
+      const doc = await t.get(ref);
+      const count = doc.data()?.count || 0;
+      if (count >= COVER_LETTER_FREE_LIMIT) return false;
+      t.set(ref, { count: count + 1, uid, date: today }, { merge: true });
+      return true;
+    });
+  }
+
+  // No DB — allow (fail open, not fail closed)
   return true;
 }
 

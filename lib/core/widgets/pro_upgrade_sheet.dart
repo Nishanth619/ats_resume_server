@@ -1,38 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../services/subscription_service.dart';
 import '../constants/app_colors.dart';
 import 'shared_widgets.dart';
-import '../../services/subscription_service.dart';
-import '../../providers/auth_provider.dart';
 
 Future<void> showProUpgradeSheet(BuildContext context, WidgetRef ref) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _ProUpgradeSheet(),
+    builder: (_) => const _ProUpgradeSheet(),
   );
 }
 
 class _ProUpgradeSheet extends ConsumerWidget {
+  const _ProUpgradeSheet();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final price = ref.watch(subscriptionPriceProvider) ?? '₹299 / month';
+    final price = ref.watch(subscriptionPriceProvider);
 
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            context.appColors.card,
-            context.appColors.bg,
-          ],
+          colors: [context.appColors.card, context.appColors.bg],
         ),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Padding(
-        padding: EdgeInsets.fromLTRB(24, 12, 24, 32),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -44,7 +43,7 @@ class _ProUpgradeSheet extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             Container(
               width: 72,
               height: 72,
@@ -55,71 +54,51 @@ class _ProUpgradeSheet extends ConsumerWidget {
                   BoxShadow(
                     color: AppColors.accentGold.withValues(alpha: 0.4),
                     blurRadius: 24,
-                    offset: Offset(0, 6),
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
-              child: Center(
-                child: Text('👑', style: TextStyle(fontSize: 34)),
+              child: const Center(
+                child: Icon(Icons.workspace_premium, color: Colors.white),
               ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Text(
-              'Upgrade to Pro',
+              'Pro Coming Soon',
               style: TextStyle(
                 color: context.appColors.textPrimary,
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              'Unlock unlimited access to all AI features',
+              'Paid upgrades are disabled until Google Play Billing is fully configured.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: context.appColors.textSecondary,
                 fontSize: 14,
               ),
             ),
-            SizedBox(height: 24),
-            _BenefitRow(icon: '♾️', text: 'Unlimited ATS checks'),
-            SizedBox(height: 10),
-            _BenefitRow(icon: '🪄', text: 'Unlimited auto-tailor resumes'),
-            SizedBox(height: 10),
-            _BenefitRow(icon: '✉️', text: 'Unlimited cover letters'),
-            SizedBox(height: 10),
-            _BenefitRow(icon: '🤖', text: 'Unlimited AI bullet improvements'),
-            SizedBox(height: 10),
-            _BenefitRow(icon: '📄', text: 'Ad-free experience'),
-            SizedBox(height: 10),
-            _BenefitRow(icon: '🎨', text: 'All premium templates'),
-            SizedBox(height: 28),
+            const SizedBox(height: 24),
+            const _BenefitRow(icon: Icons.analytics_outlined, text: 'More ATS checks'),
+            const SizedBox(height: 10),
+            const _BenefitRow(icon: Icons.auto_fix_high, text: 'More AI tailoring'),
+            const SizedBox(height: 10),
+            const _BenefitRow(icon: Icons.description_outlined, text: 'More cover letters'),
+            const SizedBox(height: 10),
+            const _BenefitRow(icon: Icons.block, text: 'No fake purchase flow'),
+            const SizedBox(height: 28),
             GradientButton(
-              label: 'Subscribe $price',
+              label: price == null ? 'Billing Not Available' : 'Subscribe $price',
               gradient: AppColors.goldGradient,
-              onPressed: () async {
-                final uid = ref.read(authStateProvider).value?.uid;
-                if (uid == null) return;
-                final success = await ref
-                    .read(subscriptionProvider.notifier)
-                    .purchasePro(uid: uid);
-                if (success && context.mounted) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('🎉 Welcome to Pro!'),
-                      backgroundColor: AppColors.scoreGreen,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
+              onPressed: null,
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
-                'Maybe later',
+                'Close',
                 style: TextStyle(
                   color: context.appColors.textMuted,
                   fontWeight: FontWeight.w600,
@@ -134,7 +113,7 @@ class _ProUpgradeSheet extends ConsumerWidget {
 }
 
 class _BenefitRow extends StatelessWidget {
-  final String icon;
+  final IconData icon;
   final String text;
 
   const _BenefitRow({required this.icon, required this.text});
@@ -145,9 +124,9 @@ class _BenefitRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 28,
-          child: Text(icon, style: TextStyle(fontSize: 16)),
+          child: Icon(icon, size: 18, color: AppColors.accentGold),
         ),
-        SizedBox(width: 10),
+        const SizedBox(width: 10),
         Text(
           text,
           style: TextStyle(

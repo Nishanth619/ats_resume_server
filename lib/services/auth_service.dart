@@ -56,6 +56,39 @@ class AuthService {
     await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
   }
 
+  Future<void> deleteAccount() async {
+    final user = currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final lastSignIn = user.metadata.lastSignInTime;
+    if (lastSignIn == null ||
+        DateTime.now().difference(lastSignIn) > const Duration(minutes: 5)) {
+      throw Exception(
+        'For security, please sign out, sign back in, and request deletion again.',
+      );
+    }
+
+    await _db.collection('account_deletion_requests').doc(user.uid).set({
+      'uid': user.uid,
+      'email': user.email,
+      'requestedAt': FieldValue.serverTimestamp(),
+      'status': 'requested',
+    }, SetOptions(merge: true));
+
+    await _deleteKnownUserData(user.uid);
+
+    try {
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw Exception(
+          'For security, please sign out, sign back in, and request deletion again.',
+        );
+      }
+      rethrow;
+    }
+  }
+
   // -- Create Firestore User Document --
   Future<void> _createUserDoc(User user, String name) async {
     await _db.collection('users').doc(user.uid).set({
@@ -73,5 +106,20 @@ class AuthService {
     await _db.collection('users').doc(uid).update({
       'lastActive': FieldValue.serverTimestamp()
     });
+  }
+
+  Future<void> _deleteKnownUserData(String uid) async {
+    final userRef = _db.collection('users').doc(uid);
+    for (final collection in ['resumes', 'applications', 'coverLetters']) {
+      final snap = await userRef.collection(collection).get();
+      for (var i = 0; i < snap.docs.length; i += 450) {
+        final batch = _db.batch();
+        for (final doc in snap.docs.skip(i).take(450)) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
+    }
+    await userRef.delete();
   }
 }

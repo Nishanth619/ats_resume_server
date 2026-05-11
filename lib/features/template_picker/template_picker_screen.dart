@@ -726,8 +726,8 @@ class _FullTemplatePreview extends StatelessWidget {
     required this.accentColor,
   });
 
-  bool get _isModern => template.layoutFamily == TemplateLayoutFamily.modern;
-  bool get _isMinimal => template.layoutFamily == TemplateLayoutFamily.minimal;
+  bool get _isModern => template.layout == TemplateLayout.modern;
+  bool get _isMinimal => template.layout == TemplateLayout.minimal;
   bool get _isExec =>
       template.id == 'executive' ||
       template.id == 'pro_elite' ||
@@ -980,69 +980,26 @@ class _ProPaywallSheet extends ConsumerStatefulWidget {
 }
 
 class _ProPaywallSheetState extends ConsumerState<_ProPaywallSheet> {
-  bool _loading = false;
+  final bool _loading = false;
   String? _error;
 
   String get _displayPrice {
     final price = ref.watch(subscriptionPriceProvider);
-    return price ?? 'Loading...';
+    return price ?? 'Billing not available';
   }
 
   Future<void> _upgrade() async {
-    if (_loading) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final success = await ref
-          .read(subscriptionProvider.notifier)
-          .purchasePro(uid: widget.uid);
-      if (!mounted) return;
-      if (success) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Welcome to Pro! All templates unlocked.'),
-            backgroundColor: AppColors.scoreGreen,
-          ),
-        );
-      } else {
-        setState(
-          () => _error = 'Purchase could not be completed. Please try again.',
-        );
-      }
-    } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    setState(
+      () => _error =
+          'Paid upgrades are disabled until Google Play Billing is configured.',
+    );
   }
 
   Future<void> _restore() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      await ref
-          .read(subscriptionProvider.notifier)
-          .restorePurchases(uid: widget.uid);
-      if (!mounted) return;
-      final isPro = ref.read(subscriptionProvider);
-      if (isPro) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Pro access restored!')));
-      } else {
-        setState(() => _error = 'No active Pro subscription found.');
-      }
-    } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    setState(
+      () => _error =
+          'Restore purchases will be enabled after Google Play Billing is configured.',
+    );
   }
 
   static const _features = [
@@ -1090,7 +1047,7 @@ class _ProPaywallSheetState extends ConsumerState<_ProPaywallSheet> {
             ),
             const SizedBox(height: 12),
             Text(
-              'ATS.ai Pro',
+              'ATS.ai Pro Coming Soon',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: context.appColors.textPrimary,
@@ -1100,7 +1057,7 @@ class _ProPaywallSheetState extends ConsumerState<_ProPaywallSheet> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Designed for candidates who demand the best.',
+              'Paid upgrades are disabled until store billing is fully live.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: context.appColors.textSecondary,
@@ -1170,7 +1127,7 @@ class _ProPaywallSheetState extends ConsumerState<_ProPaywallSheet> {
                 ),
               ),
               child: Text(
-                '$_displayPrice  -  Cancel anytime',
+                _displayPrice,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppColors.primaryLight,
@@ -1193,8 +1150,8 @@ class _ProPaywallSheetState extends ConsumerState<_ProPaywallSheet> {
                 ),
               ),
             GradientButton(
-              label: _loading ? 'Processing...' : 'Upgrade to Pro',
-              onPressed: _loading ? () {} : _upgrade,
+              label: 'Billing Not Available',
+              onPressed: _upgrade,
               gradient: AppColors.goldGradient,
               icon: _loading
                   ? const SizedBox(

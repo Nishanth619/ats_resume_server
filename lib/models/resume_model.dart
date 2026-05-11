@@ -11,7 +11,6 @@ class ResumeModel {
   final String targetJD;
   final DateTime lastEdited;
   final int downloadCount;
-  final List<dynamic> versions;
 
   ResumeModel({
     required this.id,
@@ -24,7 +23,6 @@ class ResumeModel {
     this.targetJD = '',
     required this.lastEdited,
     this.downloadCount = 0,
-    this.versions = const [],
   });
 
   factory ResumeModel.fromJson(Map<String, dynamic> data) {
@@ -39,7 +37,6 @@ class ResumeModel {
       targetJD: data['targetJD'] ?? '',
       lastEdited: (data['lastEdited'] as Timestamp?)?.toDate() ?? DateTime.now(),
       downloadCount: data['downloadCount'] ?? 0,
-      versions: data['versions'] ?? [],
     );
   }
 
@@ -55,7 +52,7 @@ class ResumeModel {
       'targetJD': targetJD,
       'lastEdited': Timestamp.fromDate(lastEdited),
       'downloadCount': downloadCount,
-      'versions': versions,
+      // 'versions' is now a subcollection — not stored in this document
     };
   }
 

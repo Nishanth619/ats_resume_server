@@ -51,3 +51,9 @@ ios/Runner/GoogleService-Info.plist
 **/firebase-service-account.json
 backend/.env
 backend/node_modules/
+
+# Dev helper scripts
+*.py
+fix_errors.py
+refactor_colors.py
+refactor_dashboard.py

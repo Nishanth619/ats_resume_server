@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+
 import '../core/config/app_config.dart';
 
 final adServiceProvider = Provider<AdMobService>(
@@ -11,14 +13,8 @@ final adServiceProvider = Provider<AdMobService>(
     ..loadInterstitialAd(),
 );
 
-final bannerAdProvider = Provider<Widget?>((ref) {
-  final svc = ref.watch(adServiceProvider);
-  return svc.buildBannerWidget();
-});
-
 class AdMobService {
   RewardedAd? _rewarded;
-  BannerAd? _banner;
   InterstitialAd? _interstitial;
   bool _rewardedLoaded = false;
   int _attempts = 0;
@@ -26,10 +22,6 @@ class AdMobService {
   static String get _rewardedId => Platform.isAndroid
       ? AppConfig.admobAndroidRewarded
       : AppConfig.admobIosRewarded;
-
-  static String get _bannerId => Platform.isAndroid
-      ? AppConfig.admobAndroidBanner
-      : AppConfig.admobIosBanner;
 
   static String get _interstitialId => Platform.isAndroid
       ? AppConfig.admobAndroidInterstitial
@@ -88,27 +80,6 @@ class AdMobService {
       },
     );
     return true;
-  }
-
-  Future<void> loadBannerAd() async {
-    _banner = BannerAd(
-      adUnitId: _bannerId,
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(),
-    );
-    await _banner!.load();
-  }
-
-  Widget? buildBannerWidget() {
-    if (_banner == null) {
-      loadBannerAd();
-      return null;
-    }
-    return SizedBox(
-      height: _banner!.size.height.toDouble(),
-      child: AdWidget(ad: _banner!),
-    );
   }
 
   Future<void> loadInterstitialAd() async {

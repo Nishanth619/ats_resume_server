@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/resume_model.dart';
@@ -7,9 +8,11 @@ import '../../services/admob_service.dart';
 import '../../services/subscription_service.dart';
 import '../../providers/resume_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/config/app_config.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 import '../../core/widgets/pro_upgrade_sheet.dart';
+import '../../core/widgets/ai_report_dialog.dart';
 
 class ATSScoreScreen extends ConsumerStatefulWidget {
   final String resumeId;
@@ -46,7 +49,11 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
     super.dispose();
   }
 
+  bool get _bypassLimitsForTesting => kDebugMode || AppConfig.bypassAtsLimits;
+
   Future<void> _ensureCanUse() async {
+    if (_bypassLimitsForTesting) return;
+
     final isPro = ref.read(subscriptionProvider);
     if (isPro) return;
 
@@ -61,6 +68,8 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
   }
 
   Future<void> _showAdAndProceed() async {
+    if (_bypassLimitsForTesting) return;
+
     final isPro = ref.read(subscriptionProvider);
     if (isPro) return;
 
@@ -98,11 +107,8 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
             sections: resume.sections,
           );
 
-      // Increment usage count AFTER successful API call
-      final uid = ref.read(authStateProvider).value?.uid;
-      if (uid != null) {
-        await UsageTracker.incrementUsage(AiFeature.atsCheck, uid);
-      }
+      // Note: usage counter is incremented server-side inside the Firestore
+      // transaction. No client-side increment needed.
 
       // Only save score if it is meaningful (> 0)
       if (result.score > 0) {
@@ -166,6 +172,9 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isPro = ref.watch(subscriptionProvider);
+    final uid = ref.watch(authStateProvider).value?.uid;
+
     return Scaffold(
       backgroundColor: context.appColors.bg,
       appBar: GradientAppBar(
@@ -180,11 +189,57 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
           ),
         ],
       ),
-      body: _loading
-          ? _buildLoading()
-          : _error != null
-          ? _buildError()
-          : _buildResults(),
+      body: Column(
+        children: [
+          // Usage counter banner for free users
+          if (!isPro && uid != null && !_bypassLimitsForTesting)
+            FutureBuilder<int>(
+              future: UsageTracker.getUsageCount(AiFeature.atsCheck, uid),
+              builder: (context, snap) {
+                final used = snap.data ?? 0;
+                final limit = UsageTracker.getLimit(AiFeature.atsCheck);
+                final remaining = (limit - used).clamp(0, limit);
+                final isNearLimit = remaining <= 1;
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: isNearLimit
+                      ? AppColors.scoreOrange.withValues(alpha: 0.12)
+                      : AppColors.primary.withValues(alpha: 0.08),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isNearLimit ? Icons.warning_amber_rounded : Icons.analytics_outlined,
+                        size: 15,
+                        color: isNearLimit ? AppColors.scoreOrange : AppColors.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        remaining == 0
+                            ? 'Daily limit reached — upgrade to Pro for unlimited checks'
+                            : '$remaining of $limit free checks remaining today',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isNearLimit
+                              ? AppColors.scoreOrange
+                              : AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          Expanded(
+            child: _loading
+                ? _buildLoading()
+                : _error != null
+                    ? _buildError()
+                    : _buildResults(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -844,9 +899,35 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
               ),
             ),
           ],
+          SizedBox(height: 24),
+          OutlinedButton.icon(
+            onPressed: () => showAiReportDialog(
+              context: context,
+              ref: ref,
+              feature: 'ats_analysis',
+              output: _atsReportText(_result!),
+            ),
+            icon: Icon(Icons.flag_outlined, size: 18),
+            label: Text('Report AI Output'),
+          ),
         ],
       ),
     );
+  }
+
+  String _atsReportText(ATSResult result) {
+    final buf = StringBuffer()
+      ..writeln('Score: ${result.score}')
+      ..writeln('Issues: ${result.issues.join('; ')}')
+      ..writeln('Fixes: ${result.fixes.join('; ')}')
+      ..writeln('Missing keywords: ${result.missingKeywords.join(', ')}')
+      ..writeln('Matched keywords: ${result.matchedKeywords.join(', ')}')
+      ..writeln('Wins: ${result.top3Wins.join('; ')}')
+      ..writeln('Improvements: ${result.top3Improvements.join('; ')}');
+    for (final issue in result.criticalIssues) {
+      buf.writeln('${issue.priority}: ${issue.issue} -> ${issue.fix}');
+    }
+    return buf.toString();
   }
 
   Widget _badge(String text, Color color) {

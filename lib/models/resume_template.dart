@@ -4,8 +4,6 @@ enum TemplateLayout { classic, modern, minimal }
 
 enum TemplateTier { free, pro }
 
-enum TemplateLayoutFamily { classic, modern, minimal }
-
 class ResumeTemplate {
   final String id;
   final String name;
@@ -28,17 +26,6 @@ class ResumeTemplate {
   });
 
   bool get isPremium => tier == TemplateTier.pro;
-
-  TemplateLayoutFamily get layoutFamily {
-    switch (layout) {
-      case TemplateLayout.classic:
-        return TemplateLayoutFamily.classic;
-      case TemplateLayout.modern:
-        return TemplateLayoutFamily.modern;
-      case TemplateLayout.minimal:
-        return TemplateLayoutFamily.minimal;
-    }
-  }
 }
 
 const List<ResumeTemplate> _templates = [

@@ -6,10 +6,12 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'core/app.dart';
+import 'services/subscription_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // ── Firebase ───────────────────────────────────────────────────────────────
   try {
     await Firebase.initializeApp();
     FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
@@ -21,15 +23,18 @@ void main() async {
       return true;
     };
   } catch (e) {
-    debugPrint("Firebase not initialized: $e");
+    debugPrint('Firebase not initialized: $e');
   }
 
-  // Initialize Google Mobile Ads SDK
+  // ── Google Mobile Ads ─────────────────────────────────────────────────────
   try {
     await MobileAds.instance.initialize();
   } catch (e) {
-    debugPrint("MobileAds not initialized: $e");
+    debugPrint('MobileAds not initialized: $e');
   }
+
+  // ── RevenueCat ────────────────────────────────────────────────────────────
+  await initRevenueCat();
 
   runApp(const ProviderScope(child: ATSResumeApp()));
 }

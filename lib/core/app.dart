@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
+import 'widgets/app_banner_ad.dart';
 import '../providers/theme_provider.dart';
 
 class ATSResumeApp extends ConsumerWidget {
@@ -17,8 +18,18 @@ class ATSResumeApp extends ConsumerWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
       routerConfig: router,
+      builder: (context, child) {
+        return Column(
+          children: [
+            Expanded(child: child ?? const SizedBox.shrink()),
+            Material(
+              color: Theme.of(context).colorScheme.surface,
+              child: const Center(child: AppBannerAd()),
+            ),
+          ],
+        );
+      },
       debugShowCheckedModeBanner: false,
     );
   }
 }
-

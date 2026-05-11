@@ -195,7 +195,6 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       targetJD: state!.targetJD,
       lastEdited: DateTime.now(),
       downloadCount: state!.downloadCount,
-      versions: state!.versions,
     );
   }
 
@@ -212,7 +211,6 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       targetJD: state!.targetJD,
       lastEdited: DateTime.now(),
       downloadCount: state!.downloadCount,
-      versions: state!.versions,
     );
   }
 
@@ -232,7 +230,6 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       targetJD: jd,
       lastEdited: DateTime.now(),
       downloadCount: resume.downloadCount,
-      versions: resume.versions,
     );
     await save();
   }
@@ -250,7 +247,6 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       targetJD: state!.targetJD,
       lastEdited: DateTime.now(),
       downloadCount: state!.downloadCount,
-      versions: state!.versions,
     );
     await save();
   }
@@ -268,7 +264,6 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       targetJD: state!.targetJD,
       lastEdited: DateTime.now(),
       downloadCount: state!.downloadCount + 1,
-      versions: state!.versions,
     );
     await save();
   }
@@ -460,7 +455,6 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       targetJD: jd,
       lastEdited: DateTime.now(),
       downloadCount: original.downloadCount,
-      versions: original.versions,
     );
 
     await save();

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/subscription_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 
@@ -15,6 +16,7 @@ class SettingsScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).value;
     final themeMode = ref.watch(themeModeProvider);
     final isDark = themeMode == ThemeMode.dark;
+    final isPro = ref.watch(subscriptionProvider);
 
     return Scaffold(
       backgroundColor: context.appColors.bg,
@@ -69,7 +71,12 @@ class SettingsScreen extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: 8),
-                        GradientBadge(text: 'Free Plan'),
+                        isPro
+                          ? GradientBadge(
+                              text: '👑 Pro Plan',
+                              gradient: AppColors.goldGradient,
+                            )
+                          : GradientBadge(text: 'Free Plan'),
                       ],
                     ),
                   ),
@@ -98,9 +105,14 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Account Information',
               subtitle: user?.email ?? 'Manage your profile',
               onTap: () {
-                // Show account info bottom sheet
-                _showAccountInfo(context, user);
+                _showAccountInfo(context, user, isPro);
               },
+            ),
+            _SettingsTile(
+              icon: Icons.delete_forever_outlined,
+              label: 'Delete Account',
+              subtitle: 'Permanently remove your account data',
+              onTap: () => _confirmAccountDeletion(context, ref),
             ),
 
             SizedBox(height: 20),
@@ -199,7 +211,7 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  void _showAccountInfo(BuildContext context, dynamic user) {
+  void _showAccountInfo(BuildContext context, dynamic user, bool isPro) {
     showModalBottomSheet(
       context: context,
       backgroundColor: context.appColors.card,
@@ -227,7 +239,7 @@ class SettingsScreen extends ConsumerWidget {
             _InfoRow(label: 'Name', value: user?.displayName ?? 'Not set'),
             _InfoRow(label: 'Email', value: user?.email ?? 'Unknown'),
             _InfoRow(label: 'UID', value: user?.uid?.substring(0, 12) ?? '—'),
-            _InfoRow(label: 'Plan', value: 'Free'),
+            _InfoRow(label: 'Plan', value: isPro ? '👑 Pro' : 'Free'),
           ],
         ),
       ),
@@ -284,6 +296,121 @@ class SettingsScreen extends ConsumerWidget {
                       fontWeight: FontWeight.w600)),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmAccountDeletion(BuildContext context, WidgetRef ref) {
+    var confirmed = false;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.appColors.card,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(24, 20, 24, 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: context.appColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              SizedBox(height: 24),
+              Text(
+                'Delete Account?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.scoreRed,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'This requests permanent deletion of your account and app data. Some records may be retained where required for billing, security, or legal compliance.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.appColors.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              SizedBox(height: 16),
+              CheckboxListTile(
+                value: confirmed,
+                onChanged: (value) =>
+                    setSheetState(() => confirmed = value ?? false),
+                title: Text(
+                  'I understand this cannot be undone.',
+                  style: TextStyle(
+                    color: context.appColors.textPrimary,
+                    fontSize: 13,
+                  ),
+                ),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              ),
+              SizedBox(height: 12),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.scoreRed,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: confirmed
+                    ? () async {
+                        try {
+                          await ref.read(authServiceProvider).deleteAccount();
+                          if (context.mounted) Navigator.pop(context);
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                e.toString().replaceFirst('Exception: ', ''),
+                              ),
+                              backgroundColor: AppColors.error,
+                              behavior: SnackBarBehavior.floating,
+                              action: SnackBarAction(
+                                label: 'Web Help',
+                                textColor: Colors.white,
+                                onPressed: () => _launchUrl(
+                                  'https://ats-resume-builder.app/account-deletion',
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    : null,
+                icon: Icon(Icons.delete_forever_outlined),
+                label: Text('Delete My Account'),
+              ),
+              TextButton(
+                onPressed: () => _launchUrl(
+                  'https://ats-resume-builder.app/account-deletion',
+                ),
+                child: Text('Open account deletion page'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: context.appColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

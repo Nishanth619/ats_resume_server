@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 import '../../core/widgets/pro_upgrade_sheet.dart';
+import '../../core/widgets/ai_report_dialog.dart';
 
 class AutoTailorScreen extends ConsumerStatefulWidget {
   final String resumeId;
@@ -708,10 +709,46 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
               SizedBox(height: 16),
               _buildTailorAudit(_tailorResult!),
             ],
+            if (_result != null) ...[
+              SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () => showAiReportDialog(
+                  context: context,
+                  ref: ref,
+                  feature: _tailored ? 'auto_tailor' : 'keyword_match',
+                  output: _autoTailorReportText(),
+                  inputContext: _jdCtrl.text.trim(),
+                ),
+                icon: Icon(Icons.flag_outlined, size: 18),
+                label: Text('Report AI Output'),
+              ),
+            ],
           ],
         ],
       ),
     );
+  }
+
+  String _autoTailorReportText() {
+    final buf = StringBuffer();
+    final result = _result;
+    if (result != null) {
+      buf
+        ..writeln('Match: ${result.matchPercentage}')
+        ..writeln('Required: ${result.requiredKeywords.join(', ')}')
+        ..writeln('Matched: ${result.matched.join(', ')}')
+        ..writeln('Missing: ${result.missing.join(', ')}');
+    }
+    final tailor = _tailorResult;
+    if (tailor != null) {
+      buf
+        ..writeln('Target role: ${tailor.targetRole}')
+        ..writeln('Summary: ${tailor.summary}')
+        ..writeln('Skills: ${tailor.skills.join(', ')}')
+        ..writeln('Warnings: ${tailor.warnings.join('; ')}')
+        ..writeln('Changes: ${tailor.changes}');
+    }
+    return buf.toString();
   }
 
   Widget _buildTailorAudit(TailoredResumeResult result) {

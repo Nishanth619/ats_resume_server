@@ -116,8 +116,7 @@ class AIService {
       Uri.parse('$_baseUrl/api/ai/ats-check'),
       headers: await _getHeaders(),
       body: jsonEncode({
-        'resumeText':
-            '[SYSTEM NOTE: The current date/year is ${DateTime.now().year}. Do not flag any dates before ${DateTime.now().year} as future dates.]\n\n$resumeText',
+        'resumeText': resumeText,
         'targetJD': targetJD,
         ...?((sections != null) ? {'sections': sections} : null),
       }),
@@ -141,19 +140,15 @@ class AIService {
     final response = await http.post(
       Uri.parse('$_baseUrl/api/ai/match-jd'),
       headers: await _getHeaders(),
-      body: jsonEncode({
-        'resumeText':
-            '[SYSTEM NOTE: The current date/year is ${DateTime.now().year}.]\n\n$resumeText',
-        'jd': jd,
-      }),
+      body: jsonEncode({'resumeText': resumeText, 'jd': jd}),
     );
+    if (response.statusCode == 429) {
+      throw Exception(jsonDecode(response.body)['error']);
+    }
     if (response.statusCode != 200) {
-      return KeywordMatchResult(
-        requiredKeywords: [],
-        matched: [],
-        missing: [],
-        matchPercentage: 0,
-      );
+      String msg = 'Job match analysis failed (${response.statusCode}). Please retry.';
+      try { msg = jsonDecode(response.body)['error'] ?? msg; } catch (_) {}
+      throw Exception(msg);
     }
     return KeywordMatchResult.fromJson(jsonDecode(response.body));
   }

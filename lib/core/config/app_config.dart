@@ -6,6 +6,11 @@ class AppConfig {
     defaultValue: 'https://ats-resume-server.onrender.com',
   );
 
+  static const bypassAtsLimits = bool.fromEnvironment(
+    'BYPASS_ATS_LIMITS',
+    defaultValue: false,
+  );
+
   static const revenueCatAndroidKey = String.fromEnvironment(
     'REVENUECAT_ANDROID_KEY',
   );
@@ -13,7 +18,7 @@ class AppConfig {
 
   static const admobAndroidRewarded = String.fromEnvironment(
     'ADMOB_ANDROID_REWARDED',
-    defaultValue: 'ca-app-pub-3940256099942544/5224354917',
+    defaultValue: 'ca-app-pub-4025737666505759/3890566160',
   );
   static const admobIosRewarded = String.fromEnvironment(
     'ADMOB_IOS_REWARDED',
@@ -21,7 +26,7 @@ class AppConfig {
   );
   static const admobAndroidBanner = String.fromEnvironment(
     'ADMOB_ANDROID_BANNER',
-    defaultValue: 'ca-app-pub-3940256099942544/6300978111',
+    defaultValue: 'ca-app-pub-4025737666505759/4264531294',
   );
   static const admobIosBanner = String.fromEnvironment(
     'ADMOB_IOS_BANNER',
@@ -29,7 +34,7 @@ class AppConfig {
   );
   static const admobAndroidInterstitial = String.fromEnvironment(
     'ADMOB_ANDROID_INTERSTITIAL',
-    defaultValue: 'ca-app-pub-3940256099942544/1033173712',
+    defaultValue: 'ca-app-pub-4025737666505759/4072959602',
   );
   static const admobIosInterstitial = String.fromEnvironment(
     'ADMOB_IOS_INTERSTITIAL',
