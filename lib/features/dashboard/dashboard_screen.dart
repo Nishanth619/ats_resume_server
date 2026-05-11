@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +21,8 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: context.appColors.bg,
-      body: CustomScrollView(
+      body: AmbientBackground(
+        child: CustomScrollView(
         slivers: [
           // ─── Premium SliverAppBar ───
           SliverAppBar(
@@ -142,33 +144,21 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ],
       ),
+      ), // AmbientBackground
       drawer: _buildDrawer(context, ref),
       floatingActionButton: _buildFAB(context),
     );
   }
 
   Widget _buildFAB(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.45),
-            blurRadius: 24,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: FloatingActionButton.extended(
-        onPressed: () => context.push('/templates'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        icon: Icon(Icons.add_rounded, color: Colors.white),
-        label: Text(
-          'New Resume',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-        ),
+    return FloatingActionButton.extended(
+      onPressed: () => context.push('/templates'),
+      backgroundColor: AppColors.primary,
+      elevation: 6,
+      icon: const Icon(Icons.add_rounded, color: Colors.white),
+      label: const Text(
+        'New Resume',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -239,7 +229,7 @@ class DashboardScreen extends ConsumerWidget {
           Container(
             width: double.infinity,
             padding: EdgeInsets.fromLTRB(24, 60, 24, 28),
-            decoration: BoxDecoration(gradient: AppColors.primaryGradient),
+            color: AppColors.surfaceDark,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -247,12 +237,13 @@ class DashboardScreen extends ConsumerWidget {
                   width: 54,
                   height: 54,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
+                    color: AppColors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                   ),
                   child: Icon(
                     Icons.description_rounded,
-                    color: Colors.white,
+                    color: AppColors.primaryLight,
                     size: 26,
                   ),
                 ),
@@ -260,14 +251,14 @@ class DashboardScreen extends ConsumerWidget {
                 Text(
                   'ATS.ai',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 Text(
                   'Career Intelligence Platform',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
               ],
             ),
@@ -357,7 +348,7 @@ class _AppBarBackground extends ConsumerWidget {
               ],
             ),
           ),
-          // Bottom accent rule
+          // Subtle accent rule — solid, no gradient
           Positioned(
             left: 24,
             right: 80,
@@ -365,13 +356,8 @@ class _AppBarBackground extends ConsumerWidget {
             child: Container(
               height: 1.5,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withValues(alpha: 0.6),
-                    AppColors.accent.withValues(alpha: 0.4),
-                    Colors.transparent,
-                  ],
-                ),
+                color: AppColors.primary.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
@@ -448,7 +434,7 @@ class _FeatureGrid extends ConsumerWidget {
     icon: Icons.description_rounded,
     title: 'Build Resume',
     subtitle: 'ATS-optimised templates',
-    gradient: AppColors.heroGradient,
+    tintColor: AppColors.primary,
     directRoute: '/templates',
     cardType: _CardType.hero,
   );
@@ -457,7 +443,7 @@ class _FeatureGrid extends ConsumerWidget {
     icon: Icons.center_focus_strong_rounded,
     title: 'ATS Score',
     subtitle: 'Beat the bots',
-    gradient: AppColors.featureNavy,
+    tintColor: AppColors.primaryDark,
     resumeRoute: '/ats',
     cardType: _CardType.tall,
   );
@@ -466,7 +452,7 @@ class _FeatureGrid extends ConsumerWidget {
     icon: Icons.auto_fix_high_rounded,
     title: 'Auto-Tailor',
     subtitle: 'AI rewrites your resume to perfectly match a job description',
-    gradient: AppColors.featureGreen,
+    tintColor: AppColors.scoreGreen,
     resumeRoute: '/auto-tailor',
     cardType: _CardType.wide,
   );
@@ -475,7 +461,7 @@ class _FeatureGrid extends ConsumerWidget {
     icon: Icons.mail_rounded,
     title: 'Cover Letter',
     subtitle: 'AI generated',
-    gradient: AppColors.featureOrange,
+    tintColor: AppColors.accent,
     resumeRoute: '/cover-letter',
     cardType: _CardType.tall,
   );
@@ -485,7 +471,7 @@ class _FeatureGrid extends ConsumerWidget {
       icon: Icons.work_rounded,
       title: 'Job Tracker',
       subtitle: 'Track applications',
-      gradient: AppColors.featureSlate,
+      tintColor: const Color(0xFF64748B),
       directRoute: '/job-tracker',
       cardType: _CardType.compact,
     ),
@@ -493,7 +479,7 @@ class _FeatureGrid extends ConsumerWidget {
       icon: Icons.file_download_rounded,
       title: 'Export PDF',
       subtitle: 'Download & share',
-      gradient: AppColors.featureBlue,
+      tintColor: AppColors.primary,
       resumeRoute: '/preview',
       cardType: _CardType.compact,
     ),
@@ -586,7 +572,7 @@ class _FeatureItem {
   final IconData icon;
   final String title;
   final String subtitle;
-  final LinearGradient gradient;
+  final Color tintColor;
   final String? directRoute;
   final String? resumeRoute;
   final _CardType cardType;
@@ -595,7 +581,7 @@ class _FeatureItem {
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.gradient,
+    required this.tintColor,
     this.directRoute,
     this.resumeRoute,
     this.cardType = _CardType.compact,
@@ -1127,22 +1113,37 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
       onTapCancel: () => _ctrl.reverse(),
       child: ScaleTransition(
         scale: _scale,
-        child: Container(
-          // Height is fully controlled by parent SizedBox — no height set here.
-          decoration: BoxDecoration(
-            gradient: f.gradient,
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: f.gradient.colors.first.withValues(
-                  alpha: isDark ? 0.30 : 0.16,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Color.alphaBlend(
+                  f.tintColor.withValues(alpha: 0.24),
+                  isDark ? const Color(0x0DFFFFFF) : const Color(0x26FFFFFF),
                 ),
-                blurRadius: 18,
-                offset: Offset(0, 6),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: isDark ? 0.13 : 0.50),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: f.tintColor.withValues(alpha: isDark ? 0.20 : 0.10),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
+              child: cardContent,
+            ),
           ),
-          child: cardContent,
         ),
       ),
     );
