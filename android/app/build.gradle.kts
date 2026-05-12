@@ -60,21 +60,13 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
 
 flutter {
     source = "../.."
-}
-
-// Skip the Crashlytics mapping file upload task so the build doesn't
-// require an outbound connection to firebasecrashlyticssymbols.googleapis.com.
-// Crash reporting still works at runtime; only deobfuscated stack traces
-// in the Firebase Console are affected. Re-enable in CI when needed.
-afterEvaluate {
-    tasks.matching { it.name.startsWith("uploadCrashlyticsMappingFile") }
-         .configureEach { enabled = false }
 }
