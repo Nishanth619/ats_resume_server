@@ -1,5 +1,5 @@
 class AppStrings {
-  static const String appName = 'ATS Resume Builder';
+  static const String appName = 'Ats.Ai';
   static const String tagline = 'Beat the bots. Land the job.';
 
   // Auth

@@ -120,12 +120,12 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsTile(
               icon: Icons.privacy_tip_outlined,
               label: 'Privacy Policy',
-              onTap: () => _launchUrl('https://ats-resume-builder.app/privacy'),
+              onTap: () => _launchUrl('https://www.nexaaradhya.site/privacy/atsai'),
             ),
             _SettingsTile(
               icon: Icons.description_outlined,
               label: 'Terms of Service',
-              onTap: () => _launchUrl('https://ats-resume-builder.app/terms'),
+              onTap: () => _launchUrl('https://www.nexaaradhya.site/terms/atsai'),
             ),
 
             SizedBox(height: 20),
@@ -140,13 +140,13 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.star_outline_rounded,
               label: 'Rate the App',
               subtitle: 'Love ATS.ai? Leave a review',
-              onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=com.atsai.resume'),
+              onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=site.nexaaradhya.atsai'),
             ),
             _SettingsTile(
               icon: Icons.share_rounded,
               label: 'Share with Friends',
               subtitle: 'Help others land their dream job',
-              onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=com.atsai.resume'),
+              onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=site.nexaaradhya.atsai'),
             ),
 
             SizedBox(height: 32),
@@ -385,7 +385,7 @@ class SettingsScreen extends ConsumerWidget {
                                 label: 'Web Help',
                                 textColor: Colors.white,
                                 onPressed: () => _launchUrl(
-                                  'https://ats-resume-builder.app/account-deletion',
+                                  'https://www.nexaaradhya.site/delete-account/atsai',
                                 ),
                               ),
                             ),
@@ -398,7 +398,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               TextButton(
                 onPressed: () => _launchUrl(
-                  'https://ats-resume-builder.app/account-deletion',
+                  'https://www.nexaaradhya.site/delete-account/atsai',
                 ),
                 child: Text('Open account deletion page'),
               ),

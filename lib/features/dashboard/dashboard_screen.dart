@@ -249,7 +249,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'ATS.ai',
+                  'Ats.Ai',
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 22,
@@ -1115,35 +1115,60 @@ class _FeatureCardState extends ConsumerState<_FeatureCard>
         scale: _scale,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Color.alphaBlend(
-                  f.tintColor.withValues(alpha: 0.24),
-                  isDark ? const Color(0x0DFFFFFF) : const Color(0x26FFFFFF),
-                ),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: isDark ? 0.13 : 0.50),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: f.tintColor.withValues(alpha: isDark ? 0.20 : 0.10),
-                    blurRadius: 20,
-                    offset: const Offset(0, 6),
+          child: isDark
+              ? BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Color.alphaBlend(
+                        f.tintColor.withValues(alpha: 0.24),
+                        const Color(0x0DFFFFFF),
+                      ),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.13),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: f.tintColor.withValues(alpha: 0.20),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: cardContent,
                   ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    // Solid vivid tint in light mode — cards look vibrant
+                    color: f.tintColor.withValues(alpha: 0.88),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.30),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: f.tintColor.withValues(alpha: 0.28),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: cardContent,
-            ),
-          ),
+                  child: cardContent,
+                ),
         ),
       ),
     );
@@ -1407,53 +1432,44 @@ class _CompactScoreRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 78,
-      height: 78,
-      child: Stack(
-        alignment: Alignment.center,
+    return Container(
+      width: 68,
+      height: 74,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withValues(alpha: 0.25),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Text(
+            '$score',
+            style: TextStyle(
+              color: color,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              height: 1.1,
+            ),
+          ),
           Container(
-            width: 72,
-            height: 72,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.07),
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
             ),
-          ),
-          SizedBox(
-            width: 68,
-            height: 68,
-            child: CircularProgressIndicator(
-              value: score / 100,
-              strokeWidth: 7,
-              backgroundColor: context.appColors.border.withValues(alpha: 0.8),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-              strokeCap: StrokeCap.round,
+            child: Text(
+              'SCORE',
+              style: TextStyle(
+                color: color,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
             ),
-          ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '$score',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 22,
-                  height: 0.95,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'ATS',
-                style: TextStyle(
-                  color: context.appColors.textMuted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
           ),
         ],
       ),

@@ -22,7 +22,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Ats Resume Builder</string>
+	<string>Ats.Ai</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -93,9 +93,9 @@
 	</array>
 	<!-- Photo library permission required for image_picker (profile photo upload) -->
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>ATS Resume Builder needs access to your photo library to upload your profile photo to your resume.</string>
+	<string>Ats.Ai needs access to your photo library to upload your profile photo to your resume.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>ATS Resume Builder needs camera access to take a profile photo for your resume.</string>
+	<string>Ats.Ai needs camera access to take a profile photo for your resume.</string>
 </dict>
 </plist>
 

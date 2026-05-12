@@ -1,5 +1,5 @@
 name: ats_resume_builder
-description: "ATS Resume Builder — AI-powered resume builder with ATS score analysis, auto-tailoring, and professional PDF export."
+description: "Ats.Ai — AI-powered resume builder with ATS score analysis, auto-tailoring, and professional PDF export."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -46,6 +46,14 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   change_app_package_name: ^1.5.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "legal/logo_resume_flat.png"
+  adaptive_icon_background: "#0099FF"
+  adaptive_icon_foreground: "legal/logo_resume_foreground.png"
 
 flutter:
   uses-material-design: true

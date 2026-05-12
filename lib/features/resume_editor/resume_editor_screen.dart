@@ -290,27 +290,42 @@ class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
           },
         ),
         floatingActionButton: Container(
+          height: 50,
+          margin: const EdgeInsets.only(bottom: 10, right: 4),
           decoration: BoxDecoration(
-            gradient: context.appColors.primaryGradient,
-            borderRadius: BorderRadius.circular(18),
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.4),
-                blurRadius: 20,
+                color: AppColors.primary.withValues(alpha: 0.35),
+                blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: FloatingActionButton.extended(
-            onPressed: () => context.push('/ats/${widget.resumeId}'),
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            icon: const Icon(Icons.analytics_rounded, color: Colors.white),
-            label: const Text(
-              'ATS Score',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => context.push('/ats/${widget.resumeId}'),
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.analytics_rounded, color: Colors.white, size: 20),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Check ATS Score',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

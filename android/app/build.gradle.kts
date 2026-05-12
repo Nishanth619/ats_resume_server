@@ -13,14 +13,14 @@ plugins {
 }
 
 // Load signing properties if available (create android/keystore.properties for release builds)
-val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystorePropertiesFile = project.file("keystore.properties")
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(keystorePropertiesFile.inputStream())
 }
 
 android {
-    namespace = "com.atsai.resume"
+    namespace = "site.nexaaradhya.atsai"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -34,7 +34,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.atsai.resume"
+        applicationId = "site.nexaaradhya.atsai"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

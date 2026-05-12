@@ -27,42 +27,70 @@ class GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fill   = isDark ? AppColors.glassFill : const Color(0x0D000000);
-    final border = isDark ? AppColors.glassBorder : const Color(0x1A000000);
-    final shadow = isDark ? Colors.black54 : const Color(0x22000000);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(borderRadius),
-            // Base glass fill + optional feature tint
-            color: tintColor != null
-                ? Color.alphaBlend(tintColor!, fill)
-                : fill,
-            border: Border.all(color: border, width: 1),
-            boxShadow: [
-              if (showGlow)
+    if (isDark) {
+      // ── Dark mode: true frosted-glass with backdrop blur ──────────────────
+      final fill = tintColor != null
+          ? Color.alphaBlend(tintColor!, AppColors.glassFill)
+          : AppColors.glassFill;
+
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(borderRadius),
+              color: fill,
+              border: Border.all(color: AppColors.glassBorder, width: 1),
+              boxShadow: [
+                if (showGlow)
+                  BoxShadow(
+                    color: (glowColor ?? AppColors.primary).withValues(alpha: 0.20),
+                    blurRadius: 28,
+                    spreadRadius: -4,
+                    offset: const Offset(0, 6),
+                  ),
                 BoxShadow(
-                  color: (glowColor ?? AppColors.primary).withValues(alpha: 0.20),
-                  blurRadius: 28,
-                  spreadRadius: -4,
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
-              BoxShadow(
-                color: shadow.withValues(alpha: isDark ? 0.35 : 0.10),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: padding ?? const EdgeInsets.all(20),
-            child: child,
+              ],
+            ),
+            child: Padding(
+              padding: padding ?? const EdgeInsets.all(20),
+              child: child,
+            ),
           ),
         ),
+      );
+    }
+
+    // ── Light mode: clean solid white card — no blur needed ──────────────────
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        color: Colors.white,
+        border: Border.all(color: AppColors.borderLight, width: 1),
+        boxShadow: [
+          if (showGlow)
+            BoxShadow(
+              color: (glowColor ?? AppColors.primary).withValues(alpha: 0.15),
+              blurRadius: 20,
+              spreadRadius: -4,
+              offset: const Offset(0, 4),
+            ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(20),
+        child: child,
       ),
     );
   }

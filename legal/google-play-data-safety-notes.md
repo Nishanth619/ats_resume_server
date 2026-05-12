@@ -6,7 +6,7 @@ These notes are based on the current code review of this project and should be u
 
 ## App Summary
 
-Package: `com.atsai.resume`
+Package: `com.example.ats_resume_builder`
 
 App name: ATS Resume Builder
 

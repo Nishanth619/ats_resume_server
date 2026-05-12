@@ -113,7 +113,7 @@ class _DLState extends ConsumerState<DownloadScreen>
 
   Future<void> _shareFile() async {
     if (_filePath == null) return;
-    await Share.shareXFiles([XFile(_filePath!)], subject: 'My ATS Resume');
+    await Share.shareXFiles([XFile(_filePath!)], subject: 'My Ats.Ai Resume');
   }
 
   @override
