@@ -30,7 +30,6 @@ class UsageTracker {
   /// Features whose counters are managed by the backend server.
   /// The client never increments these — it only reads them for display.
   static const _serverManaged = {
-    AiFeature.atsCheck,
     AiFeature.coverLetter,
   };
 

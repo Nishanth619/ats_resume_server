@@ -107,8 +107,11 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
             sections: resume.sections,
           );
 
-      // Note: usage counter is incremented server-side inside the Firestore
-      // transaction. No client-side increment needed.
+      // Increment usage counter client-side
+      final uid = ref.read(authStateProvider).value?.uid;
+      if (uid != null && !_bypassLimitsForTesting) {
+        await UsageTracker.incrementUsage(AiFeature.atsCheck, uid);
+      }
 
       // Only save score if it is meaningful (> 0)
       if (result.score > 0) {
