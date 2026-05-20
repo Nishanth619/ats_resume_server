@@ -557,28 +557,32 @@ class _TemplateGrid extends StatelessWidget {
                           gradient: AppColors.goldGradient,
                         )
                       else
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.scoreGreen.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: AppColors.scoreGreen.withValues(
-                                alpha: 0.3,
+                        Builder(
+                          builder: (context) {
+                            // Use darker green for visibility in both light and dark mode
+                            const freeColor = Color(0xFF059669); // Emerald-600
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 3,
                               ),
-                            ),
-                          ),
-                          child: const Text(
-                            'FREE',
-                            style: TextStyle(
-                              color: AppColors.scoreGreen,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                              decoration: BoxDecoration(
+                                color: freeColor.withValues(alpha: 0.13),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: freeColor.withValues(alpha: 0.4),
+                                ),
+                              ),
+                              child: const Text(
+                                'FREE',
+                                style: TextStyle(
+                                  color: Color(0xFF059669),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                     ],
                   ),

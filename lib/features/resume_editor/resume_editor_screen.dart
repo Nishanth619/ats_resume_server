@@ -171,13 +171,15 @@ class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
         appBar: GradientAppBar(
           title: resumeAsync.whenData((r) => r.title).value ?? 'Edit Resume',
           actions: [
-            _SaveStatusChip(dirty: _dirty, label: _saveStatus),
+            // Compact save status — just a colored icon to avoid overflow
+            _SaveStatusIcon(dirty: _dirty),
             IconButton(
               icon: Icon(
                 Icons.visibility_outlined,
                 color: context.appColors.textPrimary,
                 size: 22,
               ),
+              tooltip: 'Preview',
               onPressed: () => context.push('/preview/${widget.resumeId}'),
             ),
             PopupMenuButton<String>(
@@ -212,7 +214,6 @@ class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
                 }
               },
             ),
-            const SizedBox(width: 8),
           ],
         ),
         body: resumeAsync.when(
@@ -225,8 +226,11 @@ class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
               style: TextStyle(color: context.appColors.textSecondary),
             ),
           ),
-          data: (resume) {
-            _maybeInitTemplate(resume);
+          data: (resumeFromStream) {
+            _maybeInitTemplate(resumeFromStream);
+            // Watch the notifier to get the latest local changes (keystrokes) 
+            // and fall back to the stream data if the notifier state is null.
+            final resume = ref.watch(resumeNotifierProvider(widget.resumeId)) ?? resumeFromStream;
             final editor = _buildEditor(resume);
 
             return LayoutBuilder(
@@ -481,6 +485,46 @@ class _SaveStatusChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Compact icon-only save indicator — avoids AppBar overflow on narrow screens.
+class _SaveStatusIcon extends StatelessWidget {
+  final bool dirty;
+  const _SaveStatusIcon({required this.dirty});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = dirty ? AppColors.scoreOrange : AppColors.scoreGreen;
+    return Tooltip(
+      message: dirty ? 'Unsaved changes' : 'All changes saved',
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          IconButton(
+            icon: Icon(
+              dirty ? Icons.edit_note_rounded : Icons.cloud_done_outlined,
+              color: color,
+              size: 22,
+            ),
+            onPressed: null, // display-only
+          ),
+          if (dirty)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: AppColors.scoreOrange,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
