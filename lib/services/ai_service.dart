@@ -273,8 +273,11 @@ class AIService {
             Uri.parse('$_baseUrl/api/ai/parse-resume'),
             headers: await _getHeaders(),
             body: jsonEncode({
+              // ignore: use_null_aware_elements
               if (pdfBase64 != null) 'pdfBase64': pdfBase64,
+              // ignore: use_null_aware_elements
               if (resumeText != null) 'resumeText': resumeText,
+              // ignore: use_null_aware_elements
               if (fileName != null) 'fileName': fileName,
             }),
           )
