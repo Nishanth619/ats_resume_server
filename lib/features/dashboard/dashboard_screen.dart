@@ -265,6 +265,14 @@ class DashboardScreen extends ConsumerWidget {
           ),
           SizedBox(height: 12),
           _DrawerItem(
+            icon: Icons.upload_file_rounded,
+            label: 'Upload Resume',
+            onTap: () {
+              Navigator.pop(context);
+              context.push('/upload-resume');
+            },
+          ),
+          _DrawerItem(
             icon: Icons.add_circle_outline_rounded,
             label: 'New Resume',
             onTap: () {
@@ -468,6 +476,14 @@ class _FeatureGrid extends ConsumerWidget {
 
   static final _bottomRow = [
     _FeatureItem(
+      icon: Icons.upload_file_rounded,
+      title: 'Upload Resume',
+      subtitle: 'Scan & score existing PDF',
+      tintColor: const Color(0xFF7C3AED), // violet
+      directRoute: '/upload-resume',
+      cardType: _CardType.compact,
+    ),
+    _FeatureItem(
       icon: Icons.work_rounded,
       title: 'Job Tracker',
       subtitle: 'Track applications',
@@ -543,7 +559,7 @@ class _FeatureGrid extends ConsumerWidget {
         ),
         SizedBox(height: _gap),
 
-        // ── Row 3: 2 perfectly equal compact cards ──
+        // ── Row 3: 3 equal compact cards ──
         SizedBox(
           height: _compactH,
           child: Row(

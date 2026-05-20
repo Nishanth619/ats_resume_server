@@ -13,6 +13,7 @@ import '../../features/ats_checker/ats_score_screen.dart';
 import '../../features/auto_tailor/auto_tailor_screen.dart';
 import '../../features/cover_letter/cover_letter_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/upload_resume/upload_resume_screen.dart';
 import '../../providers/auth_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -59,6 +60,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           DownloadScreen(resumeId: s.pathParameters['id']!)),
       GoRoute(path: '/job-tracker', builder: (_, _) => const JobTrackerScreen()),
       GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
+      GoRoute(path: '/upload-resume', builder: (_, _) => const UploadResumeScreen()),
     ],
   );
 });

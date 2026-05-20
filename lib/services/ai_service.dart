@@ -256,6 +256,49 @@ class AIService {
     if (response.statusCode != 200) throw Exception(response.body);
     return TailoredResumeResult.fromJson(jsonDecode(response.body));
   }
+
+  /// Parse an uploaded resume PDF or raw text into structured sections.
+  Future<ParsedResumeResult> parseResume({
+    String? pdfBase64,
+    String? resumeText,
+    String? fileName,
+  }) async {
+    assert(pdfBase64 != null || resumeText != null,
+        'Either pdfBase64 or resumeText is required');
+
+    late http.Response response;
+    try {
+      response = await http
+          .post(
+            Uri.parse('$_baseUrl/api/ai/parse-resume'),
+            headers: await _getHeaders(),
+            body: jsonEncode({
+              if (pdfBase64 != null) 'pdfBase64': pdfBase64,
+              if (resumeText != null) 'resumeText': resumeText,
+              if (fileName != null) 'fileName': fileName,
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 70),
+            onTimeout: () => throw Exception(
+              'Resume parsing timed out. Please try again.',
+            ),
+          );
+    } on SocketException {
+      throw Exception('No internet connection. Check your network and try again.');
+    }
+
+    if (response.statusCode == 429) {
+      throw Exception(jsonDecode(response.body)['error'] ??
+          'Daily limit reached. Upgrade to Pro for unlimited resume uploads.');
+    }
+    if (response.statusCode != 200) {
+      String msg = 'Failed to parse resume (${response.statusCode}). Please retry.';
+      try { msg = jsonDecode(response.body)['error'] ?? msg; } catch (_) {}
+      throw Exception(msg);
+    }
+    return ParsedResumeResult.fromJson(jsonDecode(response.body));
+  }
 }
 
 // ─── ATSCategoryScore ──────────────────────────────────────────────────────
@@ -483,4 +526,42 @@ String _toTextValue(dynamic value) {
   if (value is String) return value;
   if (value is num || value is bool) return value.toString();
   return '';
+}
+
+// ─── ParsedResumeResult ─────────────────────────────────────────────────────
+class ParsedResumeResult {
+  final Map<String, dynamic> sections;
+  final String targetRole;
+  final String title;
+
+  const ParsedResumeResult({
+    required this.sections,
+    required this.targetRole,
+    required this.title,
+  });
+
+  factory ParsedResumeResult.fromJson(Map<String, dynamic> j) {
+    final sections = _asMap(j['sections']) ?? {};
+    // Ensure required keys exist
+    sections.putIfAbsent('personal', () => <String, dynamic>{});
+    sections.putIfAbsent('experience', () => <dynamic>[]);
+    sections.putIfAbsent('education', () => <dynamic>[]);
+    sections.putIfAbsent('skills', () => <dynamic>[]);
+    sections.putIfAbsent('projects', () => <dynamic>[]);
+    sections.putIfAbsent('certifications', () => <dynamic>[]);
+    return ParsedResumeResult(
+      sections: sections,
+      targetRole: _toTextValue(j['targetRole']),
+      title: _toTextValue(j['title']),
+    );
+  }
+
+  int get experienceCount =>
+      (sections['experience'] as List?)?.length ?? 0;
+  int get skillsCount =>
+      (sections['skills'] as List?)?.length ?? 0;
+  String get name =>
+      _toTextValue((sections['personal'] as Map?)?['name']);
+  String get email =>
+      _toTextValue((sections['personal'] as Map?)?['email']);
 }

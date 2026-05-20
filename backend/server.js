@@ -628,6 +628,149 @@ app.get('/', (req, res) => {
   });
 });
 
+// ─── Parse Uploaded Resume ────────────────────────────────────────────────────
+// Accepts a PDF (base64) or plain text resume, returns structured sections JSON.
+// Usage counts toward the same daily limit as ATS checks.
+app.post('/api/ai/parse-resume', auth, async (req, res) => {
+  const { resumeText, pdfBase64, fileName } = req.body;
+
+  if (!resumeText && !pdfBase64) {
+    return res.status(400).json({ error: 'Either resumeText or pdfBase64 is required.' });
+  }
+
+  // ── Rate limit (same pool as ats-check) ──
+  let isPro = false;
+  if (db) {
+    try {
+      const userDoc = await db.collection('users').doc(req.user.uid).get();
+      isPro = userDoc.data()?.plan === 'pro';
+    } catch (e) {
+      console.error('[parse-resume] Firestore user lookup failed:', e.message);
+    }
+  }
+  const allowed = await rateLimit(req.user.uid, isPro, atsFreeDailyLimit);
+  if (!allowed) {
+    return res.status(429).json({
+      error: 'Daily resume parse limit reached. Upgrade to Pro for unlimited access.',
+    });
+  }
+
+  if (!hasAiProvider) return rejectMissingAI(res);
+
+  const PARSE_PROMPT = `You are an expert resume parser. Extract structured data from the resume below and return ONLY this exact JSON schema, no markdown, no extra text:
+
+{
+  "sections": {
+    "personal": {
+      "name": "",
+      "email": "",
+      "phone": "",
+      "location": "",
+      "linkedin": "",
+      "summary": ""
+    },
+    "experience": [
+      { "title": "", "company": "", "dates": "", "location": "", "description": "" }
+    ],
+    "education": [
+      { "degree": "", "institution": "", "year": "", "highlights": "" }
+    ],
+    "skills": ["skill1", "skill2"],
+    "projects": [
+      { "name": "", "description": "", "link": "" }
+    ],
+    "certifications": [
+      { "name": "", "issuer": "", "year": "" }
+    ],
+    "awards": [],
+    "languages": []
+  },
+  "targetRole": "inferred role from resume",
+  "title": "resume title e.g. candidate name + role"
+}
+
+Rules:
+- Extract only facts present in the resume. Never invent data.
+- For description/summary fields, preserve the original wording as closely as possible.
+- skills must be a flat array of strings.
+- If a field has no data, use empty string "" or empty array [].
+- targetRole: infer the most likely job title this person is targeting.
+
+RESUME:
+`;
+
+  try {
+    let parsedResult;
+
+    if (genAI) {
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash',
+        generationConfig: { temperature: 0.1, topP: 0.8 },
+      });
+
+      let result;
+      if (pdfBase64) {
+        // Gemini can natively read PDF files
+        result = await withTimeout(
+          model.generateContent([
+            PARSE_PROMPT,
+            {
+              inlineData: {
+                mimeType: 'application/pdf',
+                data: pdfBase64,
+              },
+            },
+          ]),
+          60000
+        );
+      } else {
+        result = await withTimeout(
+          model.generateContent(PARSE_PROMPT + resumeText),
+          45000
+        );
+      }
+      parsedResult = safeParseJson(result.response.text());
+    } else if (groq && resumeText) {
+      // Groq fallback — text only (no PDF support)
+      const result = await withTimeout(
+        groq.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'You are a resume parser. Return ONLY valid JSON, no markdown.' },
+            { role: 'user', content: PARSE_PROMPT + resumeText },
+          ],
+          model: 'llama-3.3-70b-versatile',
+          max_tokens: 3000,
+          temperature: 0.1,
+        }),
+        45000
+      );
+      parsedResult = safeParseJson(result.choices[0]?.message?.content || '{}');
+    } else {
+      return res.status(503).json({ error: 'AI service unavailable. Please try again.' });
+    }
+
+    // Validate / sanitize output
+    const sections = parsedResult.sections || {};
+    if (!sections.personal) sections.personal = {};
+    if (!Array.isArray(sections.experience)) sections.experience = [];
+    if (!Array.isArray(sections.education)) sections.education = [];
+    if (!Array.isArray(sections.skills)) sections.skills = [];
+    if (!Array.isArray(sections.projects)) sections.projects = [];
+    if (!Array.isArray(sections.certifications)) sections.certifications = [];
+    if (!Array.isArray(sections.awards)) sections.awards = [];
+    if (!Array.isArray(sections.languages)) sections.languages = [];
+
+    return res.json({
+      sections,
+      targetRole: toText(parsedResult.targetRole).slice(0, 160),
+      title: toText(parsedResult.title || sections.personal?.name || fileName || 'Uploaded Resume').slice(0, 100),
+    });
+  } catch (e) {
+    console.error('[parse-resume] Failed:', e.message);
+    return res.status(500).json({ error: 'Failed to parse resume. Please try again.' });
+  }
+});
+
 // ─── Improve Bullet ───────────────────────────────────────────────────────────
 app.post(
   '/api/ai/improve-bullet',

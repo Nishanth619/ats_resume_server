@@ -5,6 +5,7 @@ enum AiFeature {
   autoTailor,
   coverLetter,
   improveBullet,
+  resumeUpload, // PDF upload & parse
 }
 
 /// Cloud-backed daily usage tracker.
@@ -50,6 +51,8 @@ class UsageTracker {
         return 'tailor_limits';
       case AiFeature.improveBullet:
         return 'bullet_limits';
+      case AiFeature.resumeUpload:
+        return 'rate_limits'; // Same daily pool as ATS check (server manages)
     }
   }
 
