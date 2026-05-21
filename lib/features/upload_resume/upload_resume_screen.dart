@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
@@ -30,7 +29,7 @@ class _UploadResumeScreenState extends ConsumerState<UploadResumeScreen>
   String? _error;
   String? _fileName;
   ParsedResumeResult? _parsed;
-  String? _createdResumeId;
+  String? _createdResumeId; // kept for backward compat — mirrors _createdResume?.id
 
   late AnimationController _pulseCtrl;
   late Animation<double> _pulse;
@@ -180,37 +179,57 @@ class _UploadResumeScreenState extends ConsumerState<UploadResumeScreen>
   }
 
   // ── Step 3: Save to Firestore + navigate ─────────────────────────────────
-  Future<String> _createResumeInFirestore() async {
-    if (_createdResumeId != null) return _createdResumeId!;
+  ResumeModel? _createdResume; // keep the full model, not just the id
+
+  Future<ResumeModel> _createResumeInFirestore() async {
+    if (_createdResume != null) return _createdResume!;
 
     final uid = ref.read(authStateProvider).value!.uid;
     final p = _parsed!;
 
+    // Build the resume with a placeholder id — Firestore will assign the real one
     final resume = ResumeModel(
-      id: const Uuid().v4(),
-      title: p.title.isNotEmpty ? p.title : (_fileName ?? 'Uploaded Resume'),
+      id: '',
+      title: p.title.isNotEmpty ? p.title : (_fileName?.replaceAll('.pdf', '') ?? 'Uploaded Resume'),
       lastEdited: DateTime.now(),
       targetRole: p.targetRole,
       sections: p.sections,
     );
 
-    final id = await ref
+    final firestoreId = await ref
         .read(firestoreServiceProvider)
         .createResume(uid, resume);
 
-    _createdResumeId = id;
-    return id;
+    // Rebuild with the real Firestore document ID
+    _createdResume = ResumeModel(
+      id: firestoreId,
+      title: resume.title,
+      lastEdited: resume.lastEdited,
+      targetRole: resume.targetRole,
+      sections: resume.sections,
+    );
+    _createdResumeId = firestoreId;
+    return _createdResume!;
   }
 
   Future<void> _navigateTo(String route) async {
     setState(() => _step = _UploadStep.done);
     try {
-      final id = await _createResumeInFirestore();
-      if (mounted) context.pushReplacement('$route/$id');
+      final resume = await _createResumeInFirestore();
+
+      // Pre-seed the notifier so the destination screen finds the resume
+      // instantly without waiting for a Firestore stream round-trip
+      if (mounted) {
+        ref
+            .read(resumeNotifierProvider(resume.id).notifier)
+            .seed(resume);
+      }
+
+      if (mounted) context.pushReplacement('$route/${resume.id}');
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Failed to save resume: $e';
+          _error = 'Failed to save resume: ${e.toString().replaceFirst('Exception: ', '')}';
           _step = _UploadStep.preview;
         });
       }
@@ -232,6 +251,7 @@ class _UploadResumeScreenState extends ConsumerState<UploadResumeScreen>
                 _parsed = null;
                 _fileName = null;
                 _createdResumeId = null;
+                _createdResume = null;
               }),
               icon: Icon(Icons.upload_file_rounded,
                   size: 18, color: AppColors.primaryLight),

@@ -122,6 +122,13 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
     return ref.watch(resumeStreamProvider(resumeId)).value;
   }
 
+  /// Pre-seed local state with a known ResumeModel.
+  /// Used after creating a resume from an upload so that
+  /// fetchResumeRobustly finds it instantly without a Firestore round-trip.
+  void seed(ResumeModel resume) {
+    state = resume;
+  }
+
   Future<ResumeModel> _ensureResumeLoaded({
     String emptyResumeMessage =
         'Cannot tailor an empty unsaved resume. Please save your resume first.',

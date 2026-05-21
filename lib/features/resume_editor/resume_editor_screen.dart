@@ -146,12 +146,22 @@ class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
   Map<String, dynamic> _sectionMap(dynamic raw) =>
       _cloneSection(raw as Map? ?? {}) as Map<String, dynamic>;
 
-  List<Map<String, dynamic>> _sectionList(dynamic raw) => (raw as List? ?? [])
-      .map((e) => _cloneSection(e) as Map<String, dynamic>)
-      .toList();
+  List<Map<String, dynamic>> _sectionList(dynamic raw) {
+    final list = raw as List? ?? [];
+    return list.map((e) {
+      if (e is Map) return _cloneSection(e) as Map<String, dynamic>;
+      // Gracefully handle String or other primitives stored in list sections
+      return <String, dynamic>{'value': e?.toString() ?? ''};
+    }).toList();
+  }
 
-  List<String> _sectionStrList(dynamic raw) =>
-      List<String>.from(raw as List? ?? []);
+  List<String> _sectionStrList(dynamic raw) {
+    final list = raw as List? ?? [];
+    return list
+        .map((e) => e?.toString().trim() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
