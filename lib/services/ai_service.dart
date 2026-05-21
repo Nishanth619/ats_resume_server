@@ -544,14 +544,50 @@ class ParsedResumeResult {
   });
 
   factory ParsedResumeResult.fromJson(Map<String, dynamic> j) {
-    final sections = _asMap(j['sections']) ?? {};
-    // Ensure required keys exist
-    sections.putIfAbsent('personal', () => <String, dynamic>{});
-    sections.putIfAbsent('experience', () => <dynamic>[]);
-    sections.putIfAbsent('education', () => <dynamic>[]);
-    sections.putIfAbsent('skills', () => <dynamic>[]);
-    sections.putIfAbsent('projects', () => <dynamic>[]);
-    sections.putIfAbsent('certifications', () => <dynamic>[]);
+    final rawSections = _asMap(j['sections']) ?? {};
+
+    // Deep-normalize personal — must be Map<String, dynamic>
+    final personal = _asMap(rawSections['personal']) ?? {};
+
+    // Deep-normalize list sections — each item must be Map<String, dynamic>
+    List<Map<String, dynamic>> _normMapList(dynamic raw) {
+      if (raw is! List) return [];
+      return raw
+          .map((item) {
+            if (item is Map) return Map<String, dynamic>.from(item);
+            return <String, dynamic>{};
+          })
+          .where((m) => m.isNotEmpty)
+          .toList();
+    }
+
+    // Skills must be a flat List<String> — handle both String items and Map items
+    List<String> _normSkills(dynamic raw) {
+      if (raw is! List) return [];
+      return raw
+          .map((s) {
+            if (s is String) return s.trim();
+            if (s is Map) {
+              // e.g. {"name": "JavaScript"} → "JavaScript"
+              return _toTextValue(s['name'] ?? s.values.firstOrNull).trim();
+            }
+            return s.toString().trim();
+          })
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+
+    final sections = <String, dynamic>{
+      'personal': Map<String, dynamic>.from(personal),
+      'experience': _normMapList(rawSections['experience']),
+      'education': _normMapList(rawSections['education']),
+      'skills': _normSkills(rawSections['skills']),
+      'projects': _normMapList(rawSections['projects']),
+      'certifications': _normMapList(rawSections['certifications']),
+      'awards': _normSkills(rawSections['awards']),   // flat strings
+      'languages': _normMapList(rawSections['languages']),
+    };
+
     return ParsedResumeResult(
       sections: sections,
       targetRole: _toTextValue(j['targetRole']),

@@ -153,9 +153,11 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
     buf.writeln('WORK EXPERIENCE');
     for (final e in (resume.sections['experience'] as List? ?? [])) {
       final em = e is Map ? e : <String, dynamic>{};
+      // Truncate per-entry description to avoid ballooning total length
+      final desc = _str(em['description']);
       buf.writeln(
         '${_str(em['title'])} at ${_str(em['company'])} (${_str(em['dates'])})\n'
-        '${_str(em['description'])}',
+        '${desc.length > 600 ? '${desc.substring(0, 600)}…' : desc}',
       );
     }
     buf.writeln('EDUCATION');
@@ -168,9 +170,24 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
     final skills = (resume.sections['skills'] as List? ?? [])
         .map((s) => _str(s))
         .where((s) => s.isNotEmpty)
+        .take(60) // cap skills to prevent overflow
         .join(', ');
     buf.writeln('SKILLS\n$skills');
-    return buf.toString();
+
+    // Projects (optional — only if space allows)
+    for (final e in (resume.sections['projects'] as List? ?? [])) {
+      final em = e is Map ? e : <String, dynamic>{};
+      final desc = _str(em['description']);
+      buf.writeln(
+        'PROJECT: ${_str(em['name'])}\n'
+        '${desc.length > 300 ? '${desc.substring(0, 300)}…' : desc}',
+      );
+    }
+
+    // Hard cap at 14,500 chars — backend rejects > 15,000
+    const maxChars = 14500;
+    final raw = buf.toString();
+    return raw.length > maxChars ? raw.substring(0, maxChars) : raw;
   }
 
   @override
