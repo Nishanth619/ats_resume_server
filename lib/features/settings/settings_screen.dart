@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/subscription_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
+import '../../core/widgets/pro_upgrade_sheet.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -114,6 +115,131 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'Permanently remove your account data',
               onTap: () => _confirmAccountDeletion(context, ref),
             ),
+
+            SizedBox(height: 20),
+            _SectionLabel(label: 'Subscription'),
+            if (!isPro) ...[  
+              // Free user — show upgrade tile
+              Container(
+                margin: EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.accentGold.withValues(alpha: 0.12),
+                      AppColors.accent.withValues(alpha: 0.06),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.accentGold.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: ListTile(
+                  onTap: () => showProUpgradeSheet(context, ref),
+                  leading: Container(
+                    width: 38, height: 38,
+                    decoration: BoxDecoration(
+                      color: AppColors.accentGold,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.workspace_premium_rounded,
+                      color: Colors.white, size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    'Upgrade to Pro',
+                    style: TextStyle(
+                      color: context.appColors.textPrimary,
+                      fontWeight: FontWeight.w700, fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Unlimited AI, all templates, DOCX export',
+                    style: TextStyle(
+                      color: context.appColors.textMuted, fontSize: 12,
+                    ),
+                  ),
+                  trailing: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentGold,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'UPGRADE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10, fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ] else ...[
+              // Pro user — show status + manage link
+              _SettingsTile(
+                icon: Icons.workspace_premium_rounded,
+                label: '👑 Pro Plan Active',
+                subtitle: 'Thank you for supporting ATS.ai!',
+                onTap: () {},
+                trailing: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AppColors.accentGold.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    'ACTIVE',
+                    style: TextStyle(
+                      color: AppColors.accentGold,
+                      fontSize: 10, fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+              _SettingsTile(
+                icon: Icons.manage_subscriptions_outlined,
+                label: 'Manage Subscription',
+                subtitle: 'Cancel or change plan on Google Play',
+                onTap: () => _launchUrl(
+                  'https://play.google.com/store/account/subscriptions',
+                ),
+              ),
+              _SettingsTile(
+                icon: Icons.restore_rounded,
+                label: 'Restore Purchases',
+                subtitle: 'Sync Pro status from previous purchase',
+                onTap: () async {
+                  final uid = ref.read(authStateProvider).value?.uid ?? '';
+                  if (uid.isEmpty) return;
+                  final result = await ref
+                      .read(subscriptionProvider.notifier)
+                      .restorePurchases(uid: uid);
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(
+                      result == RestoreResult.restored
+                          ? '✅ Pro subscription restored!'
+                          : result == RestoreResult.nothingToRestore
+                              ? 'No previous purchases found.'
+                              : 'Restore failed. Please try again.',
+                    ),
+                    backgroundColor: result == RestoreResult.restored
+                        ? AppColors.scoreGreen
+                        : AppColors.scoreOrange,
+                    behavior: SnackBarBehavior.floating,
+                  ));
+                },
+              ),
+            ],
 
             SizedBox(height: 20),
             _SectionLabel(label: 'Legal'),

@@ -9,6 +9,8 @@ import 'firestore_service.dart';
 /// Entitlement ID configured in the RevenueCat dashboard.
 const _kProEntitlement = 'pro';
 
+// ─── Subscription State ───────────────────────────────────────────────────────
+
 final subscriptionProvider =
     NotifierProvider<SubscriptionNotifier, bool>(SubscriptionNotifier.new);
 
@@ -16,36 +18,39 @@ class SubscriptionNotifier extends Notifier<bool> {
   @override
   bool build() => false;
 
-  // ── Sync plan from Firestore on sign-in ────────────────────────────────────
+  /// Sync plan from Firestore on sign-in / user doc change.
   void setFromUserModel(String plan) {
     state = plan == 'pro';
   }
 
-  // ── Purchase Pro ──────────────────────────────────────────────────────────
-  Future<bool> purchasePro({required String uid}) async {
+  /// Purchase Pro via RevenueCat.
+  Future<PurchaseResult> purchasePro({required String uid}) async {
     final key = AppConfig.revenueCatKey;
     if (key.isEmpty) {
-      debugPrint('[Subscription] RevenueCat key not set — cannot purchase.');
-      return false;
+      return PurchaseResult.billingUnavailable;
     }
 
     try {
       final offerings = await Purchases.getOfferings();
       final current = offerings.current;
       if (current == null || current.availablePackages.isEmpty) {
-        debugPrint('[Subscription] No offerings available.');
-        return false;
+        return PurchaseResult.noOfferings;
       }
 
-      // Use the first package (typically monthly or lifetime)
-      final package = current.availablePackages.first;
-      // In purchases_flutter v8+, purchasePackage returns CustomerInfo directly
+      // Prefer annual if available, else monthly, else first.
+      final package = current.availablePackages.firstWhere(
+        (p) => p.packageType == PackageType.annual,
+        orElse: () => current.availablePackages.firstWhere(
+          (p) => p.packageType == PackageType.monthly,
+          orElse: () => current.availablePackages.first,
+        ),
+      );
+
       final customerInfo = await Purchases.purchasePackage(package);
       final isPro =
           customerInfo.entitlements.all[_kProEntitlement]?.isActive == true;
       state = isPro;
 
-      // Mirror plan in Firestore so the backend rate-limit check stays in sync
       if (isPro) {
         try {
           await ref
@@ -54,23 +59,23 @@ class SubscriptionNotifier extends Notifier<bool> {
         } catch (e) {
           debugPrint('[Subscription] Firestore plan sync failed: $e');
         }
+        return PurchaseResult.success;
       }
-      return isPro;
+      return PurchaseResult.notEntitled;
     } on PurchasesErrorCode catch (e) {
       if (e == PurchasesErrorCode.purchaseCancelledError) {
-        debugPrint('[Subscription] User cancelled purchase.');
-        return false;
+        return PurchaseResult.cancelled;
       }
       debugPrint('[Subscription] Purchase error: $e');
-      rethrow;
+      return PurchaseResult.error;
     } catch (e) {
       debugPrint('[Subscription] Unexpected purchase error: $e');
-      rethrow;
+      return PurchaseResult.error;
     }
   }
 
-  // ── Restore Purchases ─────────────────────────────────────────────────────
-  Future<void> restorePurchases({required String uid}) async {
+  /// Restore Purchases via RevenueCat, fallback to Firestore.
+  Future<RestoreResult> restorePurchases({required String uid}) async {
     try {
       final key = AppConfig.revenueCatKey;
       if (key.isNotEmpty) {
@@ -78,14 +83,13 @@ class SubscriptionNotifier extends Notifier<bool> {
         final isPro =
             info.entitlements.all[_kProEntitlement]?.isActive == true;
         state = isPro;
-
-        // Mirror in Firestore
         if (isPro) {
           await ref
               .read(firestoreServiceProvider)
               .updateUser(uid, {'plan': 'pro'});
+          return RestoreResult.restored;
         }
-        return;
+        return RestoreResult.nothingToRestore;
       }
     } catch (e) {
       debugPrint('[Subscription] RevenueCat restore failed: $e');
@@ -94,13 +98,16 @@ class SubscriptionNotifier extends Notifier<bool> {
     // Fallback to Firestore plan field
     try {
       final doc = await ref.read(firestoreServiceProvider).getUser(uid);
-      state = (doc?.plan ?? 'free') == 'pro';
+      final isPro = (doc?.plan ?? 'free') == 'pro';
+      state = isPro;
+      return isPro ? RestoreResult.restored : RestoreResult.nothingToRestore;
     } catch (e) {
       debugPrint('[Subscription] Firestore restore failed: $e');
+      return RestoreResult.error;
     }
   }
 
-  // ── Revoke Pro (admin / testing) ──────────────────────────────────────────
+  /// Revoke Pro (admin / testing only).
   Future<void> revokePro({required String uid}) async {
     await ref
         .read(firestoreServiceProvider)
@@ -109,20 +116,79 @@ class SubscriptionNotifier extends Notifier<bool> {
   }
 }
 
-/// Helper: initialise RevenueCat SDK once at app start.
-/// Call this from main() before runApp().
+// ─── Result Enums ─────────────────────────────────────────────────────────────
+
+enum PurchaseResult {
+  success,
+  cancelled,
+  billingUnavailable,
+  noOfferings,
+  notEntitled,
+  error,
+}
+
+enum RestoreResult {
+  restored,
+  nothingToRestore,
+  error,
+}
+
+// ─── Offerings / Price Providers ─────────────────────────────────────────────
+
+/// Fetches the current RevenueCat offerings. Returns null if billing is
+/// unavailable or no offerings are configured yet.
+final offeringsProvider = FutureProvider<Offerings?>((ref) async {
+  final key = AppConfig.revenueCatKey;
+  if (key.isEmpty) return null;
+  try {
+    return await Purchases.getOfferings();
+  } catch (e) {
+    debugPrint('[Subscription] Failed to fetch offerings: $e');
+    return null;
+  }
+});
+
+/// Provides the first available package from the current offering.
+final activePackageProvider = FutureProvider<Package?>((ref) async {
+  final offerings = await ref.watch(offeringsProvider.future);
+  if (offerings == null) return null;
+  final current = offerings.current;
+  if (current == null || current.availablePackages.isEmpty) return null;
+  // Prefer monthly for display, then annual, then first
+  return current.availablePackages.firstWhere(
+    (p) => p.packageType == PackageType.monthly,
+    orElse: () => current.availablePackages.first,
+  );
+});
+
+/// Returns a human-readable price string, e.g. "₹99 / month"
+/// Returns null if billing is unavailable.
+final subscriptionPriceProvider = FutureProvider<String?>((ref) async {
+  final pkg = await ref.watch(activePackageProvider.future);
+  if (pkg == null) return null;
+  final product = pkg.storeProduct;
+  final period = pkg.packageType == PackageType.annual
+      ? '/ year'
+      : pkg.packageType == PackageType.monthly
+          ? '/ month'
+          : '';
+  return '${product.priceString} $period'.trim();
+});
+
+// ─── RevenueCat SDK Init ──────────────────────────────────────────────────────
+
+/// Initialise RevenueCat SDK once at app start. Call from main() before runApp().
 Future<void> initRevenueCat() async {
   final key = AppConfig.revenueCatKey;
   if (key.isEmpty) {
     debugPrint(
       '[RevenueCat] Key not set — skipping initialisation. '
-      'Pass REVENUECAT_ANDROID_KEY / REVENUECAT_IOS_KEY via --dart-define.',
+      'Pass REVENUECAT_ANDROID_KEY via --dart-define.',
     );
     return;
   }
 
   try {
-    // Only configure on real devices; skip on web/desktop
     if (Platform.isAndroid || Platform.isIOS) {
       await Purchases.configure(PurchasesConfiguration(key));
       debugPrint('[RevenueCat] SDK initialised successfully.');
@@ -131,6 +197,3 @@ Future<void> initRevenueCat() async {
     debugPrint('[RevenueCat] Initialisation failed: $e');
   }
 }
-
-final subscriptionPriceProvider = Provider<String?>((ref) => null);
-final firestoreServiceRef = firestoreServiceProvider;

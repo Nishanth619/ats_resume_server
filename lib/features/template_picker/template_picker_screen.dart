@@ -988,38 +988,88 @@ class _ProPaywallSheet extends ConsumerStatefulWidget {
 }
 
 class _ProPaywallSheetState extends ConsumerState<_ProPaywallSheet> {
-  final bool _loading = false;
+  bool _loading = false;
   String? _error;
-
-  String get _displayPrice {
-    final price = ref.watch(subscriptionPriceProvider);
-    return price ?? 'Billing not available';
-  }
-
-  Future<void> _upgrade() async {
-    setState(
-      () => _error =
-          'Paid upgrades are disabled until Google Play Billing is configured.',
-    );
-  }
-
-  Future<void> _restore() async {
-    setState(
-      () => _error =
-          'Restore purchases will be enabled after Google Play Billing is configured.',
-    );
-  }
 
   static const _features = [
     ('PRO', '5 Elite Pro Templates', 'FAANG, Fortune 500 & Executive designs'),
-    ('AI', 'Unlimited ATS Checks', 'Free users get 3/day'),
-    ('+', 'Priority AI Generation', 'Faster, higher-quality responses'),
-    ('CV', 'Unlimited Resumes', 'Free users limited to 3'),
-    ('DOC', 'DOCX Export', 'Word-compatible export for recruiters'),
+    ('AI', 'Unlimited ATS Checks', 'Free users get 5/day'),
+    ('+', 'Unlimited AI Tailoring', 'Free users get 5/day'),
+    ('CV', 'Unlimited Cover Letters', 'Free users get 5/day'),
+    ('DOC', 'DOCX Word Export', 'Word-compatible export for recruiters'),
   ];
+
+  Future<void> _upgrade() async {
+    if (_loading) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final result = await ref
+        .read(subscriptionProvider.notifier)
+        .purchasePro(uid: widget.uid);
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    switch (result) {
+      case PurchaseResult.success:
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('🎉 Welcome to Pro! All features unlocked.'),
+            backgroundColor: AppColors.scoreGreen,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      case PurchaseResult.cancelled:
+        break;
+      case PurchaseResult.billingUnavailable:
+        setState(() => _error =
+            'Billing is not configured yet. Please check back soon.');
+      case PurchaseResult.noOfferings:
+        setState(() => _error =
+            'No subscription plans found. Please try again later.');
+      case PurchaseResult.notEntitled:
+        setState(() => _error =
+            'Purchase complete but entitlement not found. Try restoring.');
+      case PurchaseResult.error:
+        setState(() => _error = 'Purchase failed. Please try again.');
+    }
+  }
+
+  Future<void> _restore() async {
+    if (_loading) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final result = await ref
+        .read(subscriptionProvider.notifier)
+        .restorePurchases(uid: widget.uid);
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    switch (result) {
+      case RestoreResult.restored:
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('✅ Pro subscription restored!'),
+            backgroundColor: AppColors.scoreGreen,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      case RestoreResult.nothingToRestore:
+        setState(() => _error = 'No previous purchases found for this account.');
+      case RestoreResult.error:
+        setState(() => _error = 'Restore failed. Please try again.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final priceAsync = ref.watch(subscriptionPriceProvider);
+
     return Padding(
       padding: EdgeInsets.fromLTRB(
         24,
@@ -1032,6 +1082,7 @@ class _ProPaywallSheetState extends ConsumerState<_ProPaywallSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Handle bar
             Center(
               child: Container(
                 width: 40,
@@ -1043,56 +1094,83 @@ class _ProPaywallSheetState extends ConsumerState<_ProPaywallSheet> {
               ),
             ),
             const SizedBox(height: 20),
-            Text(
-              'PRO',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: context.appColors.textPrimary,
-                fontSize: 42,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1,
+
+            // Crown icon + title
+            Center(
+              child: Container(
+                width: 72, height: 72,
+                decoration: BoxDecoration(
+                  color: AppColors.accentGold,
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.accentGold.withValues(alpha: 0.4),
+                      blurRadius: 24, offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: Colors.white, size: 36,
+                ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
-              'ATS.ai Pro Coming Soon',
+              'ATS.ai Pro',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: context.appColors.textPrimary,
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
+                fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 0.5,
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              'Paid upgrades are disabled until store billing is fully live.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: context.appColors.textSecondary,
-                fontSize: 13,
-                height: 1.5,
+
+            // Price
+            priceAsync.when(
+              data: (price) => Text(
+                price ?? 'Billing unavailable',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: price != null ? AppColors.accentGold : context.appColors.textMuted,
+                  fontSize: 16, fontWeight: FontWeight.w700,
+                ),
+              ),
+              loading: () => const Center(
+                child: SizedBox(
+                  height: 16, width: 100,
+                  child: LinearProgressIndicator(
+                    color: AppColors.accentGold,
+                    backgroundColor: Color(0x1AF59E0B),
+                  ),
+                ),
+              ),
+              error: (_, __) => Text(
+                'Price unavailable',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.appColors.textMuted, fontSize: 14),
               ),
             ),
             const SizedBox(height: 24),
+
+            // Feature list
             ..._features.map(
               (f) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 36, height: 36,
                       decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
+                        color: AppColors.accentGold.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(
                         child: Text(
                           f.$1,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
+                            color: AppColors.accentGold,
+                            fontSize: 10, fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
@@ -1102,89 +1180,92 @@ class _ProPaywallSheetState extends ConsumerState<_ProPaywallSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            f.$2,
+                          Text(f.$2,
                             style: TextStyle(
                               color: context.appColors.textPrimary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            f.$3,
+                              fontWeight: FontWeight.w700, fontSize: 13,
+                            )),
+                          Text(f.$3,
                             style: TextStyle(
-                              color: context.appColors.textMuted,
-                              fontSize: 11,
-                            ),
-                          ),
+                              color: context.appColors.textMuted, fontSize: 11,
+                            )),
                         ],
                       ),
                     ),
+                    const Icon(Icons.check_circle_rounded,
+                        color: AppColors.scoreGreen, size: 18),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                _displayPrice,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.primaryLight,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
-              ),
-            ),
             const SizedBox(height: 16),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+
+            // Error
+            if (_error != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                ),
                 child: Text(
                   _error!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.scoreRed,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: AppColors.scoreRed, fontSize: 12),
                 ),
               ),
-            GradientButton(
-              label: 'Billing Not Available',
-              onPressed: _upgrade,
-              gradient: AppColors.goldGradient,
-              icon: _loading
+              const SizedBox(height: 10),
+            ],
+
+            // Subscribe button
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentGold,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+              onPressed: _loading
+                  ? null
+                  : priceAsync.whenOrNull(data: (p) => p == null ? null : _upgrade),
+              child: _loading
                   ? const SizedBox(
-                      width: 16,
-                      height: 16,
+                      height: 20, width: 20,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+                        color: Colors.white, strokeWidth: 2,
                       ),
                     )
-                  : const Icon(
-                      Icons.star_rounded,
-                      color: Colors.white,
-                      size: 18,
+                  : priceAsync.when(
+                      data: (price) => Text(
+                        price == null ? 'Billing Unavailable' : 'Subscribe — $price',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 16,
+                        ),
+                      ),
+                      loading: () => const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2,
+                        ),
+                      ),
+                      error: (_, __) => const Text('Unavailable',
+                          style: TextStyle(fontWeight: FontWeight.w800)),
                     ),
             ),
             const SizedBox(height: 10),
+
+            // Restore
             TextButton(
               onPressed: _loading ? null : _restore,
               child: Text(
                 'Restore Purchases',
                 style: TextStyle(
                   color: context.appColors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 13, fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -1195,9 +1276,16 @@ class _ProPaywallSheetState extends ConsumerState<_ProPaywallSheet> {
                 style: TextStyle(color: context.appColors.textMuted),
               ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Subscriptions are managed by Google Play.\nCancel anytime in Play Store.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.appColors.textMuted, fontSize: 11),
+            ),
           ],
         ),
       ),
     );
   }
 }
+
