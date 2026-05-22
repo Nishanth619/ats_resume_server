@@ -47,16 +47,17 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
   @override
   void didUpdateWidget(covariant PersonalInfoSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    try {
-      final newJson = jsonEncode(widget.data);
-      final currentJson = jsonEncode(_data);
-      if (newJson != currentJson) {
-        _data = Map.from(widget.data);
-        if (_summaryController.text != (_data['summary'] ?? '')) {
-          _summaryController.text = _data['summary'] ?? '';
-        }
+    // Sync local state if parent data changed (e.g., from AI tailoring or cloud sync)
+    final newSummary = widget.data['summary']?.toString() ?? '';
+    if (newSummary != _data['summary']?.toString()) {
+      _data = Map<String, dynamic>.from(widget.data);
+      if (_summaryController.text != newSummary) {
+        _summaryController.text = newSummary;
       }
-    } catch (_) {}
+    } else {
+      // Just update the reference if other fields changed
+      _data = Map<String, dynamic>.from(widget.data);
+    }
   }
 
   @override
@@ -116,7 +117,8 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
   }
 
   Future<void> _generateSummary() async {
-    final resume = ref.read(resumeStreamProvider(widget.resumeId)).value;
+    // Use the notifier state to get the most up-to-date content (including unsaved keystrokes)
+    final resume = ref.read(resumeNotifierProvider(widget.resumeId));
     if (resume == null) return;
 
     final exps = (resume.sections['experience'] as List? ?? [])
@@ -208,7 +210,7 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                         initialValue: _data['name'] ?? '',
                         decoration: InputDecoration(
                           labelText: 'Full Name',
-                          border: OutlineInputBorder(),
+                          border: UnderlineInputBorder(),
                         ),
                         onChanged: (v) => _update('name', v),
                       ),
@@ -223,7 +225,7 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                         initialValue: _data['email'] ?? '',
                         decoration: InputDecoration(
                           labelText: 'Email',
-                          border: OutlineInputBorder(),
+                          border: UnderlineInputBorder(),
                         ),
                         onChanged: (v) => _update('email', v),
                       ),
@@ -234,7 +236,7 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                         initialValue: _data['phone'] ?? '',
                         decoration: InputDecoration(
                           labelText: 'Phone',
-                          border: OutlineInputBorder(),
+                          border: UnderlineInputBorder(),
                         ),
                         onChanged: (v) => _update('phone', v),
                       ),
@@ -249,7 +251,7 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                         initialValue: _data['location'] ?? '',
                         decoration: InputDecoration(
                           labelText: 'Location',
-                          border: OutlineInputBorder(),
+                          border: UnderlineInputBorder(),
                         ),
                         onChanged: (v) => _update('location', v),
                       ),
@@ -260,7 +262,7 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                         initialValue: _data['linkedin'] ?? '',
                         decoration: InputDecoration(
                           labelText: 'LinkedIn URL',
-                          border: OutlineInputBorder(),
+                          border: UnderlineInputBorder(),
                         ),
                         onChanged: (v) => _update('linkedin', v),
                       ),
@@ -272,7 +274,7 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
                   controller: _summaryController,
                   decoration: InputDecoration(
                     labelText: 'Professional Summary',
-                    border: OutlineInputBorder(),
+                    border: UnderlineInputBorder(),
                     suffixIcon: _isGeneratingSummary
                         ? Padding(
                             padding: EdgeInsets.all(12.0),

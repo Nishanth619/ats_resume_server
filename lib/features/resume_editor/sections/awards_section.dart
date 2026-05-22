@@ -65,7 +65,7 @@ class _AwardsState extends State<AwardsSection>
                           initialValue: _items[i]['title'],
                           decoration: const InputDecoration(
                             labelText: 'Award Title',
-                            border: OutlineInputBorder(),
+                            border: UnderlineInputBorder(),
                           ),
                           onChanged: (v) => _update(i, 'title', v),
                         ),
@@ -82,7 +82,7 @@ class _AwardsState extends State<AwardsSection>
                     initialValue: _items[i]['issuer'],
                     decoration: const InputDecoration(
                       labelText: 'Issuer / Organization',
-                      border: OutlineInputBorder(),
+                      border: UnderlineInputBorder(),
                     ),
                     onChanged: (v) => _update(i, 'issuer', v),
                   ),
@@ -91,7 +91,7 @@ class _AwardsState extends State<AwardsSection>
                     initialValue: _items[i]['date'],
                     decoration: const InputDecoration(
                       labelText: 'Date / Year',
-                      border: OutlineInputBorder(),
+                      border: UnderlineInputBorder(),
                     ),
                     onChanged: (v) => _update(i, 'date', v),
                   ),
@@ -100,7 +100,7 @@ class _AwardsState extends State<AwardsSection>
                     initialValue: _items[i]['description'],
                     decoration: const InputDecoration(
                       labelText: 'Description (Optional)',
-                      border: OutlineInputBorder(),
+                      border: UnderlineInputBorder(),
                     ),
                     maxLines: 2,
                     onChanged: (v) => _update(i, 'description', v),

@@ -75,16 +75,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
-  Future<void> _googleSignIn() async {
-    setState(() => _loading = true);
-    try {
-      final cred = await ref.read(authServiceProvider).signInWithGoogle();
-      if (cred != null && mounted) context.go('/dashboard');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -212,54 +202,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               onPressed: _loading ? null : _submit,
                               isLoading: _loading,
                             ),
-                            SizedBox(height: 16),
-
-                            // Divider
-                            Row(children: [
-                              Expanded(
-                                  child: Divider(color: context.appColors.border)),
-                              Padding(
-                                padding:
-                                    EdgeInsets.symmetric(horizontal: 12),
-                                child: Text('or',
-                                    style: TextStyle(
-                                        color: context.appColors.textMuted,
-                                        fontSize: 13)),
-                              ),
-                              Expanded(
-                                  child: Divider(color: context.appColors.border)),
-                            ]),
-                            SizedBox(height: 16),
-
-                            // Google button
-                            GestureDetector(
-                              onTap: _loading ? null : _googleSignIn,
-                              child: Container(
-                                height: 52,
-                                decoration: BoxDecoration(
-                                  color: context.appColors.card2,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                      color: context.appColors.border, width: 1.5),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text('G',
-                                        style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w800,
-                                            color: Colors.white)),
-                                    SizedBox(width: 10),
-                                    Text('Continue with Google',
-                                        style: TextStyle(
-                                            color: context.appColors.textPrimary,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14)),
-                                  ],
-                                ),
-                              ),
-                            ),
+                            SizedBox(height: 8),
                           ],
                         ),
                       ),

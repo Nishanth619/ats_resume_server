@@ -91,7 +91,7 @@ class _SkillsState extends State<SkillsSection>
                   controller: _ctrl,
                   decoration: InputDecoration(
                     labelText: 'Add a skill (press Enter or tap +)',
-                    border: const OutlineInputBorder(),
+                    border: const UnderlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.add),
                       onPressed: () => _addSkill(_ctrl.text),

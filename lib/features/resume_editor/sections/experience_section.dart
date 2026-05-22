@@ -191,7 +191,7 @@ class _ExpState extends ConsumerState<ExperienceSection>
                           initialValue: _items[i]['title'],
                           decoration: const InputDecoration(
                             labelText: 'Job Title',
-                            border: OutlineInputBorder(),
+                            border: UnderlineInputBorder(),
                           ),
                           onChanged: (v) => _update(i, 'title', v),
                         ),
@@ -208,7 +208,7 @@ class _ExpState extends ConsumerState<ExperienceSection>
                     initialValue: _items[i]['company'],
                     decoration: const InputDecoration(
                       labelText: 'Company',
-                      border: OutlineInputBorder(),
+                      border: UnderlineInputBorder(),
                     ),
                     onChanged: (v) => _update(i, 'company', v),
                   ),
@@ -217,7 +217,7 @@ class _ExpState extends ConsumerState<ExperienceSection>
                     initialValue: _items[i]['location'],
                     decoration: const InputDecoration(
                       labelText: 'Location',
-                      border: OutlineInputBorder(),
+                      border: UnderlineInputBorder(),
                     ),
                     onChanged: (v) => _update(i, 'location', v),
                   ),
@@ -231,7 +231,7 @@ class _ExpState extends ConsumerState<ExperienceSection>
                     controller: _descControllers[i],
                     decoration: InputDecoration(
                       labelText: 'Description (bullet points)',
-                      border: const OutlineInputBorder(),
+                      border: const UnderlineInputBorder(),
                       suffixIcon: _generatingIndices.contains(i)
                           ? const Padding(
                               padding: EdgeInsets.all(12.0),
@@ -356,7 +356,7 @@ class _DateInputRowState extends State<_DateInputRow> {
             decoration: const InputDecoration(
               labelText: 'Start Date',
               hintText: 'MM/YYYY',
-              border: OutlineInputBorder(),
+              border: UnderlineInputBorder(),
             ),
             autovalidateMode: AutovalidateMode.onUserInteraction,
             validator: _validateDate,
@@ -370,7 +370,7 @@ class _DateInputRowState extends State<_DateInputRow> {
             decoration: const InputDecoration(
               labelText: 'End Date',
               hintText: 'MM/YYYY or Present',
-              border: OutlineInputBorder(),
+              border: UnderlineInputBorder(),
             ),
             autovalidateMode: AutovalidateMode.onUserInteraction,
             validator: _validateDate,

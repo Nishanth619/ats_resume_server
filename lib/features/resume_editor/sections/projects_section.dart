@@ -110,7 +110,7 @@ class _ProjectsState extends State<ProjectsSection>
                           initialValue: _items[i]['name'],
                           decoration: const InputDecoration(
                             labelText: 'Project Name',
-                            border: OutlineInputBorder(),
+                            border: UnderlineInputBorder(),
                           ),
                           onChanged: (v) => _update(i, 'name', v),
                         ),
@@ -128,7 +128,7 @@ class _ProjectsState extends State<ProjectsSection>
                     initialValue: _items[i]['dates'],
                     decoration: const InputDecoration(
                       labelText: 'Dates',
-                      border: OutlineInputBorder(),
+                      border: UnderlineInputBorder(),
                     ),
                     onChanged: (v) => _update(i, 'dates', v),
                   ),
@@ -138,7 +138,7 @@ class _ProjectsState extends State<ProjectsSection>
                     controller: _descControllers[i],
                     decoration: const InputDecoration(
                       labelText: 'Description (bullet points)',
-                      border: OutlineInputBorder(),
+                      border: UnderlineInputBorder(),
                     ),
                     maxLines: 4,
                     onChanged: (v) => _update(i, 'description', v),

@@ -87,7 +87,7 @@ class _EducationState extends State<EducationSection>
                           initialValue: _items[i]['degree'],
                           decoration: const InputDecoration(
                             labelText: 'Degree (e.g. BS Computer Science)',
-                            border: OutlineInputBorder(),
+                            border: UnderlineInputBorder(),
                           ),
                           onChanged: (v) => _update(i, 'degree', v),
                         ),
@@ -105,7 +105,7 @@ class _EducationState extends State<EducationSection>
                     initialValue: _items[i]['institution'],
                     decoration: const InputDecoration(
                       labelText: 'Institution',
-                      border: OutlineInputBorder(),
+                      border: UnderlineInputBorder(),
                     ),
                     onChanged: (v) => _update(i, 'institution', v),
                   ),
@@ -118,7 +118,7 @@ class _EducationState extends State<EducationSection>
                           initialValue: _items[i]['year'],
                           decoration: const InputDecoration(
                             labelText: 'Graduation Year',
-                            border: OutlineInputBorder(),
+                            border: UnderlineInputBorder(),
                           ),
                           onChanged: (v) => _update(i, 'year', v),
                         ),
@@ -130,7 +130,7 @@ class _EducationState extends State<EducationSection>
                           initialValue: _items[i]['gpa'],
                           decoration: const InputDecoration(
                             labelText: 'GPA (Optional)',
-                            border: OutlineInputBorder(),
+                            border: UnderlineInputBorder(),
                           ),
                           onChanged: (v) => _update(i, 'gpa', v),
                         ),

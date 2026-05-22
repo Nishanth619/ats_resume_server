@@ -90,7 +90,7 @@ class _LanguagesState extends State<LanguagesSection>
                         controller: _ctrl,
                         decoration: const InputDecoration(
                           labelText: 'Language (e.g. Spanish)',
-                          border: OutlineInputBorder(),
+                          border: UnderlineInputBorder(),
                         ),
                         onSubmitted: (_) => _addLanguage(),
                       ),
@@ -102,7 +102,7 @@ class _LanguagesState extends State<LanguagesSection>
                         initialValue: _selectedLevel,
                         decoration: const InputDecoration(
                           labelText: 'Level',
-                          border: OutlineInputBorder(),
+                          border: UnderlineInputBorder(),
                         ),
                         items: _levels
                             .map(

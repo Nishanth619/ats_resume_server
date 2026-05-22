@@ -53,7 +53,8 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
       _showProSheet();
       return;
     }
-    if (_isPreviewOpen) return;
+    // Optimistically mark as selected so the highlight moves immediately
+    setState(() => _selectedId = t.id);
     _showTemplatePreview(t);
   }
 
@@ -71,7 +72,6 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
   }
 
   void _showTemplatePreview(ResumeTemplate t) {
-    _isPreviewOpen = true;
     final gradColors = t.gradientColors.map((c) => Color(c)).toList();
 
     showModalBottomSheet(
@@ -300,7 +300,7 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
                   ),
                   indicatorSize: TabBarIndicatorSize.tab,
                   labelColor: Colors.white,
-                  unselectedLabelColor: context.appColors.textSecondary,
+                  unselectedLabelColor: context.appColors.textPrimary,
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
@@ -559,26 +559,30 @@ class _TemplateGrid extends StatelessWidget {
                       else
                         Builder(
                           builder: (context) {
-                            // Use darker green for visibility in both light and dark mode
-                            const freeColor = Color(0xFF059669); // Emerald-600
+                            final isDark =
+                                Theme.of(context).brightness == Brightness.dark;
+                            final freeColor = isDark
+                                ? const Color(0xFF34D399) // brighter in dark
+                                : const Color(0xFF047857); // darker for contrast in light
                             return Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 7,
                                 vertical: 3,
                               ),
                               decoration: BoxDecoration(
-                                color: freeColor.withValues(alpha: 0.13),
+                                color: freeColor.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: freeColor.withValues(alpha: 0.4),
+                                  color: freeColor.withValues(alpha: 0.6),
+                                  width: 1.2,
                                 ),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'FREE',
                                 style: TextStyle(
-                                  color: Color(0xFF059669),
+                                  color: freeColor,
                                   fontSize: 9,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             );

@@ -89,7 +89,7 @@ class _CertificationsState extends State<CertificationsSection>
                           initialValue: _items[i]['name'],
                           decoration: const InputDecoration(
                             labelText: 'Certification Name',
-                            border: OutlineInputBorder(),
+                            border: UnderlineInputBorder(),
                           ),
                           onChanged: (v) => _update(i, 'name', v),
                         ),
@@ -112,7 +112,7 @@ class _CertificationsState extends State<CertificationsSection>
                           initialValue: _items[i]['issuer'],
                           decoration: const InputDecoration(
                             labelText: 'Issuing Organization',
-                            border: OutlineInputBorder(),
+                            border: UnderlineInputBorder(),
                           ),
                           onChanged: (v) => _update(i, 'issuer', v),
                         ),
@@ -124,7 +124,7 @@ class _CertificationsState extends State<CertificationsSection>
                           initialValue: _items[i]['year'],
                           decoration: const InputDecoration(
                             labelText: 'Year',
-                            border: OutlineInputBorder(),
+                            border: UnderlineInputBorder(),
                           ),
                           onChanged: (v) => _update(i, 'year', v),
                         ),
