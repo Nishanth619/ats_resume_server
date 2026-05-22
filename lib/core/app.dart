@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../router/app_router.dart';
-import '../theme/app_theme.dart';
-import '../widgets/app_banner_ad.dart';
-import '../../providers/theme_provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/subscription_service.dart';
+import 'router/app_router.dart';
+import 'theme/app_theme.dart';
+import 'widgets/app_banner_ad.dart';
+import '../providers/theme_provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/subscription_service.dart';
 
 class ATSResumeApp extends ConsumerStatefulWidget {
   const ATSResumeApp({super.key});
