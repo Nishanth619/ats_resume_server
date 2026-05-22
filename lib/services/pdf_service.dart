@@ -21,21 +21,28 @@ class PDFService {
     'black': PdfColor.fromInt(0xFF111827),
   };
 
+  List<Map<String, dynamic>> _normMapList(dynamic raw, String defaultKey) {
+    if (raw is! List) return [];
+    return raw.map((item) {
+      if (item is Map) return Map<String, dynamic>.from(item);
+      return <String, dynamic>{defaultKey: item?.toString() ?? ''};
+    }).toList();
+  }
+
   _ResumeContent _extract(ResumeModel r) {
     return _ResumeContent(
       personal: r.sections['personal'] as Map? ?? {},
-      experience: r.sections['experience'] as List? ?? [],
-      education: r.sections['education'] as List? ?? [],
+      experience: _normMapList(r.sections['experience'], 'title'),
+      education: _normMapList(r.sections['education'], 'degree'),
       skills: (r.sections['skills'] as List? ?? [])
           .map((s) => s.toString())
           .toList(),
-      projects: (r.sections['projects'] as List? ?? [])
-          .whereType<Map>()
+      projects: _normMapList(r.sections['projects'], 'name')
           .map(_normaliseProject)
           .toList(),
-      certifications: r.sections['certifications'] as List? ?? [],
-      awards: r.sections['awards'] as List? ?? [],
-      languages: r.sections['languages'] as List? ?? [],
+      certifications: _normMapList(r.sections['certifications'], 'name'),
+      awards: _normMapList(r.sections['awards'], 'title'),
+      languages: _normMapList(r.sections['languages'], 'language'),
     );
   }
 
