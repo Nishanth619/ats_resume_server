@@ -69,16 +69,13 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.cardDark,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+        border: UnderlineInputBorder(
           borderSide: const BorderSide(color: AppColors.borderDark, width: 1.5),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+        enabledBorder: UnderlineInputBorder(
           borderSide: const BorderSide(color: AppColors.borderDark, width: 1.5),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+        focusedBorder: UnderlineInputBorder(
           borderSide: const BorderSide(color: AppColors.primaryLight, width: 2),
         ),
         labelStyle: GoogleFonts.plusJakartaSans(color: AppColors.textSecondary),
@@ -189,16 +186,13 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surfaceLight,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+        border: UnderlineInputBorder(
           borderSide: const BorderSide(color: AppColors.borderLight, width: 1.5),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+        enabledBorder: UnderlineInputBorder(
           borderSide: const BorderSide(color: AppColors.borderLight, width: 1.5),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+        focusedBorder: UnderlineInputBorder(
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         labelStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF4E6A8A)),

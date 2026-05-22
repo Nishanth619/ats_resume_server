@@ -295,7 +295,7 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
                 child: TabBar(
                   controller: _tabCtrl,
                   indicator: BoxDecoration(
-                    gradient: context.appColors.primaryGradient,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   indicatorSize: TabBarIndicatorSize.tab,
