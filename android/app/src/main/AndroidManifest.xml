@@ -46,6 +46,26 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="atsresumebuilder" android:host="linkedin-callback" />
             </intent-filter>
+
+            <!-- Firebase Auth Dynamic Links Deprecation Migration:
+                 Intercept Hosting links for email link / password reset auth -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                      android:host="ats-resume-app-7a481.firebaseapp.com"
+                      android:pathPrefix="/__/auth/links" />
+            </intent-filter>
+            
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                      android:host="ats-resume-app-7a481.firebaseapp.com"
+                      android:pathPrefix="/__/auth/action" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
