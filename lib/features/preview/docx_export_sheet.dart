@@ -3,10 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/docx_export_service.dart';
 import '../../providers/resume_provider.dart';
+import '../../services/subscription_service.dart';
 import '../../core/constants/app_colors.dart';
-
-// Mock since Pro is skipped
-final isProProvider = Provider<bool>((ref) => false);
+import '../../core/widgets/pro_upgrade_sheet.dart';
 
 /// Call this from ResumePreviewScreen or DownloadScreen
 void showExportSheet(BuildContext context, WidgetRef ref, String resumeId) {
@@ -34,11 +33,10 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
   String _status = '';
 
   Future<void> _exportDocx() async {
-    final isPro = ref.read(isProProvider);
+    final isPro = ref.read(subscriptionProvider);
     if (!isPro) {
-      // Redirect non-Pro users to upgrade screen
       Navigator.pop(context);
-      context.push('/pro');
+      if (mounted) showProUpgradeSheet(context, ref);
       return;
     }
     setState(() {
@@ -74,7 +72,7 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isPro = ref.watch(isProProvider);
+    final isPro = ref.watch(subscriptionProvider);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
       child: Column(
