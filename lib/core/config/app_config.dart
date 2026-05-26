@@ -13,6 +13,7 @@ class AppConfig {
 
   static const revenueCatAndroidKey = String.fromEnvironment(
     'REVENUECAT_ANDROID_KEY',
+    defaultValue: 'goog_HvYrotuqcrUryvNZVPRgFSZDMfv',
   );
   static const revenueCatIosKey = String.fromEnvironment('REVENUECAT_IOS_KEY');
 

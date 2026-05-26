@@ -5,7 +5,7 @@ import '../../services/docx_export_service.dart';
 import '../../providers/resume_provider.dart';
 import '../../services/subscription_service.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/widgets/pro_upgrade_sheet.dart';
+import '../../providers/auth_provider.dart';
 
 /// Call this from ResumePreviewScreen or DownloadScreen
 void showExportSheet(BuildContext context, WidgetRef ref, String resumeId) {
@@ -36,7 +36,10 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
     final isPro = ref.read(subscriptionProvider);
     if (!isPro) {
       Navigator.pop(context);
-      if (mounted) showProUpgradeSheet(context, ref);
+      if (mounted) {
+        final uid = ref.read(userDataProvider).value?.uid ?? '';
+        ref.read(subscriptionProvider.notifier).presentPaywall(uid: uid);
+      }
       return;
     }
     setState(() {

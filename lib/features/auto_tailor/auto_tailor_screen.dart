@@ -9,7 +9,6 @@ import '../../providers/resume_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
-import '../../core/widgets/pro_upgrade_sheet.dart';
 import '../../core/widgets/ai_report_dialog.dart';
 
 class AutoTailorScreen extends ConsumerStatefulWidget {
@@ -59,7 +58,10 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
 
     final count = await UsageTracker.getUsageCount(AiFeature.autoTailor, uid);
     if (count >= UsageTracker.getLimit(AiFeature.autoTailor)) {
-      if (mounted) showProUpgradeSheet(context, ref);
+      if (mounted) {
+        final uid = ref.read(userDataProvider).value?.uid ?? '';
+        ref.read(subscriptionProvider.notifier).presentPaywall(uid: uid);
+      }
       return false;
     }
     return true;

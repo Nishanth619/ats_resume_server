@@ -7,7 +7,6 @@ import '../../services/auth_service.dart';
 import '../../services/subscription_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
-import '../../core/widgets/pro_upgrade_sheet.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -135,7 +134,10 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
                 child: ListTile(
-                  onTap: () => showProUpgradeSheet(context, ref),
+                  onTap: () {
+                    final uid = user?.uid ?? '';
+                    ref.read(subscriptionProvider.notifier).presentPaywall(uid: uid);
+                  },
                   leading: Container(
                     width: 38, height: 38,
                     decoration: BoxDecoration(
@@ -206,12 +208,13 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               _SettingsTile(
-                icon: Icons.manage_subscriptions_outlined,
+                icon: Icons.card_membership_outlined,
                 label: 'Manage Subscription',
-                subtitle: 'Cancel or change plan on Google Play',
-                onTap: () => _launchUrl(
-                  'https://play.google.com/store/account/subscriptions',
-                ),
+                subtitle: 'Manage your plan and billing',
+                onTap: () {
+                  final uid = user?.uid ?? '';
+                  ref.read(subscriptionProvider.notifier).presentCustomerCenter(uid: uid);
+                },
               ),
               _SettingsTile(
                 icon: Icons.restore_rounded,

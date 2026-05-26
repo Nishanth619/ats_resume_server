@@ -6,7 +6,6 @@ import '../../../services/usage_tracker.dart';
 import '../../../services/admob_service.dart';
 import '../../../services/subscription_service.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../core/widgets/pro_upgrade_sheet.dart';
 import '../../../core/widgets/ai_report_dialog.dart';
 
 class ExperienceSection extends ConsumerStatefulWidget {
@@ -109,7 +108,10 @@ class _ExpState extends ConsumerState<ExperienceSection>
 
     final count = await UsageTracker.getUsageCount(AiFeature.improveBullet, uid);
     if (count >= UsageTracker.getLimit(AiFeature.improveBullet)) {
-      if (mounted) showProUpgradeSheet(context, ref);
+      if (mounted) {
+        final uid = ref.read(userDataProvider).value?.uid ?? '';
+        ref.read(subscriptionProvider.notifier).presentPaywall(uid: uid);
+      }
       return false;
     }
     return true;

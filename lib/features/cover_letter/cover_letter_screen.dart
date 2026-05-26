@@ -12,7 +12,6 @@ import '../../providers/resume_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
-import '../../core/widgets/pro_upgrade_sheet.dart';
 import '../../core/widgets/ai_report_dialog.dart';
 
 // ─── Screen state machine ─────────────────────────────────────────────────────
@@ -82,7 +81,10 @@ class _CLState extends ConsumerState<CoverLetterScreen>
 
     final count = await UsageTracker.getUsageCount(AiFeature.coverLetter, uid);
     if (count >= UsageTracker.getLimit(AiFeature.coverLetter)) {
-      if (mounted) showProUpgradeSheet(context, ref);
+      if (mounted) {
+        final uid = ref.read(userDataProvider).value?.uid ?? '';
+        ref.read(subscriptionProvider.notifier).presentPaywall(uid: uid);
+      }
       return false;
     }
     return true;

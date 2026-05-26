@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,15 +26,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   bool _loading = false;
   bool _isSignUp = false;
   bool _obscurePass = true;
+  String? _errorMessage; // inline error shown inside the form card
 
   @override
   void initState() {
     super.initState();
     _bgController = AnimationController(
-        vsync: this, duration: Duration(seconds: 10))
+        vsync: this, duration: const Duration(seconds: 10))
       ..repeat();
     _fadeController = AnimationController(
-        vsync: this, duration: Duration(milliseconds: 500));
+        vsync: this, duration: const Duration(milliseconds: 500));
     _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
     _fadeController.forward();
   }
@@ -48,7 +50,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
+  /// Converts a Firebase error code into a friendly, human-readable message.
+  String _friendlyError(FirebaseAuthException e) {
+    switch (e.code) {
+      // ── Sign-in errors ──────────────────────────────────────────────────
+      case 'user-not-found':
+        return 'No account found with this email. Please sign up first.';
+      case 'wrong-password':
+        return 'Incorrect password. Please try again or reset your password.';
+      case 'invalid-credential':
+        return 'Incorrect email or password. Please check and try again.';
+      case 'invalid-email':
+        return 'The email address is not valid. Please enter a correct email.';
+      case 'user-disabled':
+        return 'This account has been disabled. Please contact support.';
+      case 'too-many-requests':
+        return 'Too many failed attempts. Please wait a moment and try again.';
+      case 'network-request-failed':
+        return 'No internet connection. Please check your network and retry.';
+      // ── Sign-up errors ──────────────────────────────────────────────────
+      case 'email-already-in-use':
+        return 'An account already exists with this email. Please sign in instead.';
+      case 'weak-password':
+        return 'Password is too weak. Please use at least 8 characters with numbers.';
+      case 'operation-not-allowed':
+        return 'Email/password sign-in is not enabled. Please contact support.';
+      // ── Default ─────────────────────────────────────────────────────────
+      default:
+        return e.message ?? 'Something went wrong. Please try again.';
+    }
+  }
+
   Future<void> _submit() async {
+    setState(() => _errorMessage = null); // clear previous error
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
@@ -61,15 +95,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             _emailCtrl.text.trim(), _passCtrl.text.trim());
       }
       if (mounted) context.go('/dashboard');
+    } on FirebaseAuthException catch (e) {
+      if (mounted) setState(() => _errorMessage = _friendlyError(e));
     } on Exception catch (e) {
       if (mounted) {
+        setState(() =>
+            _errorMessage = e.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _forgotPassword() async {
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() =>
+          _errorMessage = 'Enter your email address above, then tap Forgot Password.');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await ref.read(authServiceProvider).sendPasswordReset(email);
+      if (mounted) {
+        setState(() => _errorMessage = null);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: AppColors.error,
+          content: Text('Password reset email sent to $email'),
+          backgroundColor: AppColors.scoreGreen,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
       }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) setState(() => _errorMessage = _friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -93,11 +152,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             child: FadeTransition(
               opacity: _fadeAnim,
               child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(24, 20, 24, 40),
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     // Logo & title
                     Center(
                       child: Column(
@@ -112,38 +171,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 BoxShadow(
                                   color: AppColors.primary.withValues(alpha: 0.4),
                                   blurRadius: 24,
-                                  offset: Offset(0, 8),
+                                  offset: const Offset(0, 8),
                                 ),
                               ],
                             ),
-                            child: Center(
-                              child: Text('📄',
-                                  style: TextStyle(fontSize: 32)),
+                            child: const Center(
+                              child: Text('📄', style: TextStyle(fontSize: 32)),
                             ),
                           ),
-                          SizedBox(height: 20),
+                          const SizedBox(height: 20),
                           ShaderMask(
                             shaderCallback: (b) =>
                                 context.appColors.primaryGradient.createShader(b),
-                            child: Text('ATS.ai',
+                            child: const Text('ATS.ai',
                                 style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 32,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.5)),
                           ),
-                          SizedBox(height: 6),
+                          const SizedBox(height: 6),
                           Text(
                             _isSignUp
                                 ? 'Create your account'
                                 : 'Welcome back 👋',
                             style: TextStyle(
-                                color: context.appColors.textSecondary, fontSize: 15),
+                                color: context.appColors.textSecondary,
+                                fontSize: 15),
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(height: 36),
+                    const SizedBox(height: 36),
 
                     // Form card
                     GlassCard(
@@ -162,7 +221,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                     ? 'Enter your name'
                                     : null,
                               ),
-                              SizedBox(height: 16),
+                              const SizedBox(height: 16),
                             ],
                             _buildField(
                               controller: _emailCtrl,
@@ -174,7 +233,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                       ? null
                                       : 'Enter a valid email',
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             _buildField(
                               controller: _passCtrl,
                               label: 'Password',
@@ -195,32 +254,101 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                   ? null
                                   : 'Min 6 characters',
                             ),
-                            SizedBox(height: 28),
+
+                            // ── Inline error banner ─────────────────────
+                            if (_errorMessage != null) ...[
+                              const SizedBox(height: 16),
+                              AnimatedSize(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOut,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: AppColors.error
+                                          .withValues(alpha: 0.35),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(Icons.error_outline_rounded,
+                                          color: AppColors.error, size: 18),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          _errorMessage!,
+                                          style: TextStyle(
+                                            color: AppColors.error,
+                                            fontSize: 13,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () => setState(
+                                            () => _errorMessage = null),
+                                        child: Icon(
+                                          Icons.close_rounded,
+                                          color: AppColors.error
+                                              .withValues(alpha: 0.6),
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+
+                            const SizedBox(height: 20),
                             GradientButton(
-                              label:
-                                  _isSignUp ? 'Create Account' : 'Sign In',
+                              label: _isSignUp ? 'Create Account' : 'Sign In',
                               onPressed: _loading ? null : _submit,
                               isLoading: _loading,
                             ),
-                            SizedBox(height: 8),
+
+                            // ── Forgot password (sign-in mode only) ──────
+                            if (!_isSignUp) ...[
+                              const SizedBox(height: 4),
+                              TextButton(
+                                onPressed: _loading ? null : _forgotPassword,
+                                child: Text(
+                                  'Forgot password?',
+                                  style: TextStyle(
+                                    color: context.appColors.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ] else
+                              const SizedBox(height: 8),
                           ],
                         ),
                       ),
                     ),
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                    // Toggle
+                    // Toggle sign-in / sign-up
                     GestureDetector(
                       onTap: () {
                         _fadeController.reset();
-                        setState(() => _isSignUp = !_isSignUp);
+                        setState(() {
+                          _isSignUp = !_isSignUp;
+                          _errorMessage = null; // clear error on mode switch
+                        });
                         _fadeController.forward();
                       },
                       child: RichText(
                         textAlign: TextAlign.center,
                         text: TextSpan(
                           style: TextStyle(
-                              color: context.appColors.textSecondary, fontSize: 14),
+                              color: context.appColors.textSecondary,
+                              fontSize: 14),
                           children: [
                             TextSpan(
                               text: _isSignUp
@@ -229,7 +357,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ),
                             TextSpan(
                               text: _isSignUp ? 'Sign In' : 'Sign Up',
-                              style: TextStyle(
+                              style: const TextStyle(
                                   color: AppColors.primaryLight,
                                   fontWeight: FontWeight.w700),
                             ),
@@ -294,8 +422,7 @@ class _LoginBgPainter extends CustomPainter {
       ..shader = RadialGradient(colors: [
         color.withValues(alpha: 0.18),
         Colors.transparent
-      ]).createShader(
-          Rect.fromCircle(center: center, radius: radius));
+      ]).createShader(Rect.fromCircle(center: center, radius: radius));
     canvas.drawCircle(center, radius, paint);
   }
 

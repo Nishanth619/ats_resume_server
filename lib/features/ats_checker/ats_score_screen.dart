@@ -11,7 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
-import '../../core/widgets/pro_upgrade_sheet.dart';
+
 import '../../core/widgets/ai_report_dialog.dart';
 
 class ATSScoreScreen extends ConsumerStatefulWidget {
@@ -62,7 +62,10 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
 
     final count = await UsageTracker.getUsageCount(AiFeature.atsCheck, uid);
     if (count >= UsageTracker.getLimit(AiFeature.atsCheck)) {
-      if (mounted) showProUpgradeSheet(context, ref);
+      if (mounted) {
+        final uid = ref.read(userDataProvider).value?.uid ?? '';
+        ref.read(subscriptionProvider.notifier).presentPaywall(uid: uid);
+      }
       throw Exception('limit_exceeded');
     }
   }
@@ -838,26 +841,25 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                             width: 1,
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '+ ',
-                              style: TextStyle(
-                                color: AppColors.scoreRed,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: '+ ',
+                                style: TextStyle(
+                                  color: AppColors.scoreRed,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                            ),
-                            Text(
-                              k,
-                              style: TextStyle(
-                                color: AppColors.scoreRed,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                              TextSpan(text: k),
+                            ],
+                          ),
+                          style: TextStyle(
+                            color: AppColors.scoreRed,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     )

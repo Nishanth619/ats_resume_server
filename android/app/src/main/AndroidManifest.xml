@@ -5,12 +5,14 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <!-- Android 13+ (API 33+): granular media permissions required for image_picker -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- Required for RevenueCat/Google Play In-App Purchases -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
 
     <application
         android:label="Ats.Ai"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:requestLegacyExternalStorage="true">
+        android:enableOnBackInvokedCallback="true">
         
         <!-- AdMob App ID -->
         <meta-data

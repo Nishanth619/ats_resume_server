@@ -2,12 +2,13 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../core/config/app_config.dart';
 import 'firestore_service.dart';
 
 /// Entitlement ID configured in the RevenueCat dashboard.
-const _kProEntitlement = 'pro';
+const _kProEntitlement = 'Nishanth aradhya Pro';
 
 // ─── Subscription State ───────────────────────────────────────────────────────
 
@@ -23,54 +24,49 @@ class SubscriptionNotifier extends Notifier<bool> {
     state = plan == 'pro';
   }
 
-  /// Purchase Pro via RevenueCat.
-  Future<PurchaseResult> purchasePro({required String uid}) async {
+  /// Present RevenueCat Native Paywall if user is not already Pro.
+  Future<void> presentPaywall({required String uid}) async {
     final key = AppConfig.revenueCatKey;
-    if (key.isEmpty) {
-      return PurchaseResult.billingUnavailable;
-    }
+    debugPrint('[Subscription] presentPaywall called. key empty=${key.isEmpty}');
+    if (key.isEmpty) return;
 
     try {
-      final offerings = await Purchases.getOfferings();
-      final current = offerings.current;
-      if (current == null || current.availablePackages.isEmpty) {
-        return PurchaseResult.noOfferings;
-      }
-
-      // Prefer annual if available, else monthly, else first.
-      final package = current.availablePackages.firstWhere(
-        (p) => p.packageType == PackageType.annual,
-        orElse: () => current.availablePackages.firstWhere(
-          (p) => p.packageType == PackageType.monthly,
-          orElse: () => current.availablePackages.first,
-        ),
-      );
-
-      final customerInfo = await Purchases.purchasePackage(package);
-      final isPro =
-          customerInfo.entitlements.all[_kProEntitlement]?.isActive == true;
-      state = isPro;
-
-      if (isPro) {
-        try {
-          await ref
-              .read(firestoreServiceProvider)
-              .updateUser(uid, {'plan': 'pro'});
-        } catch (e) {
-          debugPrint('[Subscription] Firestore plan sync failed: $e');
+      // Use presentPaywall (not IfNeeded) so it always shows even when
+      // RevenueCat offerings are still propagating from Google Play.
+      final result = await RevenueCatUI.presentPaywall();
+      debugPrint('[Subscription] Paywall result: $result');
+      if (result == PaywallResult.purchased || result == PaywallResult.restored) {
+        final customerInfo = await Purchases.getCustomerInfo();
+        final isPro = customerInfo.entitlements.all[_kProEntitlement]?.isActive == true;
+        state = isPro;
+        if (isPro) {
+          try {
+            await ref.read(firestoreServiceProvider).updateUser(uid, {'plan': 'pro'});
+          } catch (e) {
+            debugPrint('[Subscription] Firestore plan sync failed: $e');
+          }
         }
-        return PurchaseResult.success;
       }
-      return PurchaseResult.notEntitled;
-    } on PurchasesErrorCode catch (e) {
-      if (e == PurchasesErrorCode.purchaseCancelledError) {
-        return PurchaseResult.cancelled;
-      }
-      debugPrint('[Subscription] Purchase error: $e');
-      return PurchaseResult.error;
     } catch (e) {
-      debugPrint('[Subscription] Unexpected purchase error: $e');
-      return PurchaseResult.error;
+      debugPrint('[Subscription] Paywall error: $e');
+    }
+  }
+
+  /// Present RevenueCat Customer Center to manage subscription.
+  Future<void> presentCustomerCenter({required String uid}) async {
+    try {
+      await RevenueCatUI.presentCustomerCenter();
+      // Re-fetch info after returning from customer center
+      final customerInfo = await Purchases.getCustomerInfo();
+      final isPro = customerInfo.entitlements.all[_kProEntitlement]?.isActive == true;
+      state = isPro;
+      try {
+        await ref.read(firestoreServiceProvider).updateUser(uid, {'plan': isPro ? 'pro' : 'free'});
+      } catch (e) {
+        debugPrint('[Subscription] Firestore plan sync failed: $e');
+      }
+    } catch (e) {
+      debugPrint('[Subscription] Customer Center error: $e');
     }
   }
 
@@ -118,62 +114,12 @@ class SubscriptionNotifier extends Notifier<bool> {
 
 // ─── Result Enums ─────────────────────────────────────────────────────────────
 
-enum PurchaseResult {
-  success,
-  cancelled,
-  billingUnavailable,
-  noOfferings,
-  notEntitled,
-  error,
-}
-
+/// Restore result — still used by the settings screen Restore Purchases tile.
 enum RestoreResult {
   restored,
   nothingToRestore,
   error,
 }
-
-// ─── Offerings / Price Providers ─────────────────────────────────────────────
-
-/// Fetches the current RevenueCat offerings. Returns null if billing is
-/// unavailable or no offerings are configured yet.
-final offeringsProvider = FutureProvider<Offerings?>((ref) async {
-  final key = AppConfig.revenueCatKey;
-  if (key.isEmpty) return null;
-  try {
-    return await Purchases.getOfferings();
-  } catch (e) {
-    debugPrint('[Subscription] Failed to fetch offerings: $e');
-    return null;
-  }
-});
-
-/// Provides the first available package from the current offering.
-final activePackageProvider = FutureProvider<Package?>((ref) async {
-  final offerings = await ref.watch(offeringsProvider.future);
-  if (offerings == null) return null;
-  final current = offerings.current;
-  if (current == null || current.availablePackages.isEmpty) return null;
-  // Prefer monthly for display, then annual, then first
-  return current.availablePackages.firstWhere(
-    (p) => p.packageType == PackageType.monthly,
-    orElse: () => current.availablePackages.first,
-  );
-});
-
-/// Returns a human-readable price string, e.g. "₹99 / month"
-/// Returns null if billing is unavailable.
-final subscriptionPriceProvider = FutureProvider<String?>((ref) async {
-  final pkg = await ref.watch(activePackageProvider.future);
-  if (pkg == null) return null;
-  final product = pkg.storeProduct;
-  final period = pkg.packageType == PackageType.annual
-      ? '/ year'
-      : pkg.packageType == PackageType.monthly
-          ? '/ month'
-          : '';
-  return '${product.priceString} $period'.trim();
-});
 
 // ─── RevenueCat SDK Init ──────────────────────────────────────────────────────
 
