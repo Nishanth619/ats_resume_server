@@ -229,14 +229,12 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
               width: 90,
               height: 90,
               decoration: BoxDecoration(
-                gradient: AppColors.accentGradient,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.accent.withValues(alpha: 0.4),
-                    blurRadius: 30,
-                  ),
-                ],
+                color: context.appColors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.accent.withValues(alpha: 0.25),
+                  width: 1.5,
+                ),
               ),
               child: Center(
                 child: Text(

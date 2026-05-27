@@ -11,7 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
-
+import '../../core/utils/isolate_utils.dart';
 import '../../core/widgets/ai_report_dialog.dart';
 
 class ATSScoreScreen extends ConsumerStatefulWidget {
@@ -101,7 +101,9 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
 
       final resume = await fetchResumeRobustly(ref, widget.resumeId);
 
-      final text = _serialize(resume);
+      // Serialise resume to text on a background isolate (off the UI thread)
+      final text = await serializeResumeInBackground(resume.sections);
+
       final result = await ref
           .read(aiServiceProvider)
           .checkATS(
@@ -148,50 +150,6 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
     return v.toString();
   }
 
-  String _serialize(ResumeModel resume) {
-    final buf = StringBuffer();
-    final p = (resume.sections['personal'] as Map?) ?? {};
-    buf.writeln('${_str(p['name'])}\n${_str(p['email'])}\n${_str(p['phone'])}');
-    buf.writeln('PROFESSIONAL SUMMARY\n${_str(p['summary'])}');
-    buf.writeln('WORK EXPERIENCE');
-    for (final e in (resume.sections['experience'] as List? ?? [])) {
-      final em = e is Map ? e : <String, dynamic>{};
-      // Truncate per-entry description to avoid ballooning total length
-      final desc = _str(em['description']);
-      buf.writeln(
-        '${_str(em['title'])} at ${_str(em['company'])} (${_str(em['dates'])})\n'
-        '${desc.length > 600 ? '${desc.substring(0, 600)}…' : desc}',
-      );
-    }
-    buf.writeln('EDUCATION');
-    for (final e in (resume.sections['education'] as List? ?? [])) {
-      final em = e is Map ? e : <String, dynamic>{};
-      buf.writeln(
-        '${_str(em['degree'])} - ${_str(em['institution'])} (${_str(em['year'])})',
-      );
-    }
-    final skills = (resume.sections['skills'] as List? ?? [])
-        .map((s) => _str(s))
-        .where((s) => s.isNotEmpty)
-        .take(60) // cap skills to prevent overflow
-        .join(', ');
-    buf.writeln('SKILLS\n$skills');
-
-    // Projects (optional — only if space allows)
-    for (final e in (resume.sections['projects'] as List? ?? [])) {
-      final em = e is Map ? e : <String, dynamic>{};
-      final desc = _str(em['description']);
-      buf.writeln(
-        'PROJECT: ${_str(em['name'])}\n'
-        '${desc.length > 300 ? '${desc.substring(0, 300)}…' : desc}',
-      );
-    }
-
-    // Hard cap at 14,500 chars — backend rejects > 15,000
-    const maxChars = 14500;
-    final raw = buf.toString();
-    return raw.length > maxChars ? raw.substring(0, maxChars) : raw;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -279,14 +237,12 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                gradient: context.appColors.primaryGradient,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.5),
-                    blurRadius: 30,
-                  ),
-                ],
+                color: context.appColors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.25),
+                  width: 1.5,
+                ),
               ),
               child: Center(child: Text('🤖', style: TextStyle(fontSize: 44))),
             ),

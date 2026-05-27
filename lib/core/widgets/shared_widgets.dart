@@ -261,29 +261,25 @@ class GradientBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tint = _resolvedTint();
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: tint.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: tint.withValues(alpha: 0.30),
-              width: 1,
-            ),
-          ),
-          child: Text(
-            text,
-            style: TextStyle(
-              color: tint.withValues(alpha: 1.0),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-            ),
-          ),
+    // No BackdropFilter — blur on every tiny badge was very GPU-expensive.
+    // A solid tinted container looks identical and costs nothing.
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: tint.withValues(alpha: 0.30),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: tint,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -385,65 +381,68 @@ class _ScoreRingState extends State<ScoreRing>
     final numberSize  = (widget.radius * 0.62).clamp(42.0, 58.0);
     final labelSize   = (widget.radius * 0.17).clamp(12.0, 15.0);
 
-    return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, _) => SizedBox(
-        width: diameter + 28,
-        height: diameter + 28,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Outer ring halo
-            Container(
-              width: diameter + 12,
-              height: diameter + 12,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color.withValues(alpha: 0.06),
-                border: Border.all(
-                  color: color.withValues(alpha: 0.12),
-                  width: 1,
-                ),
-              ),
-            ),
-            SizedBox(
-              width: diameter,
-              height: diameter,
-              child: CircularProgressIndicator(
-                value: _anim.value,
-                strokeWidth: strokeWidth,
-                backgroundColor: context.appColors.border.withValues(
-                  alpha: Theme.of(context).brightness == Brightness.dark
-                      ? 1.0
-                      : 0.7,
-                ),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-                strokeCap: StrokeCap.round,
-              ),
-            ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${((_anim.value) * 100).round()}',
-                  style: TextStyle(
-                    color: color,
-                    fontSize: numberSize,
-                    fontWeight: FontWeight.w900,
-                    height: 0.95,
+    // RepaintBoundary isolates the animation so only this widget repaints
+    // on each tick — not its parent tree.
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _anim,
+        builder: (_, _) => SizedBox(
+          width: diameter + 28,
+          height: diameter + 28,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: diameter + 12,
+                height: diameter + 12,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withValues(alpha: 0.06),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.12),
+                    width: 1,
                   ),
                 ),
-                Text(
-                  '/ 100',
-                  style: TextStyle(
-                    color: context.appColors.textSecondary,
-                    fontSize: labelSize,
-                    fontWeight: FontWeight.w700,
+              ),
+              SizedBox(
+                width: diameter,
+                height: diameter,
+                child: CircularProgressIndicator(
+                  value: _anim.value,
+                  strokeWidth: strokeWidth,
+                  backgroundColor: context.appColors.border.withValues(
+                    alpha: Theme.of(context).brightness == Brightness.dark
+                        ? 1.0
+                        : 0.7,
                   ),
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                  strokeCap: StrokeCap.round,
                 ),
-              ],
-            ),
-          ],
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${((_anim.value) * 100).round()}',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: numberSize,
+                      fontWeight: FontWeight.w900,
+                      height: 0.95,
+                    ),
+                  ),
+                  Text(
+                    '/ 100',
+                    style: TextStyle(
+                      color: context.appColors.textSecondary,
+                      fontSize: labelSize,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -573,14 +572,19 @@ class _Orb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+    // RepaintBoundary: static orbs are rasterized once and cached by the GPU.
+    // No ImageFilter.blur — radial gradient achieves the same soft glow
+    // at zero GPU cost (blur at sigma=60 was extremely expensive).
+    return RepaintBoundary(
       child: Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: color,
+          gradient: RadialGradient(
+            colors: [color, color.withValues(alpha: 0)],
+            stops: const [0.0, 1.0],
+          ),
         ),
       ),
     );

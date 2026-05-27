@@ -140,12 +140,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       backgroundColor: context.appColors.bg,
       body: Stack(
         children: [
-          // Animated background
-          AnimatedBuilder(
-            animation: _bgController,
-            builder: (_, _) => CustomPaint(
-              size: MediaQuery.of(context).size,
-              painter: _LoginBgPainter(_bgController.value),
+          // Animated background — isolated in its own repaint layer
+          RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _bgController,
+              builder: (_, _) => CustomPaint(
+                size: MediaQuery.of(context).size,
+                painter: _LoginBgPainter(_bgController.value),
+              ),
             ),
           ),
           SafeArea(
@@ -161,24 +163,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     Center(
                       child: Column(
                         children: [
-                          Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              gradient: context.appColors.primaryGradient,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.4),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: const Center(
-                              child: Text('📄', style: TextStyle(fontSize: 32)),
-                            ),
-                          ),
+                          // Clean logo — no glow box
+                          const Text('📄', style: TextStyle(fontSize: 64)),
                           const SizedBox(height: 20),
                           ShaderMask(
                             shaderCallback: (b) =>

@@ -7,8 +7,9 @@ import 'package:printing/printing.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/shared_widgets.dart';
+import '../../../core/utils/isolate_utils.dart';
 import '../../../providers/resume_provider.dart';
-import '../../../services/pdf_service.dart';
+import '../../../services/pdf_service.dart'; // needed by printResume
 import 'sections/awards_section.dart';
 import 'sections/certifications_section.dart';
 import 'sections/education_section.dart';
@@ -34,8 +35,8 @@ class ResumeEditorScreen extends ConsumerStatefulWidget {
 
 class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
   late final Timer _autoSaveTimer;
+  Timer? _debounceTimer; // debounces rapid keystroke setState calls
   bool _dirty = false;
-  String _saveStatus = 'Saved';
   bool _templateInitialised = false;
   Object? _previewError;
 
@@ -50,6 +51,7 @@ class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
   @override
   void dispose() {
     _autoSaveTimer.cancel();
+    _debounceTimer?.cancel();
     if (_dirty) {
       _dirty = false;
       ref.read(resumeNotifierProvider(widget.resumeId).notifier).save();
@@ -73,25 +75,22 @@ class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
 
   Future<void> _save() async {
     if (!mounted) return;
-    setState(() => _saveStatus = 'Saving...');
     try {
       await ref.read(resumeNotifierProvider(widget.resumeId).notifier).save();
       if (!mounted) return;
-      setState(() {
-        _dirty = false;
-        _saveStatus = 'Saved';
-      });
+      setState(() => _dirty = false);
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _saveStatus = 'Save failed');
+      // save failed silently — autosave will retry in 30s
     }
   }
 
   void _onChanged() {
-    if (!mounted) return;
-    setState(() {
-      _dirty = true;
-      _saveStatus = 'Unsaved';
+    // Debounce: collapse rapid keystrokes into a single setState
+    // so we don't rebuild the entire editor tree on every character typed.
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() => _dirty = true);
     });
   }
 
@@ -267,8 +266,9 @@ class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
                               : PdfPreview(
                                   build: (format) async {
                                     try {
-                                      return await PDFService()
-                                          .generatePDFBytes(resume);
+                                      // Generate PDF off the UI thread
+                                      return await generatePDFInBackground(
+                                          resume);
                                     } catch (e) {
                                       if (mounted) {
                                         setState(() => _previewError = e);

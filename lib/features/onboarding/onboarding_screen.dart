@@ -96,15 +96,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       backgroundColor: context.appColors.bg,
       body: Stack(
         children: [
-          // Animated orb background
-          AnimatedBuilder(
-            animation: _bgController,
-            builder: (_, _) {
-              return CustomPaint(
-                size: MediaQuery.of(context).size,
-                painter: _OrbPainter(_bgController.value, _currentPage),
-              );
-            },
+          // Animated orb background — isolated repaint layer for 60fps
+          RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _bgController,
+              builder: (_, _) {
+                return CustomPaint(
+                  size: MediaQuery.of(context).size,
+                  painter: _OrbPainter(_bgController.value, _currentPage),
+                );
+              },
+            ),
           ),
           SafeArea(
             child: Column(
@@ -212,23 +214,20 @@ class _PageContent extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Icon card
+          // Icon — clean custom design, no AI-style glow box
           Container(
-            width: 140,
-            height: 140,
+            width: 136,
+            height: 136,
             decoration: BoxDecoration(
-              gradient: page.gradient,
-              borderRadius: BorderRadius.circular(36),
-              boxShadow: [
-                BoxShadow(
-                  color: page.glowColor.withValues(alpha: 0.4),
-                  blurRadius: 40,
-                  spreadRadius: 0,
-                ),
-              ],
+              color: page.glowColor.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: page.glowColor.withValues(alpha: 0.22),
+                width: 1.5,
+              ),
             ),
             child: Center(
-              child: Text(page.icon, style: TextStyle(fontSize: 60)),
+              child: Text(page.icon, style: TextStyle(fontSize: 64)),
             ),
           ),
           SizedBox(height: 12),

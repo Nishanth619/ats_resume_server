@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
@@ -8,6 +7,7 @@ import '../../services/pdf_service.dart';
 import '../../models/resume_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
+import '../../core/utils/isolate_utils.dart';
 
 class ResumePreviewScreen extends ConsumerWidget {
   final String resumeId;
@@ -78,7 +78,7 @@ class ResumePreviewScreen extends ConsumerWidget {
         clipBehavior: Clip.antiAlias,
         child: PdfPreview(
           build: (format) async {
-            return await PDFService().generatePDFBytes(resume!);
+            return await generatePDFInBackground(resume!);
           },
           allowPrinting: false,
           allowSharing: false,

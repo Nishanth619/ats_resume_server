@@ -61,4 +61,41 @@ class ResumeModel {
   factory ResumeModel.fromFirestore(DocumentSnapshot doc) {
     return ResumeModel.fromJson({'id': doc.id, ...doc.data() as Map<String, dynamic>});
   }
+
+  // ── Isolate-safe serialisation (no Firestore types) ───────────────────────
+  // Firestore's Timestamp is not sendable across isolate boundaries.
+  // These methods use a plain int (millisecondsSinceEpoch) instead.
+
+  Map<String, dynamic> toJsonIsolate() {
+    return {
+      'id': id,
+      'title': title,
+      'templateId': templateId,
+      'colorTheme': colorTheme,
+      'atsScore': atsScore,
+      'sections': sections,
+      'targetRole': targetRole,
+      'targetJD': targetJD,
+      'lastEdited': lastEdited.millisecondsSinceEpoch,
+      'downloadCount': downloadCount,
+    };
+  }
+
+  factory ResumeModel.fromJsonIsolate(Map<String, dynamic> data) {
+    return ResumeModel(
+      id: data['id'] ?? '',
+      title: data['title'] ?? 'Untitled Resume',
+      templateId: data['templateId'] ?? 'classic',
+      colorTheme: data['colorTheme'] ?? 'blue',
+      atsScore: data['atsScore'] ?? 0,
+      sections: data['sections'] ?? {},
+      targetRole: data['targetRole'] ?? '',
+      targetJD: data['targetJD'] ?? '',
+      lastEdited: data['lastEdited'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(data['lastEdited'] as int)
+          : DateTime.now(),
+      downloadCount: data['downloadCount'] ?? 0,
+    );
+  }
 }
+

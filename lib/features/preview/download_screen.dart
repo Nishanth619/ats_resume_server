@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/resume_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
+import '../../core/utils/isolate_utils.dart';
 import 'package:share_plus/share_plus.dart';
 
 class DownloadScreen extends ConsumerStatefulWidget {
@@ -43,7 +44,9 @@ class _DLState extends ConsumerState<DownloadScreen>
   Future<void> _executeDownload() async {
     try {
       final resume = await fetchResumeForExport(ref, widget.resumeId);
-      final file = await PDFService().generatePDF(resume);
+      // Generate PDF on a background isolate — keeps the UI at 60fps
+      final bytes = await generatePDFInBackground(resume);
+      final file = await PDFService().savePDFBytesToFile(resume, bytes);
       final user = ref.read(authStateProvider).value;
       if (user != null && widget.resumeId != 'new') {
         try {
@@ -137,25 +140,18 @@ class _DLState extends ConsumerState<DownloadScreen>
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  gradient: _done
-                      ? LinearGradient(
-                          colors: [AppColors.scoreGreen, Color(0xFF059669)],
-                        )
-                      : context.appColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(32),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (_done ? AppColors.scoreGreen : AppColors.primary)
-                          .withValues(alpha: 0.4),
-                      blurRadius: 30,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
+                  color: context.appColors.surface,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: (_done ? AppColors.scoreGreen : AppColors.primary)
+                        .withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
                 ),
                 child: Icon(
-                  _done ? Icons.check_circle_rounded : Icons.download_rounded,
-                  size: 56,
-                  color: Colors.white,
+                  _done ? Icons.check_circle_outlined : Icons.download_outlined,
+                  size: 52,
+                  color: _done ? AppColors.scoreGreen : context.appColors.textMuted,
                 ),
               ),
             ),

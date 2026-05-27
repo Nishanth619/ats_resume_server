@@ -174,19 +174,17 @@ class DashboardScreen extends ConsumerWidget {
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.35),
-                    blurRadius: 32,
-                  ),
-                ],
+                color: context.appColors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                  width: 1.5,
+                ),
               ),
               child: Icon(
-                Icons.description_rounded,
-                color: Colors.white,
-                size: 46,
+                Icons.description_outlined,
+                color: context.appColors.textMuted,
+                size: 42,
               ),
             ),
             SizedBox(height: 28),
