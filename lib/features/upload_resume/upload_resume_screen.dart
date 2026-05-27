@@ -29,6 +29,8 @@ class _UploadResumeScreenState extends ConsumerState<UploadResumeScreen>
   String? _error;
   String? _fileName;
   ParsedResumeResult? _parsed;
+  // ignore: unused_field — assigned for state tracking, reset on Re-upload
+  String? _createdResumeId;
 
   late AnimationController _pulseCtrl;
   late Animation<double> _pulse;
