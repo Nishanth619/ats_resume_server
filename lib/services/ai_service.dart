@@ -550,7 +550,7 @@ class ParsedResumeResult {
     final personal = _asMap(rawSections['personal']) ?? {};
 
     // Deep-normalize list sections — each item must be Map<String, dynamic>
-    List<Map<String, dynamic>> _normMapList(dynamic raw) {
+    List<Map<String, dynamic>> normMapList(dynamic raw) {
       if (raw is! List) return [];
       return raw
           .map((item) {
@@ -562,7 +562,7 @@ class ParsedResumeResult {
     }
 
     // Skills must be a flat List<String> — handle both String items and Map items
-    List<String> _normSkills(dynamic raw) {
+    List<String> normSkills(dynamic raw) {
       if (raw is! List) return [];
       return raw
           .map((s) {
@@ -579,13 +579,13 @@ class ParsedResumeResult {
 
     final sections = <String, dynamic>{
       'personal': Map<String, dynamic>.from(personal),
-      'experience': _normMapList(rawSections['experience']),
-      'education': _normMapList(rawSections['education']),
-      'skills': _normSkills(rawSections['skills']),
-      'projects': _normMapList(rawSections['projects']),
-      'certifications': _normMapList(rawSections['certifications']),
-      'awards': _normSkills(rawSections['awards']),   // flat strings
-      'languages': _normMapList(rawSections['languages']),
+      'experience': normMapList(rawSections['experience']),
+      'education': normMapList(rawSections['education']),
+      'skills': normSkills(rawSections['skills']),
+      'projects': normMapList(rawSections['projects']),
+      'certifications': normMapList(rawSections['certifications']),
+      'awards': normSkills(rawSections['awards']),   // flat strings
+      'languages': normMapList(rawSections['languages']),
     };
 
     return ParsedResumeResult(

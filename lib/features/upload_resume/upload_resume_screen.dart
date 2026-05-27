@@ -29,7 +29,6 @@ class _UploadResumeScreenState extends ConsumerState<UploadResumeScreen>
   String? _error;
   String? _fileName;
   ParsedResumeResult? _parsed;
-  String? _createdResumeId; // kept for backward compat — mirrors _createdResume?.id
 
   late AnimationController _pulseCtrl;
   late Animation<double> _pulse;

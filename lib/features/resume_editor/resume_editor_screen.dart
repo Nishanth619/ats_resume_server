@@ -9,7 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/shared_widgets.dart';
 import '../../../core/utils/isolate_utils.dart';
 import '../../../providers/resume_provider.dart';
-import '../../../services/pdf_service.dart'; // needed by printResume
+
 import 'sections/awards_section.dart';
 import 'sections/certifications_section.dart';
 import 'sections/education_section.dart';
@@ -458,47 +458,6 @@ class _ResumeEditorScreenState extends ConsumerState<ResumeEditorScreen> {
   }
 }
 
-class _SaveStatusChip extends StatelessWidget {
-  final bool dirty;
-  final String label;
-
-  const _SaveStatusChip({required this.dirty, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = dirty ? AppColors.scoreOrange : AppColors.scoreGreen;
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              dirty ? Icons.pending_outlined : Icons.check_circle_outline,
-              size: 14,
-              color: color,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// Compact icon-only save indicator — avoids AppBar overflow on narrow screens.
 class _SaveStatusIcon extends StatelessWidget {

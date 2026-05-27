@@ -17,7 +17,7 @@ import '../../services/pdf_service.dart';
 // ─── Resume JSON parsing ──────────────────────────────────────────────────────
 
 /// Parse a list of Firestore resume documents off the UI thread.
-/// [arg] is a List<Map<String, dynamic>> (already decoded JSON).
+/// The arg is a List of Map(String, dynamic) (already decoded JSON).
 List<Map<String, dynamic>> _parseResumeListIsolate(
   List<Map<String, dynamic>> rawList,
 ) {

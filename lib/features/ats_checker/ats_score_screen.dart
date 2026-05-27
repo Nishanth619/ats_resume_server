@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../models/resume_model.dart';
+
 import '../../services/ai_service.dart';
 import '../../services/usage_tracker.dart';
 import '../../services/admob_service.dart';
@@ -138,16 +138,6 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
         });
       }
     }
-  }
-
-  /// Safely converts any dynamic value to a plain String.
-  /// Guards against Map/List stored where String is expected (e.g. after AI tailor).
-  String _str(dynamic v) {
-    if (v == null) return '';
-    if (v is String) return v;
-    if (v is Map) return v.values.map(_str).join(' ');
-    if (v is List) return v.map(_str).join(', ');
-    return v.toString();
   }
 
 
