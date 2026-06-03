@@ -413,7 +413,7 @@ class _UploadResumeScreenState extends ConsumerState<UploadResumeScreen>
                 ),
                 const SizedBox(height: 16),
                 ...[
-                  ('🤖', 'AI reads your PDF', 'Gemini extracts all your experience, skills & education'),
+                  ('🤖', 'AI reads your PDF', 'AI extracts all your experience, skills & education'),
                   ('✅', 'Review & confirm', 'See a summary of what was extracted'),
                   ('🚀', 'Choose your action', 'Check ATS score, edit resume, or tailor to a job'),
                 ].map(
@@ -495,7 +495,7 @@ class _UploadResumeScreenState extends ConsumerState<UploadResumeScreen>
           ),
           const SizedBox(height: 10),
           Text(
-            'Gemini AI is extracting your experience,\nskills, and education',
+            'AI is extracting your experience,\nskills, and education',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: context.appColors.textSecondary,

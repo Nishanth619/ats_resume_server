@@ -1,7 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../services/ai_service.dart';
 import '../../services/usage_tracker.dart';
@@ -259,6 +260,35 @@ class _CLState extends ConsumerState<CoverLetterScreen>
     );
   }
 
+  /// Saves the cover letter as a .txt file on device then opens the share sheet.
+  Future<void> _downloadAsFile() async {
+    if (_letterCtrl.text.trim().isEmpty) return;
+    try {
+      final dir = Platform.isAndroid
+          ? (await getExternalStorageDirectory() ??
+              await getApplicationDocumentsDirectory())
+          : await getApplicationDocumentsDirectory();
+      final company =
+          _companyCtrl.text.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      final fileName =
+          'CoverLetter_${company}_${DateTime.now().millisecondsSinceEpoch}.txt';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsString(_letterCtrl.text);
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'text/plain')],
+        subject: 'Cover Letter — ${_companyCtrl.text}',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not save file: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -483,13 +513,13 @@ class _CLState extends ConsumerState<CoverLetterScreen>
                       ),
                       SizedBox(height: 20),
 
-                      // Download button
-                      GradientButton(
-                        label: 'Download FREE — Watch Short Ad',
-                        onPressed: () => context.push('/download/${widget.resumeId}'),
-                        icon: Icon(Icons.download_rounded, color: Colors.white, size: 18),
-                        gradient: AppColors.goldGradient,
-                      ),
+                      // Save & share cover letter as .txt file
+                       GradientButton(
+                         label: 'Save & Share Cover Letter',
+                         onPressed: _downloadAsFile,
+                         icon: Icon(Icons.download_rounded, color: Colors.white, size: 18),
+                         gradient: AppColors.goldGradient,
+                       ),
                     ],
                   ),
                 ),

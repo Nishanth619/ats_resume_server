@@ -75,7 +75,7 @@ class JobTrackerScreen extends ConsumerWidget {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    gradient: context.appColors.primaryGradient,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(Icons.add_rounded, color: Colors.white, size: 20),

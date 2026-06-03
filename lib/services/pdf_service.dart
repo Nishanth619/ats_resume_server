@@ -56,7 +56,7 @@ class PDFService {
     if (text.isEmpty) return pw.SizedBox();
     final lines = text
         .split('\n')
-        .map((l) => l.replaceFirst(RegExp(r'^[*\-] ?'), '').trim())
+        .map((l) => l.replaceFirst(RegExp(r'^[•\*\-] ?'), '').trim())
         .where((l) => l.isNotEmpty)
         .toList();
     if (lines.length == 1) {
@@ -74,16 +74,18 @@ class PDFService {
               children: [
                 pw.Padding(
                   padding: const pw.EdgeInsets.only(
-                    top: 3.5,
+                    top: 2,
                     right: 6,
-                    left: 4,
+                    left: 2,
                   ),
-                  child: pw.Container(
-                    width: 3,
-                    height: 3,
-                    decoration: pw.BoxDecoration(
+                  // Use a plain Unicode bullet — circle pw.Container renders
+                  // as an X/cross on many PDF renderers.
+                  child: pw.Text(
+                    '•',
+                    style: pw.TextStyle(
+                      fontSize: 10,
                       color: bulletColor,
-                      shape: pw.BoxShape.circle,
+                      fontWeight: pw.FontWeight.bold,
                     ),
                   ),
                 ),
@@ -102,6 +104,7 @@ class PDFService {
           .toList(),
     );
   }
+
 
   pw.Document _buildClassicPdf(
     _ResumeContent c,
