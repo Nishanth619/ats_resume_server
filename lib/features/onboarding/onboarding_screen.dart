@@ -25,7 +25,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Our templates are mathematically tested to parse perfectly in every major Applicant Tracking System.',
       icon: '🎯',
       tag: 'ATS-Optimised',
-      gradient: AppColors.primaryGradient,
+      gradient: LinearGradient(
+        colors: [AppColors.primaryLight, AppColors.primary],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
       glowColor: AppColors.primary,
     ),
     _OnboardingPage(
@@ -33,7 +37,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       subtitle:
           'Generate professional summaries and action-oriented bullet points tailored to your role in seconds.',
       icon: '✨',
-      tag: 'Gemini AI',
+      tag: 'AI-Powered',
       gradient: LinearGradient(
         colors: [Color(0xFF06B6D4), Color(0xFF8B5CF6)],
         begin: Alignment.topLeft,
@@ -58,11 +62,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _bgController = AnimationController(
         vsync: this, duration: Duration(seconds: 8))
       ..repeat();
-    _slideController = AnimationController(
-        vsync: this, duration: Duration(milliseconds: 600));
-    // CurvedAnimation wired to _slideController — drives page slide-in
-    CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic);
-    _slideController.forward();
   }
 
   @override

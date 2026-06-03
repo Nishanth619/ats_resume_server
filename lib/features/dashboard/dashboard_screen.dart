@@ -1788,11 +1788,8 @@ class _LinkedInImportSheetState extends ConsumerState<_LinkedInImportSheet> {
           ),
         ),
         content: Text(
-          'To enable "Sign in with LinkedIn", you need to:\n\n'
-          '1. Create a LinkedIn app at linkedin.com/developers\n'
-          '2. Add LINKEDIN_CLIENT_ID & LINKEDIN_CLIENT_SECRET to your Render env vars\n'
-          '3. Set redirect URI to:\nhttps://ats-resume-server.onrender.com/api/linkedin/callback\n\n'
-          'Until then, use the ZIP import - it gives you the most complete data.',
+          'Direct "Sign in with LinkedIn" is coming soon!\n\n'
+          'Until then, please use the ZIP Import option — it actually provides a much more complete career history than the direct login.',
           style: TextStyle(
             color: context.appColors.textSecondary,
             fontSize: 13,

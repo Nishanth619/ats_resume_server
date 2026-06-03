@@ -185,16 +185,18 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                         color: isNearLimit ? AppColors.scoreOrange : AppColors.primary,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        remaining == 0
-                            ? 'Daily limit reached — upgrade to Pro for unlimited checks'
-                            : '$remaining of $limit free checks remaining today',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isNearLimit
-                              ? AppColors.scoreOrange
-                              : AppColors.primary,
-                          fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Text(
+                          remaining == 0
+                              ? 'Daily limit reached — upgrade to Pro for unlimited checks'
+                              : '$remaining of $limit free checks remaining today',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isNearLimit
+                                ? AppColors.scoreOrange
+                                : AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -238,16 +240,12 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
             ),
           ),
           SizedBox(height: 28),
-          ShaderMask(
-            shaderCallback: (b) =>
-                context.appColors.primaryGradient.createShader(b),
-            child: Text(
-              'Analysing Resume...',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
+          Text(
+            'Analysing Resume...',
+            style: TextStyle(
+              color: AppColors.primaryLight,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
             ),
           ),
           SizedBox(height: 10),

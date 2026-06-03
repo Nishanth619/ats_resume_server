@@ -251,16 +251,12 @@ class _TemplatePickerState extends ConsumerState<TemplatePickerScreen>
               ),
               onPressed: () => Navigator.of(context).maybePop(),
             ),
-            title: ShaderMask(
-              shaderCallback: (b) =>
-                  context.appColors.primaryGradient.createShader(b),
-              child: const Text(
-                'Choose Template',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
+            title: const Text(
+              'Choose Template',
+              style: TextStyle(
+                color: AppColors.primaryLight,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
               ),
             ),
             actions: [
@@ -481,7 +477,7 @@ class _TemplateGrid extends StatelessWidget {
                             width: 28,
                             height: 28,
                             decoration: BoxDecoration(
-                              gradient: context.appColors.primaryGradient,
+                              color: AppColors.primary,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(

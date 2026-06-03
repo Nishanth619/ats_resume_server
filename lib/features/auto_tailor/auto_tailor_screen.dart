@@ -658,7 +658,7 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            gradient: context.appColors.primaryGradient,
+                            color: AppColors.primary,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Center(
@@ -695,7 +695,7 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
                     GradientButton(
                       label: 'Tailor My Resume to this JD  🪄',
                       onPressed: _tailorResume,
-                      gradient: context.appColors.primaryGradient,
+                      gradient: AppColors.primaryGradient,
                       icon: Icon(
                         Icons.auto_fix_high_rounded,
                         color: Colors.white,

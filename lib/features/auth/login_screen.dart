@@ -166,16 +166,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           // Clean logo — no glow box
                           const Text('📄', style: TextStyle(fontSize: 64)),
                           const SizedBox(height: 20),
-                          ShaderMask(
-                            shaderCallback: (b) =>
-                                context.appColors.primaryGradient.createShader(b),
-                            child: const Text('ATS.ai',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.5)),
-                          ),
+                          const Text('ATS.ai',
+                              style: TextStyle(
+                                  color: AppColors.primaryLight,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5)),
                           const SizedBox(height: 6),
                           Text(
                             _isSignUp
