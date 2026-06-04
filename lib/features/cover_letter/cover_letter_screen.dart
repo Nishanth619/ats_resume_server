@@ -260,6 +260,62 @@ class _CLState extends ConsumerState<CoverLetterScreen>
     );
   }
 
+  /// Shows a rewarded ad for free users, then saves & shares the cover letter.
+  /// Pro users skip the ad entirely. If the ad fails, download proceeds anyway.
+  Future<void> _downloadWithAd() async {
+    if (_letterCtrl.text.trim().isEmpty) return;
+
+    final isPro = ref.read(subscriptionProvider);
+    if (isPro) {
+      // Pro users: download immediately, no ad.
+      await _downloadAsFile();
+      return;
+    }
+
+    // Free users: load & show rewarded ad first.
+    final adSvc = ref.read(adServiceProvider);
+
+    // Show a loading snackbar while the ad loads.
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Loading ad — please wait…'),
+        duration: Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+
+    if (!adSvc.isRewardedReady) {
+      await adSvc.loadRewardedAd();
+      // Give it up to 5 seconds to load.
+      await Future.delayed(const Duration(seconds: 5));
+    }
+
+    if (!mounted) return;
+
+    if (!adSvc.isRewardedReady) {
+      // Ad still not ready — allow download anyway (graceful fallback).
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Ad unavailable — downloading directly.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ));
+      }
+      await _downloadAsFile();
+      return;
+    }
+
+    // Ad is ready — show it and wait for completion.
+    bool allowed = false;
+    await adSvc.showRewardedAdAndWait(
+      onAdWatched: () => allowed = true,
+      onAdFailed:  () => allowed = true, // Graceful: allow on ad failure too
+    );
+
+    if (!mounted) return;
+    if (allowed) await _downloadAsFile();
+  }
+
   /// Saves the cover letter as a .txt file on device then opens the share sheet.
   Future<void> _downloadAsFile() async {
     if (_letterCtrl.text.trim().isEmpty) return;
@@ -513,13 +569,22 @@ class _CLState extends ConsumerState<CoverLetterScreen>
                       ),
                       SizedBox(height: 20),
 
-                      // Save & share cover letter as .txt file
-                       GradientButton(
-                         label: 'Save & Share Cover Letter',
-                         onPressed: _downloadAsFile,
-                         icon: Icon(Icons.download_rounded, color: Colors.white, size: 18),
-                         gradient: AppColors.goldGradient,
-                       ),
+                      // Download button — free users watch an ad first, Pro users skip
+                      Builder(builder: (ctx) {
+                        final isPro = ref.watch(subscriptionProvider);
+                        return GradientButton(
+                          label: isPro
+                              ? 'Save & Share Cover Letter'
+                              : 'Watch Ad & Save Cover Letter',
+                          onPressed: _downloadWithAd,
+                          icon: Icon(
+                            isPro ? Icons.download_rounded : Icons.play_circle_outline_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          gradient: AppColors.goldGradient,
+                        );
+                      }),
                     ],
                   ),
                 ),
