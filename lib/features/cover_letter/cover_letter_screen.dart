@@ -180,6 +180,11 @@ class _CLState extends ConsumerState<CoverLetterScreen>
     } on CoverLetterServerException catch (e) {
       setState(() { _state = _ScreenState.error; _errorMsg = e.message; });
     } catch (e) {
+      // Dialog was already shown by AdBlockGuard — return to idle silently.
+      if (e.toString().contains('ad_blocked')) {
+        if (mounted) setState(() => _state = _ScreenState.idle);
+        return;
+      }
       setState(() {
         _state    = _ScreenState.error;
         _errorMsg = e.toString().replaceFirst('Exception: ', '');

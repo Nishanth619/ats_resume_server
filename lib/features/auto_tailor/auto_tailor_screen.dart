@@ -126,6 +126,11 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
         _loading = false;
       });
     } catch (e) {
+      // Dialog was already shown by AdBlockGuard — suppress the error snackbar.
+      if (e.toString().contains('ad_blocked')) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -180,6 +185,11 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
         );
       }
     } catch (e) {
+      // Dialog was already shown by AdBlockGuard — suppress the error snackbar.
+      if (e.toString().contains('ad_blocked')) {
+        if (mounted) setState(() => _tailoring = false);
+        return;
+      }
       if (mounted) {
         setState(() => _tailoring = false);
         ScaffoldMessenger.of(context).showSnackBar(

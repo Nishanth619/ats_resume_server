@@ -163,10 +163,11 @@ class _ExpState extends ConsumerState<ExperienceSection>
       _descControllers[i].text = improved;
       widget.onChanged(_items);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to improve text: $e')));
+      // Dialog was already shown by AdBlockGuard — suppress the error snackbar.
+      if (!e.toString().contains('ad_blocked') && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to improve text: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => _generatingIndices.remove(i));

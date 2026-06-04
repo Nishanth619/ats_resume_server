@@ -135,6 +135,11 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
         });
       }
     } catch (e) {
+      // Dialog was already shown by AdBlockGuard — don't show a second error.
+      if (e.toString().contains('ad_blocked')) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
       if (mounted) {
         setState(() {
           _error = '$e';
