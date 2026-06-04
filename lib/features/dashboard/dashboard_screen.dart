@@ -1584,12 +1584,14 @@ class _LinkedInImportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => _LinkedInImportSheet(),
-      ),
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('LinkedIn import is coming in a future update!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -1634,13 +1636,32 @@ class _LinkedInImportCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Import from LinkedIn',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        'Import from LinkedIn',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'SOON',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: 3),
                   Text(
@@ -1662,7 +1683,7 @@ class _LinkedInImportCard extends StatelessWidget {
                 border: Border.all(color: Colors.white24),
               ),
               child: Icon(
-                Icons.arrow_forward_rounded,
+                Icons.lock_rounded,
                 color: Colors.white,
                 size: 20,
               ),
