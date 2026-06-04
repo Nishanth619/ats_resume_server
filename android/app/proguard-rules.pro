@@ -16,3 +16,10 @@
 
 # RevenueCat
 -keep class com.revenuecat.purchases.** { *; }
+
+# Meta Audience Network (Facebook) — AdMob mediation adapter
+-keep class com.facebook.** { *; }
+-keep interface com.facebook.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn com.facebook.**

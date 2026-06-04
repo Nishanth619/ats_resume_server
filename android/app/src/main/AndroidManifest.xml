@@ -18,6 +18,15 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-4025737666505759~5729427291"/>
+
+        <!-- Meta Audience Network (Facebook) — AdMob mediation adapter -->
+        <!-- Replace strings.xml values with your real Facebook App ID & Client Token -->
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/facebook_app_id"/>
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="@string/facebook_client_token"/>
             
         <activity
             android:name=".MainActivity"

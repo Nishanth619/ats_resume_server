@@ -70,3 +70,11 @@ android {
 flutter {
     source = "../.."
 }
+
+// ── AdMob Mediation Adapters ──────────────────────────────────────────────────
+dependencies {
+    // Meta Audience Network (Facebook) mediation adapter
+    // Compatible with google_mobile_ads 5.x / GMA Android SDK 22.x
+    // Mediation waterfall must be configured in AdMob Console → Mediation
+    implementation("com.google.ads.mediation:facebook:6.18.0.0")
+}

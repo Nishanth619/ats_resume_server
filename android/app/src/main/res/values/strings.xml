@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Meta Audience Network (Facebook) credentials for AdMob mediation.
+
+        HOW TO GET THESE VALUES:
+        1. Go to https://developers.facebook.com
+        2. Create a new App (or use an existing one)
+        3. Add "Audience Network" product to your app
+        4. App ID   → Settings → Basic → App ID
+        5. Client Token → Settings → Advanced → Client Token
+
+        IMPORTANT: Also configure the mediation waterfall in AdMob Console:
+        AdMob → Mediation → Create/Edit Mediation Group → Add Meta Audience Network
+        Enter your Facebook App ID and Placement IDs there.
+    -->
+    <string name="facebook_app_id">YOUR_FACEBOOK_APP_ID</string>
+    <string name="facebook_client_token">YOUR_FACEBOOK_CLIENT_TOKEN</string>
+</resources>
