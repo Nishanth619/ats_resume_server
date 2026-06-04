@@ -84,39 +84,41 @@ class _DLState extends ConsumerState<DownloadScreen>
   }
 
   Future<void> _download() async {
-    final adSvc = ref.read(adServiceProvider);
+    // Capture before any await — satisfies use_build_context_synchronously
+    final messenger = ScaffoldMessenger.of(context);
 
-    // Block if ad blocker / private DNS detected (free users only)
-    final guardOk = await AdBlockGuard.check(context, ref);
-    if (!guardOk) return;
-
-    // If ad is not ready yet, try loading it once
-    if (!adSvc.isRewardedReady) {
-      setState(() => _status = 'Preparing download...');
-      await adSvc.loadRewardedAd();
-      await Future.delayed(const Duration(seconds: 2));
-
-      // If the ad network has no fill, bypass gracefully (not a blocker case)
-      if (!adSvc.isRewardedReady) {
-        setState(() {
-          _loading = true;
-          _status = 'Generating PDF...';
-        });
+    // Gate strictly — no bypass for no-fill, ad-blocked, or skipped
+    final gate = await AdBlockGuard.check(context, ref);
+    switch (gate) {
+      case AdGateResult.allowed:
+        setState(() { _loading = true; _status = 'Generating PDF...'; });
         await _executeDownload();
         return;
-      }
-    }
-
-    setState(() => _loading = true);
-    await adSvc.showRewardedAd(
-      onRewarded: _executeDownload,
-      onFailed: () {
-        if (mounted) {
-          // If the ad fails mid-show, bypass and download anyway
-          _executeDownload();
+      case AdGateResult.adBlocked:
+        return;
+      case AdGateResult.noFill:
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Ad not available right now — try again in a moment, or upgrade to Pro.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 5),
+        ));
+        return;
+      case AdGateResult.showAd:
+        setState(() => _loading = true);
+        final adSvc = ref.read(adServiceProvider);
+        final watched = await adSvc.showRewardedAdAndWait();
+        if (!watched) {
+          setState(() { _loading = false; _status = 'Watch the full ad to download.'; });
+          messenger.showSnackBar(const SnackBar(
+            content: Text('⚠️ Watch the full ad to download your resume.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 4),
+          ));
+          return;
         }
-      },
-    );
+        setState(() => _status = 'Generating PDF...');
+        await _executeDownload();
+    }
   }
 
   Future<void> _shareFile() async {

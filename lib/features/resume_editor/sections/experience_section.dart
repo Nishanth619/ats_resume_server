@@ -118,19 +118,38 @@ class _ExpState extends ConsumerState<ExperienceSection>
     return true;
   }
 
-  Future<void> _showAd() async {
+  Future<bool> _showAd() async {
     final isPro = ref.read(subscriptionProvider);
-    if (isPro) return;
+    if (isPro) return true;
 
-    // Block if ad blocker / private DNS detected
-    final allowed = await AdBlockGuard.check(context, ref);
-    if (!allowed) throw Exception('ad_blocked');
+    // Capture before any await — satisfies use_build_context_synchronously
+    final messenger = ScaffoldMessenger.of(context);
 
-    final adSvc = ref.read(adServiceProvider);
-    await adSvc.showRewardedAdAndWait(
-      onAdWatched: () {},
-      onAdFailed: () {},
-    );
+    final gate = await AdBlockGuard.check(context, ref);
+    switch (gate) {
+      case AdGateResult.allowed:
+        return true;
+      case AdGateResult.adBlocked:
+        return false;
+      case AdGateResult.noFill:
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Ad not available right now — try again in a moment, or upgrade to Pro.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 5),
+        ));
+        return false;
+      case AdGateResult.showAd:
+        final adSvc = ref.read(adServiceProvider);
+        final watched = await adSvc.showRewardedAdAndWait();
+        if (!watched) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('⚠️ Watch the full ad to unlock this feature.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 4),
+          ));
+        }
+        return watched;
+    }
   }
 
   Future<void> _incrementUsage() async {
@@ -152,7 +171,10 @@ class _ExpState extends ConsumerState<ExperienceSection>
     setState(() => _generatingIndices.add(i));
 
     try {
-      await _showAd();
+      // Gate strictly on reward — no bypass
+      final adOk = await _showAd();
+      if (!adOk) return;
+
       await _incrementUsage();
 
       final improved = await ref
@@ -163,8 +185,7 @@ class _ExpState extends ConsumerState<ExperienceSection>
       _descControllers[i].text = improved;
       widget.onChanged(_items);
     } catch (e) {
-      // Dialog was already shown by AdBlockGuard — suppress the error snackbar.
-      if (!e.toString().contains('ad_blocked') && mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to improve text: $e')),
         );

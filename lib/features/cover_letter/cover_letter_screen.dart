@@ -92,19 +92,38 @@ class _CLState extends ConsumerState<CoverLetterScreen>
     return true;
   }
 
-  Future<void> _showAd() async {
+  Future<bool> _showAd() async {
     final isPro = ref.read(subscriptionProvider);
-    if (isPro) return;
+    if (isPro) return true;
 
-    // Block if ad blocker / private DNS detected
-    final allowed = await AdBlockGuard.check(context, ref);
-    if (!allowed) throw Exception('ad_blocked');
+    // Capture before any await — satisfies use_build_context_synchronously
+    final messenger = ScaffoldMessenger.of(context);
 
-    final adSvc = ref.read(adServiceProvider);
-    await adSvc.showRewardedAdAndWait(
-      onAdWatched: () {},
-      onAdFailed: () {},
-    );
+    final gate = await AdBlockGuard.check(context, ref);
+    switch (gate) {
+      case AdGateResult.allowed:
+        return true;
+      case AdGateResult.adBlocked:
+        return false;
+      case AdGateResult.noFill:
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Ad not available right now — try again in a moment, or upgrade to Pro.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 5),
+        ));
+        return false;
+      case AdGateResult.showAd:
+        final adSvc = ref.read(adServiceProvider);
+        final watched = await adSvc.showRewardedAdAndWait();
+        if (!watched) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('⚠️ Watch the full ad to unlock this feature.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 4),
+          ));
+        }
+        return watched;
+    }
   }
 
 
@@ -120,8 +139,9 @@ class _CLState extends ConsumerState<CoverLetterScreen>
     final canUse = await _checkUsage();
     if (!canUse) return;
 
-    // Show ad BEFORE API call
-    await _showAd();
+    // Show ad — gate strictly on reward earned
+    final adOk = await _showAd();
+    if (!adOk) return;
 
     setState(() {
       _state       = _ScreenState.generating;
@@ -180,11 +200,6 @@ class _CLState extends ConsumerState<CoverLetterScreen>
     } on CoverLetterServerException catch (e) {
       setState(() { _state = _ScreenState.error; _errorMsg = e.message; });
     } catch (e) {
-      // Dialog was already shown by AdBlockGuard — return to idle silently.
-      if (e.toString().contains('ad_blocked')) {
-        if (mounted) setState(() => _state = _ScreenState.idle);
-        return;
-      }
       setState(() {
         _state    = _ScreenState.error;
         _errorMsg = e.toString().replaceFirst('Exception: ', '');
@@ -277,57 +292,41 @@ class _CLState extends ConsumerState<CoverLetterScreen>
 
     final isPro = ref.read(subscriptionProvider);
     if (isPro) {
-      // Pro users: download immediately, no ad.
       await _downloadAsFile();
       return;
     }
 
-    // Free users: check for ad blocker first.
-    final guardOk = await AdBlockGuard.check(context, ref);
-    if (!guardOk) return;
+    // Capture before any await — satisfies use_build_context_synchronously
+    final messenger = ScaffoldMessenger.of(context);
 
-    // Free users: load & show rewarded ad first.
-    final adSvc = ref.read(adServiceProvider);
-
-    // Show a loading snackbar while the ad loads.
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Loading ad — please wait…'),
-        duration: Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-      ));
-    }
-
-    if (!adSvc.isRewardedReady) {
-      await adSvc.loadRewardedAd();
-      // Give it up to 5 seconds to load.
-      await Future.delayed(const Duration(seconds: 5));
-    }
-
-    if (!mounted) return;
-
-    if (!adSvc.isRewardedReady) {
-      // Ad still not ready — allow download anyway (graceful fallback).
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Ad unavailable — downloading directly.'),
+    // Gate strictly — no bypass for no-fill or failed ads
+    final gate = await AdBlockGuard.check(context, ref);
+    switch (gate) {
+      case AdGateResult.allowed:
+        await _downloadAsFile();
+        return;
+      case AdGateResult.adBlocked:
+        return;
+      case AdGateResult.noFill:
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Ad not available right now — try again in a moment, or upgrade to Pro.'),
           behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
+          duration: Duration(seconds: 5),
         ));
-      }
-      await _downloadAsFile();
-      return;
+        return;
+      case AdGateResult.showAd:
+        final adSvc = ref.read(adServiceProvider);
+        final watched = await adSvc.showRewardedAdAndWait();
+        if (!watched) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('⚠️ Watch the full ad to save your cover letter.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 4),
+          ));
+          return;
+        }
+        await _downloadAsFile();
     }
-
-    // Ad is ready — show it and wait for completion.
-    bool allowed = false;
-    await adSvc.showRewardedAdAndWait(
-      onAdWatched: () => allowed = true,
-      onAdFailed:  () => allowed = true, // Graceful: allow on ad failure too
-    );
-
-    if (!mounted) return;
-    if (allowed) await _downloadAsFile();
   }
 
   /// Saves the cover letter as a .txt file on device then opens the share sheet.

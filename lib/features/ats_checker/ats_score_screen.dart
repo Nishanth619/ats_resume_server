@@ -71,21 +71,40 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
     }
   }
 
-  Future<void> _showAdAndProceed() async {
-    if (_bypassLimitsForTesting) return;
+  Future<bool> _showAdAndProceed() async {
+    if (_bypassLimitsForTesting) return true;
 
     final isPro = ref.read(subscriptionProvider);
-    if (isPro) return;
+    if (isPro) return true;
 
-    // Block if ad blocker / private DNS detected
-    final allowed = await AdBlockGuard.check(context, ref);
-    if (!allowed) throw Exception('ad_blocked');
+    // Capture before any await — satisfies use_build_context_synchronously
+    final messenger = ScaffoldMessenger.of(context);
 
-    final adSvc = ref.read(adServiceProvider);
-    await adSvc.showRewardedAdAndWait(
-      onAdWatched: () {},
-      onAdFailed: () {},
-    );
+    final gate = await AdBlockGuard.check(context, ref);
+    switch (gate) {
+      case AdGateResult.allowed:
+        return true;
+      case AdGateResult.adBlocked:
+        return false;
+      case AdGateResult.noFill:
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Ad not available right now — try again in a moment, or upgrade to Pro.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 5),
+        ));
+        return false;
+      case AdGateResult.showAd:
+        final adSvc = ref.read(adServiceProvider);
+        final watched = await adSvc.showRewardedAdAndWait();
+        if (!watched) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('⚠️ Watch the full ad to unlock this feature.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 4),
+          ));
+        }
+        return watched;
+    }
   }
 
   Future<void> _run() async {
@@ -100,8 +119,12 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
       _error = null;
     });
     try {
-      // Show ad FIRST for free users
-      await _showAdAndProceed();
+      // Show ad FIRST — blocks if ad skipped/blocked/no-fill
+      final adOk = await _showAdAndProceed();
+      if (!adOk) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
 
       final resume = await fetchResumeRobustly(ref, widget.resumeId);
 
@@ -135,11 +158,6 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
         });
       }
     } catch (e) {
-      // Dialog was already shown by AdBlockGuard — don't show a second error.
-      if (e.toString().contains('ad_blocked')) {
-        if (mounted) setState(() => _loading = false);
-        return;
-      }
       if (mounted) {
         setState(() {
           _error = '$e';

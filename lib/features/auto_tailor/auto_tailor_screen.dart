@@ -68,19 +68,38 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
     return true;
   }
 
-  Future<void> _showAdForTailor() async {
+  Future<bool> _showAdForTailor() async {
     final isPro = ref.read(subscriptionProvider);
-    if (isPro) return;
+    if (isPro) return true;
 
-    // Block if ad blocker / private DNS detected
-    final allowed = await AdBlockGuard.check(context, ref);
-    if (!allowed) throw Exception('ad_blocked');
+    // Capture before any await — satisfies use_build_context_synchronously
+    final messenger = ScaffoldMessenger.of(context);
 
-    final adSvc = ref.read(adServiceProvider);
-    await adSvc.showRewardedAdAndWait(
-      onAdWatched: () {},
-      onAdFailed: () {},
-    );
+    final gate = await AdBlockGuard.check(context, ref);
+    switch (gate) {
+      case AdGateResult.allowed:
+        return true;
+      case AdGateResult.adBlocked:
+        return false;
+      case AdGateResult.noFill:
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Ad not available right now — try again in a moment, or upgrade to Pro.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 5),
+        ));
+        return false;
+      case AdGateResult.showAd:
+        final adSvc = ref.read(adServiceProvider);
+        final watched = await adSvc.showRewardedAdAndWait();
+        if (!watched) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('⚠️ Watch the full ad to unlock this feature.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 4),
+          ));
+        }
+        return watched;
+    }
   }
 
   Future<void> _incrementTailorUsage() async {
@@ -113,7 +132,12 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
           .read(resumeNotifierProvider(widget.resumeId).notifier)
           .updateTargetJD(_jdCtrl.text.trim());
 
-      await _showAdForTailor();
+      // Gate strictly on reward — blocks if ad skipped/blocked/no-fill
+      final adOk = await _showAdForTailor();
+      if (!adOk) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
 
       final result = await ref
           .read(aiServiceProvider)
@@ -126,11 +150,6 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
         _loading = false;
       });
     } catch (e) {
-      // Dialog was already shown by AdBlockGuard — suppress the error snackbar.
-      if (e.toString().contains('ad_blocked')) {
-        if (mounted) setState(() => _loading = false);
-        return;
-      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -155,7 +174,12 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
     try {
       final aiService = ref.read(aiServiceProvider);
 
-      await _showAdForTailor();
+      // Show ad — gate strictly on reward
+      final adOk = await _showAdForTailor();
+      if (!adOk) {
+        if (mounted) setState(() => _tailoring = false);
+        return;
+      }
       await _incrementTailorUsage();
 
       final result = await ref

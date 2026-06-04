@@ -13,20 +13,11 @@ final adServiceProvider = Provider<AdMobService>(
     ..loadInterstitialAd(),
 );
 
-/// AdMob error codes from the Google Mobile Ads SDK.
-///
-/// These are the standard codes returned in [LoadAdError.code]:
-///   0 = Internal error           → not user's fault, bypass gracefully
-///   1 = Invalid request          → app config issue, bypass gracefully
-///   2 = Network error            → DNS/network blocked, count toward ad-blocker
-///   3 = No fill                  → AdMob has no ads to serve, bypass gracefully
-///
-/// We ONLY count code 2 (network errors) toward the ad-block detection
-/// threshold. This ensures users are never blocked due to:
-///   - AdMob having no fill for their region/device
-///   - AdMob not yet approving the app
-///   - Temporary AdMob outages
-///   - Misconfigured ad unit IDs
+/// AdMob error codes (LoadAdError.code):
+///   0 = Internal error
+///   1 = Invalid request
+///   2 = Network error  ← DNS/connection blocked → count toward ad-block
+///   3 = No fill        ← AdMob has nothing to serve
 class AdMobService {
   RewardedAd?     _rewarded;
   InterstitialAd? _interstitial;
@@ -34,22 +25,12 @@ class AdMobService {
   int             _attempts       = 0;
 
   // ── Ad-block detection ────────────────────────────────────────────────────
-  /// Count of consecutive NETWORK errors (error code 2) only.
-  /// No-fill (3), internal (0), invalid (1) are NOT counted.
   int _consecutiveNetworkFailures = 0;
-
-  /// After this many consecutive network failures, we flag as ad-blocked.
   static const int _blockThreshold = 3;
 
-  /// Returns true ONLY when we detect the device is actively blocking
-  /// ad network requests (private DNS, ad blocker app, VPN filter, Pi-hole).
-  ///
-  /// Returns false for all other ad failures (no fill, internal, config).
+  /// True when 3+ consecutive network-error (code 2) failures have occurred.
+  /// Indicates private DNS / ad-blocker / Pi-hole / VPN filter.
   bool get isAdBlocked => _consecutiveNetworkFailures >= _blockThreshold;
-
-  /// Returns true when AdMob simply has no ads to serve (no fill).
-  /// In this case we allow the feature through gracefully — it's AdMob's issue.
-  bool get hasNoFill => !_rewardedLoaded && !isAdBlocked;
 
   // ── Ad unit IDs ───────────────────────────────────────────────────────────
   static String get _rewardedId => Platform.isAndroid
@@ -67,31 +48,30 @@ class AdMobService {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          _rewarded                  = ad;
-          _rewardedLoaded            = true;
-          _attempts                  = 0;
-          _consecutiveNetworkFailures = 0; // success resets the counter
+          _rewarded                   = ad;
+          _rewardedLoaded             = true;
+          _attempts                   = 0;
+          _consecutiveNetworkFailures = 0; // success resets counter
         },
         onAdFailedToLoad: (err) {
           _rewardedLoaded = false;
           _rewarded       = null;
           _attempts++;
 
-          // Only code 2 (network error) indicates ad blocking.
-          // code 3 = no fill  → AdMob has nothing to serve, NOT blocking.
-          // code 0/1 = config → app issue, NOT blocking.
           if (err.code == 2) {
+            // Network error — DNS/connection blocked
             _consecutiveNetworkFailures++;
             debugPrint('[AdMob] Network error #$_consecutiveNetworkFailures '
                 '(code ${err.code}): ${err.message}');
           } else {
-            // For no-fill and other errors: reset the blocker counter
-            // because these prove the DNS/network is NOT blocking ad servers.
+            // No-fill (3) or config error (0/1) — AdMob's side, NOT blocking
+            // Reset so we never falsely flag as ad-blocked due to AdMob issues
             _consecutiveNetworkFailures = 0;
             debugPrint('[AdMob] Non-blocking failure '
                 '(code ${err.code}): ${err.message}');
           }
 
+          // Auto-retry up to 3 times
           if (_attempts < 3) {
             Future.delayed(const Duration(seconds: 3), loadRewardedAd);
           }
@@ -100,54 +80,106 @@ class AdMobService {
     );
   }
 
-  // ── Show rewarded ad (fire-and-forget) ───────────────────────────────────
-  Future<bool> showRewardedAd({
-    required VoidCallback onRewarded,
-    required VoidCallback onFailed,
-  }) async {
+  // ── Show rewarded ad and await reward ─────────────────────────────────────
+  /// Shows the rewarded ad and waits for it to close.
+  ///
+  /// Returns `true` ONLY if [onUserEarnedReward] fired — meaning the user
+  /// actually watched the ad to completion.
+  ///
+  /// Returns `false` for every other case:
+  ///   - Ad not loaded (no fill / blocker)
+  ///   - Ad dismissed before reward (user skipped)
+  ///   - Ad failed to show
+  ///
+  /// This is the OctaVPN pattern: only `onUserEarnedReward` unlocks features.
+  Future<bool> showRewardedAdAndWait() async {
     if (!_rewardedLoaded || _rewarded == null) {
-      onFailed();
-      return false;
+      return false; // no ad available — do NOT give free access
     }
+
+    final completer = Completer<bool>();
     bool rewarded = false;
+
+    _rewarded!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        _rewarded       = null;
+        _rewardedLoaded = false;
+        loadRewardedAd(); // preload next ad
+        if (!completer.isCompleted) completer.complete(rewarded);
+      },
+      onAdFailedToShowFullScreenContent: (ad, err) {
+        ad.dispose();
+        _rewarded       = null;
+        _rewardedLoaded = false;
+        loadRewardedAd();
+        if (!completer.isCompleted) completer.complete(false);
+      },
+    );
+
+    await _rewarded!.show(
+      onUserEarnedReward: (ad, reward) {
+        rewarded = true; // only set on actual reward
+      },
+    );
+
+    // Wait for dismiss callback (max 60s safety timeout)
+    return completer.future.timeout(
+      const Duration(seconds: 60),
+      onTimeout: () => false,
+    );
+  }
+
+  // ── Legacy showRewardedAd (used by download_screen) ───────────────────────
+  /// Returns `true` only if reward was earned.
+  Future<bool> showRewardedAd() async {
+    if (!_rewardedLoaded || _rewarded == null) return false;
+
+    final completer = Completer<bool>();
+    bool rewarded = false;
+
     _rewarded!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _rewarded       = null;
         _rewardedLoaded = false;
         loadRewardedAd();
-        if (!rewarded) onFailed();
+        if (!completer.isCompleted) completer.complete(rewarded);
       },
       onAdFailedToShowFullScreenContent: (ad, err) {
         ad.dispose();
         _rewarded       = null;
         _rewardedLoaded = false;
-        onFailed();
+        loadRewardedAd();
+        if (!completer.isCompleted) completer.complete(false);
       },
     );
+
     await _rewarded!.show(
       onUserEarnedReward: (ad, reward) {
         rewarded = true;
-        onRewarded();
       },
     );
-    return true;
+
+    return completer.future.timeout(
+      const Duration(seconds: 60),
+      onTimeout: () => false,
+    );
   }
 
-  // ── Load interstitial ─────────────────────────────────────────────────────
+  // ── Interstitial ──────────────────────────────────────────────────────────
   Future<void> loadInterstitialAd() async {
     await InterstitialAd.load(
       adUnitId: _interstitialId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
-          _interstitial = ad;
-          _consecutiveNetworkFailures = 0; // interstitial success also resets
+          _interstitial               = ad;
+          _consecutiveNetworkFailures = 0;
         },
         onAdFailedToLoad: (err) {
           _interstitial = null;
           if (err.code == 2) _consecutiveNetworkFailures++;
-          // No-fill/config errors on interstitial do NOT count as blocking
         },
       ),
     );
@@ -157,50 +189,6 @@ class AdMobService {
     await _interstitial?.show();
     _interstitial = null;
     loadInterstitialAd();
-  }
-
-  // ── Show rewarded ad and await completion ─────────────────────────────────
-  Future<void> showRewardedAdAndWait({
-    required VoidCallback onAdWatched,
-    required VoidCallback onAdFailed,
-  }) async {
-    if (!_rewardedLoaded || _rewarded == null) {
-      onAdFailed();
-      return;
-    }
-    final completer = Completer<void>();
-    bool rewarded = false;
-    _rewarded!.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (ad) {
-        ad.dispose();
-        _rewarded       = null;
-        _rewardedLoaded = false;
-        loadRewardedAd();
-        if (rewarded) {
-          onAdWatched();
-        } else {
-          onAdFailed();
-        }
-        if (!completer.isCompleted) completer.complete();
-      },
-      onAdFailedToShowFullScreenContent: (ad, err) {
-        ad.dispose();
-        _rewarded       = null;
-        _rewardedLoaded = false;
-        onAdFailed();
-        loadRewardedAd();
-        if (!completer.isCompleted) completer.complete();
-      },
-    );
-    await _rewarded!.show(
-      onUserEarnedReward: (ad, reward) {
-        rewarded = true;
-      },
-    );
-    await completer.future.timeout(
-      const Duration(seconds: 30),
-      onTimeout: () {},
-    );
   }
 
   bool get isRewardedReady => _rewardedLoaded && _rewarded != null;
