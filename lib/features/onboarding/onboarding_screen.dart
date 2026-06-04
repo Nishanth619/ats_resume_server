@@ -60,8 +60,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void initState() {
     super.initState();
     _bgController = AnimationController(
-        vsync: this, duration: Duration(seconds: 8))
+        vsync: this, duration: const Duration(seconds: 8))
       ..repeat();
+    _slideController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 400));
   }
 
   @override
@@ -81,10 +83,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (_currentPage == _pages.length - 1) {
       _completeOnboarding();
     } else {
-      _slideController.reset();
       _pageController.nextPage(
-          duration: Duration(milliseconds: 400), curve: Curves.easeInOut);
-      _slideController.forward();
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut);
     }
   }
 
