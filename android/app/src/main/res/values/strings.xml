@@ -14,6 +14,6 @@
         AdMob → Mediation → Create/Edit Mediation Group → Add Meta Audience Network
         Enter your Facebook App ID and Placement IDs there.
     -->
-    <string name="facebook_app_id">YOUR_FACEBOOK_APP_ID</string>
-    <string name="facebook_client_token">YOUR_FACEBOOK_CLIENT_TOKEN</string>
+    <string name="facebook_app_id">1317329949836757</string>
+    <string name="facebook_client_token">f8dea6838ec4300d8052133f135a941c</string>
 </resources>
