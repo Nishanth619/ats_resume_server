@@ -2,7 +2,7 @@ name: ats_resume_builder
 description: "Ats.Ai — AI-powered resume builder with ATS score analysis, auto-tailoring, and professional PDF export."
 publish_to: 'none'
 
-version: 1.0.1+3
+version: 1.0.2+4
 
 environment:
   sdk: ^3.11.4
