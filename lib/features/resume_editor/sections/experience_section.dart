@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../../../services/ai_service.dart';
 import '../../../services/usage_tracker.dart';
 import '../../../services/admob_service.dart';
+import '../../../services/ad_block_guard.dart';
 import '../../../services/subscription_service.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../core/widgets/ai_report_dialog.dart';
@@ -120,8 +121,12 @@ class _ExpState extends ConsumerState<ExperienceSection>
   Future<void> _showAd() async {
     final isPro = ref.read(subscriptionProvider);
     if (isPro) return;
+
+    // Block if ad blocker / private DNS detected
+    final allowed = await AdBlockGuard.check(context, ref);
+    if (!allowed) throw Exception('ad_blocked');
+
     final adSvc = ref.read(adServiceProvider);
-    await adSvc.loadRewardedAd();
     await adSvc.showRewardedAdAndWait(
       onAdWatched: () {},
       onAdFailed: () {},

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/admob_service.dart';
+import '../../services/ad_block_guard.dart';
 import '../../services/pdf_service.dart';
 import '../../services/storage_service.dart';
 import '../../providers/auth_provider.dart';
@@ -85,13 +86,17 @@ class _DLState extends ConsumerState<DownloadScreen>
   Future<void> _download() async {
     final adSvc = ref.read(adServiceProvider);
 
-    // If ad is not ready, try loading it once
+    // Block if ad blocker / private DNS detected (free users only)
+    final guardOk = await AdBlockGuard.check(context, ref);
+    if (!guardOk) return;
+
+    // If ad is not ready yet, try loading it once
     if (!adSvc.isRewardedReady) {
       setState(() => _status = 'Preparing download...');
       await adSvc.loadRewardedAd();
-      await Future.delayed(Duration(seconds: 2));
+      await Future.delayed(const Duration(seconds: 2));
 
-      // If the ad network is failing or blocked (no fill), bypass it to ensure UX.
+      // If the ad network has no fill, bypass gracefully (not a blocker case)
       if (!adSvc.isRewardedReady) {
         setState(() {
           _loading = true;

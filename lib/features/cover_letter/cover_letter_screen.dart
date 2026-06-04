@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../services/ai_service.dart';
 import '../../services/usage_tracker.dart';
 import '../../services/admob_service.dart';
+import '../../services/ad_block_guard.dart';
 import '../../services/subscription_service.dart';
 import '../../services/firestore_service.dart';
 import '../../providers/resume_provider.dart';
@@ -94,8 +95,12 @@ class _CLState extends ConsumerState<CoverLetterScreen>
   Future<void> _showAd() async {
     final isPro = ref.read(subscriptionProvider);
     if (isPro) return;
+
+    // Block if ad blocker / private DNS detected
+    final allowed = await AdBlockGuard.check(context, ref);
+    if (!allowed) throw Exception('ad_blocked');
+
     final adSvc = ref.read(adServiceProvider);
-    await adSvc.loadRewardedAd();
     await adSvc.showRewardedAdAndWait(
       onAdWatched: () {},
       onAdFailed: () {},
@@ -271,6 +276,10 @@ class _CLState extends ConsumerState<CoverLetterScreen>
       await _downloadAsFile();
       return;
     }
+
+    // Free users: check for ad blocker first.
+    final guardOk = await AdBlockGuard.check(context, ref);
+    if (!guardOk) return;
 
     // Free users: load & show rewarded ad first.
     final adSvc = ref.read(adServiceProvider);
