@@ -2,7 +2,7 @@ name: ats_resume_builder
 description: "Ats.Ai — AI-powered resume builder with ATS score analysis, auto-tailoring, and professional PDF export."
 publish_to: 'none'
 
-version: 1.0.3+5
+version: 1.0.4+6
 
 environment:
   sdk: ^3.11.4
@@ -38,7 +38,6 @@ dependencies:
   firebase_crashlytics: ^5.2.0
   firebase_analytics: ^12.3.0
   purchases_flutter: ^10.1.1
-  image_picker: ^1.1.2
   permission_handler: ^12.0.1
   purchases_ui_flutter: ^10.1.1
 

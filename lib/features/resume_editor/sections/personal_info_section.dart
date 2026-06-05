@@ -2,10 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../../services/ai_service.dart';
-import '../../../services/storage_service.dart';
 import '../../../providers/resume_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../core/widgets/ai_report_dialog.dart';
@@ -34,7 +31,6 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
   late Map<String, dynamic> _data;
   late TextEditingController _summaryController;
   bool _isGeneratingSummary = false;
-  bool _isUploadingPhoto = false;
 
   @override
   void initState() {
@@ -70,50 +66,7 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
     widget.onChanged(_data);
   }
 
-  Future<void> _pickAndUploadPhoto() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-    );
-    if (picked == null) return;
 
-    final user = ref.read(authStateProvider).value;
-    if (user == null) return;
-
-    setState(() => _isUploadingPhoto = true);
-    try {
-      // Read as bytes to avoid FileSystemException on content:// URIs (Android 13+)
-      final bytes = await picked.readAsBytes();
-
-      // Determine extension from original filename
-      final ext = picked.name.contains('.')
-          ? picked.name.split('.').last.toLowerCase()
-          : 'jpg';
-
-      // Write to app cache dir so File() path always works
-      final tmpDir = await getTemporaryDirectory();
-      final tmpFile = File('${tmpDir.path}/profile_upload.$ext');
-      await tmpFile.writeAsBytes(bytes, flush: true);
-
-      final url = await ref
-          .read(storageServiceProvider)
-          .uploadProfilePhoto(user.uid, tmpFile, ext: ext);
-
-      _update('photoUrl', url);
-
-      // Clean up temp file
-      await tmpFile.delete();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to upload photo: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _isUploadingPhoto = false);
-    }
-  }
 
   Future<void> _generateSummary() async {
     // Use the notifier state to get the most up-to-date content (including unsaved keystrokes)
@@ -182,28 +135,6 @@ class _PersonalInfoState extends ConsumerState<PersonalInfoSection>
               children: [
                 Row(
                   children: [
-                    GestureDetector(
-                      onTap: _pickAndUploadPhoto,
-                      child: CircleAvatar(
-                        radius: 36,
-                        backgroundColor: context.appColors.surface,
-                        backgroundImage:
-                            _data['photoUrl'] != null &&
-                                _data['photoUrl'].toString().isNotEmpty
-                            ? NetworkImage(_data['photoUrl'])
-                            : null,
-                        child: _isUploadingPhoto
-                            ? CircularProgressIndicator()
-                            : _data['photoUrl'] == null ||
-                                  _data['photoUrl'].toString().isEmpty
-                            ? Icon(
-                                Icons.add_a_photo_rounded,
-                                color: context.appColors.textSecondary,
-                              )
-                            : null,
-                      ),
-                    ),
-                    SizedBox(width: 16),
                     Expanded(
                       child: TextFormField(
                         initialValue: _data['name'] ?? '',

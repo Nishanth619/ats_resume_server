@@ -1886,15 +1886,6 @@ class PDFService {
 
   Future<pw.Document> _buildPdf(ResumeModel resume, PdfColor color) async {
     pw.ImageProvider? photo;
-    final personal = resume.sections['personal'] as Map?;
-    final photoUrl = personal?['photoUrl']?.toString();
-    if (photoUrl != null && photoUrl.isNotEmpty) {
-      try {
-        photo = await networkImage(photoUrl);
-      } catch (e) {
-        debugPrint('[PDFService] Failed to load profile photo: $e');
-      }
-    }
 
     final content = _extract(resume);
     switch (resume.templateId) {
