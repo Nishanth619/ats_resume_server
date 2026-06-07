@@ -11,6 +11,8 @@ import '../../providers/auth_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/shared_widgets.dart';
 import '../../core/widgets/ai_report_dialog.dart';
+import '../../services/firestore_service.dart';
+import '../../models/resume_model.dart';
 
 class AutoTailorScreen extends ConsumerStatefulWidget {
   final String resumeId;
@@ -25,7 +27,8 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
   KeywordMatchResult? _result;
   bool _loading = false;
   bool _tailoring = false;
-  bool _tailored = false;
+  bool _hasPendingChanges = false;
+  Map<String, dynamic>? _originalSections;
   TailoredResumeResult? _tailorResult;
   late AnimationController _pulseCtrl;
   late Animation<double> _pulse;
@@ -182,10 +185,16 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
       }
       await _incrementTailorUsage();
 
-      // ── Pass 1: Tailor resume content (rewrites summary, experience, skills, projects)
+      // Snapshot original sections before tailoring
+      final resume = ref.read(resumeNotifierProvider(widget.resumeId));
+      if (resume != null) {
+        _originalSections = Map<String, dynamic>.from(resume.sections);
+      }
+
+      // ── Pass 1: Tailor resume content (dryRun)
       final result = await ref
           .read(resumeNotifierProvider(widget.resumeId).notifier)
-          .tailorToJD(jd, aiService);
+          .tailorToJD(jd, aiService, dryRun: true);
 
       // ── Score after Pass 1 (uses ALL sections now)
       final tailoredResume = ref.read(resumeNotifierProvider(widget.resumeId));
@@ -197,14 +206,14 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
         );
       }
 
-      // ── Pass 2: Inject missing JD keywords directly into skills
-      // This is the "Jobscan technique" — after tailoring, we know exactly which
-      // hard keywords the resume still lacks. We add them to skills explicitly.
-      int injectedCount = 0;
-      if (pass1Match != null && pass1Match.missing.isNotEmpty) {
-        injectedCount = await ref
-            .read(resumeNotifierProvider(widget.resumeId).notifier)
-            .injectKeywords(pass1Match.missing);
+      // ── Pass 2: Keyword picker (only if missing keywords)
+      if (mounted && pass1Match != null && pass1Match.missing.isNotEmpty) {
+        final selectedKeywords = await _showKeywordPicker(pass1Match.missing);
+        if (selectedKeywords.isNotEmpty && mounted) {
+          await ref
+              .read(resumeNotifierProvider(widget.resumeId).notifier)
+              .injectKeywords(selectedKeywords, dryRun: true);
+        }
       }
 
       // ── Final score after Pass 2
@@ -220,20 +229,16 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
       if (mounted) {
         setState(() {
           _tailoring = false;
-          _tailored = true;
+          _hasPendingChanges = true;
           _tailorResult = result;
           _result = finalMatch ?? pass1Match;
         });
 
-        final injectedMsg = injectedCount > 0
-            ? ' $injectedCount JD keywords added to skills.'
-            : '';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Resume tailored and saved.$injectedMsg'),
+            content: Text('🎯 Tailoring complete! Review and save changes.'),
             backgroundColor: AppColors.scoreGreen,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -245,6 +250,7 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
       }
       if (mounted) {
         setState(() => _tailoring = false);
+        _revertChanges(); // Clean up local state on error
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error tailoring resume: $e'),
@@ -254,6 +260,82 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
         );
       }
     }
+  }
+
+  Future<List<String>> _showKeywordPicker(List<String> keywords) async {
+    final selected = await showModalBottomSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _KeywordPickerSheet(keywords: keywords),
+    );
+    return selected ?? [];
+  }
+
+  Future<void> _keepChanges() async {
+    if (!_hasPendingChanges) return;
+    try {
+      final uid = ref.read(authStateProvider).value?.uid;
+      final resume = ref.read(resumeNotifierProvider(widget.resumeId));
+      if (uid != null && resume != null && _originalSections != null) {
+        await ref.read(firestoreServiceProvider).saveVersionSnapshot(
+          uid,
+          widget.resumeId,
+          {...resume.toJson(), 'sections': _originalSections!}
+            ..remove('versions'),
+        );
+      }
+      await ref.read(resumeNotifierProvider(widget.resumeId).notifier).save();
+      if (mounted) {
+        setState(() {
+          _hasPendingChanges = false;
+          _originalSections = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✅ Resume tailored and saved!'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.scoreGreen,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to save: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.error,
+        ));
+      }
+    }
+  }
+
+  void _revertChanges() {
+    if (_originalSections == null) return;
+    final current = ref.read(resumeNotifierProvider(widget.resumeId));
+    if (current == null) return;
+
+    ref.read(resumeNotifierProvider(widget.resumeId).notifier).seed(
+      ResumeModel(
+        id: current.id,
+        title: current.title,
+        templateId: current.templateId,
+        colorTheme: current.colorTheme,
+        atsScore: current.atsScore,
+        sections: _originalSections!,
+        targetRole: current.targetRole,
+        targetJD: current.targetJD,
+        lastEdited: current.lastEdited,
+        downloadCount: current.downloadCount,
+      ),
+    );
+    setState(() {
+      _hasPendingChanges = false;
+      _originalSections = null;
+      _tailorResult = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('↩ Changes discarded. Original resume restored.'),
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   String _resumeTextForMatching(Map<String, dynamic> sections) {
@@ -692,51 +774,81 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
 
             // ── Tailor My Resume CTA ──
             SizedBox(height: 24),
-            if (_tailored)
-              GlassCard(
-                showGlow: true,
-                glowColor: AppColors.scoreGreen,
-                child: Row(
+            
+            // ─── Pending-changes preview banner ───
+            if (_hasPendingChanges) ...[
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.scoreGreen.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.scoreGreen.withValues(alpha: 0.35),
+                    width: 1,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppColors.scoreGreen.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: Text('✅', style: TextStyle(fontSize: 22)),
-                      ),
-                    ),
-                    SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Resume Tailored!',
+                    Row(
+                      children: [
+                        Text('🎯', style: TextStyle(fontSize: 16)),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Tailoring Preview — Not Yet Saved',
                             style: TextStyle(
                               color: AppColors.scoreGreen,
                               fontWeight: FontWeight.w700,
-                              fontSize: 14,
+                              fontSize: 13,
                             ),
                           ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Go back to the editor to review your AI-improved resume.',
-                            style: TextStyle(
-                              color: context.appColors.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Review your resume in the editor, then confirm below. Your original is safely preserved.',
+                      style: TextStyle(
+                        color: context.appColors.textSecondary,
+                        fontSize: 12,
+                        height: 1.4,
                       ),
+                    ),
+                    SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GradientButton(
+                            label: 'Keep Changes',
+                            color: AppColors.scoreGreen,
+                            icon: Icon(
+                              Icons.check_circle_outline_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            onPressed: _keepChanges,
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: GradientButton(
+                            label: 'Revert',
+                            color: context.appColors.textSecondary,
+                            icon: Icon(
+                              Icons.undo_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            onPressed: _revertChanges,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              )
-            else
+              ),
+            ] else ...[
               GlassCard(
                 showGlow: true,
                 glowColor: AppColors.primary,
@@ -796,7 +908,9 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
                   ],
                 ),
               ),
-            if (_tailored && _tailorResult != null) ...[
+            ],
+
+            if (_hasPendingChanges && _tailorResult != null) ...[
               SizedBox(height: 16),
               _buildTailorAudit(_tailorResult!),
             ],
@@ -806,7 +920,7 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
                 onPressed: () => showAiReportDialog(
                   context: context,
                   ref: ref,
-                  feature: _tailored ? 'auto_tailor' : 'keyword_match',
+                  feature: _hasPendingChanges ? 'auto_tailor' : 'keyword_match',
                   output: _autoTailorReportText(),
                   inputContext: _jdCtrl.text.trim(),
                 ),
@@ -997,6 +1111,175 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Keyword Picker Sheet ─────────────────────────────────────────────────────
+/// Bottom sheet showing all missing keywords as toggleable chips.
+/// All chips start UNSELECTED — user must explicitly pick what they have.
+class _KeywordPickerSheet extends StatefulWidget {
+  final List<String> keywords;
+  const _KeywordPickerSheet({required this.keywords});
+
+  @override
+  State<_KeywordPickerSheet> createState() => _KeywordPickerSheetState();
+}
+
+class _KeywordPickerSheetState extends State<_KeywordPickerSheet> {
+  late final Set<String> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = {}; // none pre-selected — user chooses what they actually have
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedCount = _selected.length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.appColors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        20 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.appColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          SizedBox(height: 20),
+
+          Text(
+            'Add Missing Keywords to Skills',
+            style: TextStyle(
+              color: context.appColors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Only select skills you genuinely have. Unselected = not added.',
+            style: TextStyle(
+              color: context.appColors.textSecondary,
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+          SizedBox(height: 16),
+
+          // Chip grid
+          Flexible(
+            child: SingleChildScrollView(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: widget.keywords.map((kw) {
+                  final isSelected = _selected.contains(kw);
+                  return FilterChip(
+                    label: Text(
+                      kw,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? Colors.white
+                            : context.appColors.textPrimary,
+                      ),
+                    ),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      setState(() {
+                        if (isSelected) {
+                          _selected.remove(kw);
+                        } else {
+                          _selected.add(kw);
+                        }
+                      });
+                    },
+                    selectedColor: AppColors.primary,
+                    backgroundColor: context.appColors.card,
+                    checkmarkColor: Colors.white,
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppColors.primary
+                          : context.appColors.border,
+                      width: 1,
+                    ),
+                    showCheckmark: true,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          SizedBox(height: 20),
+
+          // Selection count
+          Text(
+            '$selectedCount of ${widget.keywords.length} selected',
+            style: TextStyle(
+              color: selectedCount > 0
+                  ? AppColors.primary
+                  : context.appColors.textMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 12),
+
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: GradientButton(
+                  label: selectedCount == 0
+                      ? 'Add Keywords'
+                      : 'Add $selectedCount Keyword${selectedCount == 1 ? '' : 's'}',
+                  color: selectedCount == 0
+                      ? context.appColors.textMuted
+                      : AppColors.primary,
+                  onPressed: selectedCount == 0
+                      ? null
+                      : () => Navigator.pop(context, _selected.toList()),
+                ),
+              ),
+              SizedBox(width: 10),
+              TextButton(
+                onPressed: () => Navigator.pop(context, <String>[]),
+                child: Text(
+                  'Skip',
+                  style: TextStyle(
+                    color: context.appColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
