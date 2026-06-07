@@ -88,12 +88,15 @@ class FlatGradient extends LinearGradient {
   const FlatGradient(this.tint)
       : super(colors: const [Colors.transparent, Colors.transparent]);
 
-  /// Override createShader so legacy ShaderMask sites produce transparent
-  /// output — no visual gradient is painted.
+  @override
+  List<Color> get colors => [tint, tint];
+
+  /// Override createShader so legacy ShaderMask sites produce a solid tint
+  /// output — ensuring text and containers are fully visible.
   @override
   Shader createShader(Rect rect, {TextDirection? textDirection}) =>
-      const LinearGradient(colors: [Colors.transparent, Colors.transparent])
-          .createShader(rect);
+      LinearGradient(colors: [tint, tint])
+          .createShader(rect, textDirection: textDirection);
 
   /// The intended accent color for glass tint rendering.
   Color get accentColor => tint;
