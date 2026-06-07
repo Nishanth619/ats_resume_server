@@ -467,6 +467,51 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
     await save();
     return result;
   }
+
+  /// Pass 2 of the two-pass tailoring flow.
+  ///
+  /// Takes the [missingKeywords] list from the matchJD result and injects
+  /// any that are not already in the resume's skills section.
+  /// Returns the count of newly added keywords.
+  Future<int> injectKeywords(List<String> missingKeywords) async {
+    final current = await _ensureResumeLoaded();
+    final existingSkills = (current.sections['skills'] as List? ?? [])
+        .map((s) => s.toString().trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    final existingLower = existingSkills.map((s) => s.toLowerCase()).toSet();
+
+    // Only add keywords that are not already present (case-insensitive dedup)
+    final newKeywords = missingKeywords
+        .map((k) => k.trim())
+        .where((k) => k.isNotEmpty && !existingLower.contains(k.toLowerCase()))
+        .toList();
+
+    if (newKeywords.isEmpty) return 0;
+
+    // JD keywords go first so ATS sees them early in the list
+    final mergedSkills = [...newKeywords, ...existingSkills];
+
+    final newSections = Map<String, dynamic>.from(current.sections)
+      ..['skills'] = mergedSkills;
+
+    state = ResumeModel(
+      id: current.id,
+      title: current.title,
+      templateId: current.templateId,
+      colorTheme: current.colorTheme,
+      atsScore: current.atsScore,
+      sections: newSections,
+      targetRole: current.targetRole,
+      targetJD: current.targetJD,
+      lastEdited: DateTime.now(),
+      downloadCount: current.downloadCount,
+    );
+
+    await save();
+    return newKeywords.length;
+  }
 }
 
 // Actions provider for dashboard operations (delete, duplicate, etc.)

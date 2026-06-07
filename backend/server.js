@@ -1272,6 +1272,7 @@ For each job, rewrite the description bullets to:
 Build the best possible skills list for this specific JD. Be generous in adding skills.
 - Include explicitly listed skills from the JD when the resume plausibly supports them.
 - Infer adjacent skills from job titles and descriptions where reasonable.
+- CRITICAL: Use the EXACT skill name as written in the JD. ATS scanners are literal — "Kubernetes" and "K8s" are NOT the same. "PostgreSQL" and "databases" are NOT the same. Always use the JD's exact term.
 - Reorder: JD must-have skills first, then JD preferred skills, then remaining original skills.
 - Keep all original skills. Only add, never remove.
 - Only put a skill in warnings if it requires deep specialized certification or niche experience with zero resume signal.
@@ -1355,7 +1356,7 @@ ${jd}`;
       if (genAI) {
         const model = genAI.getGenerativeModel({
           model: 'gemini-2.5-flash',
-          generationConfig: { temperature: 0.25, topP: 0.85 },
+          generationConfig: { temperature: 0.4, topP: 0.9 },
         });
         const result = await withTimeout(model.generateContent(prompt), 60000);
         const parsed = normalizeTailoredResume(

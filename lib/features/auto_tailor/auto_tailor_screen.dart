@@ -182,29 +182,58 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
       }
       await _incrementTailorUsage();
 
+      // ── Pass 1: Tailor resume content (rewrites summary, experience, skills, projects)
       final result = await ref
           .read(resumeNotifierProvider(widget.resumeId).notifier)
           .tailorToJD(jd, aiService);
+
+      // ── Score after Pass 1 (uses ALL sections now)
       final tailoredResume = ref.read(resumeNotifierProvider(widget.resumeId));
-      final updatedMatch = tailoredResume == null
-          ? null
-          : await aiService.matchJD(
-              _resumeTextForMatching(tailoredResume.sections),
-              jd,
-            );
+      KeywordMatchResult? pass1Match;
+      if (tailoredResume != null) {
+        pass1Match = await aiService.matchJD(
+          _resumeTextForMatching(tailoredResume.sections),
+          jd,
+        );
+      }
+
+      // ── Pass 2: Inject missing JD keywords directly into skills
+      // This is the "Jobscan technique" — after tailoring, we know exactly which
+      // hard keywords the resume still lacks. We add them to skills explicitly.
+      int injectedCount = 0;
+      if (pass1Match != null && pass1Match.missing.isNotEmpty) {
+        injectedCount = await ref
+            .read(resumeNotifierProvider(widget.resumeId).notifier)
+            .injectKeywords(pass1Match.missing);
+      }
+
+      // ── Final score after Pass 2
+      final finalResume = ref.read(resumeNotifierProvider(widget.resumeId));
+      KeywordMatchResult? finalMatch;
+      if (finalResume != null) {
+        finalMatch = await aiService.matchJD(
+          _resumeTextForMatching(finalResume.sections),
+          jd,
+        );
+      }
+
       if (mounted) {
         setState(() {
           _tailoring = false;
           _tailored = true;
           _tailorResult = result;
-          if (updatedMatch != null) _result = updatedMatch;
+          _result = finalMatch ?? pass1Match;
         });
+
+        final injectedMsg = injectedCount > 0
+            ? ' $injectedCount JD keywords added to skills.'
+            : '';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Resume tailored and saved. Review changes below.'),
+            content: Text('✅ Resume tailored and saved.$injectedMsg'),
             backgroundColor: AppColors.scoreGreen,
             behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 4),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -229,20 +258,43 @@ class _AutoTailorState extends ConsumerState<AutoTailorScreen>
 
   String _resumeTextForMatching(Map<String, dynamic> sections) {
     final buf = StringBuffer();
+
+    // Personal summary
     final p = sections['personal'] is Map ? sections['personal'] as Map : {};
     buf.writeln('${p['summary'] ?? ''}');
 
+    // Experience (title + description)
     for (final e in (sections['experience'] as List? ?? [])) {
       if (e is! Map) continue;
       buf.writeln('${e['title'] ?? ''} ${e['company'] ?? ''}');
       buf.writeln('${e['description'] ?? ''}');
     }
 
+    // Skills (comma-separated)
     final skills = (sections['skills'] as List? ?? [])
         .map((s) => s.toString())
         .where((s) => s.trim().isNotEmpty)
         .join(', ');
     buf.writeln(skills);
+
+    // Projects — ADDED: AI rewrites these during tailoring
+    for (final proj in (sections['projects'] as List? ?? [])) {
+      if (proj is! Map) continue;
+      buf.writeln('${proj['name'] ?? ''} ${proj['description'] ?? ''}');
+    }
+
+    // Education highlights — ADDED: AI adds highlights during tailoring
+    for (final edu in (sections['education'] as List? ?? [])) {
+      if (edu is! Map) continue;
+      buf.writeln('${edu['degree'] ?? ''} ${edu['institution'] ?? ''} ${edu['highlights'] ?? ''}');
+    }
+
+    // Certifications — ADDED: AI reorders these during tailoring
+    for (final cert in (sections['certifications'] as List? ?? [])) {
+      if (cert is! Map) continue;
+      buf.writeln('${cert['name'] ?? ''} ${cert['issuer'] ?? ''}');
+    }
+
     return buf.toString();
   }
 

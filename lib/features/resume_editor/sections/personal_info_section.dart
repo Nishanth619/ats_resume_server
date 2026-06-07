@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/ai_service.dart';
 import '../../../providers/resume_provider.dart';
-import '../../../providers/auth_provider.dart';
 import '../../../core/widgets/ai_report_dialog.dart';
 
 class PersonalInfoSection extends ConsumerStatefulWidget {
