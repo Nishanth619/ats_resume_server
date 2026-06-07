@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/resume_model.dart';
 import '../../services/ai_service.dart';
+import '../../services/firestore_service.dart';
 import '../../services/usage_tracker.dart';
 import '../../services/admob_service.dart';
 import '../../services/ad_block_guard.dart';
@@ -29,6 +31,11 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
   String? _error;
   late AnimationController _pulseCtrl;
   late Animation<double> _pulse;
+
+  // ── Optimize Resume state ────────────────────────────────────────────────
+  bool _optimising = false;
+  bool _hasPendingChanges = false;
+  Map<String, dynamic>? _originalSections; // snapshot for instant revert
 
   @override
   void initState() {
@@ -165,6 +172,211 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
         });
       }
     }
+  }
+
+  // ── Optimize Resume ────────────────────────────────────────────────────────
+
+  /// Builds a JD-style optimisation profile from the ATS result.
+  /// Structured as a real job description so the tailor-resume prompt
+  /// reads it correctly — avoids LLM prompt-confusion from command-style text.
+  String _buildOptimisationBrief(ATSResult result) {
+    final buf = StringBuffer();
+
+    // Header — looks like a job posting
+    final role = ref
+            .read(resumeNotifierProvider(widget.resumeId))
+            ?.targetRole
+            .trim() ??
+        '';
+    buf.writeln(
+      'Senior ${role.isEmpty ? 'Software Engineer' : role} — ATS Optimisation Brief\n',
+    );
+
+    // Required qualifications — derived from critical issue fixes
+    if (result.criticalIssues.isNotEmpty) {
+      buf.writeln('Required Qualifications:');
+      for (final issue in result.criticalIssues.take(5)) {
+        final fix = issue.fix.trim();
+        if (fix.isNotEmpty) buf.writeln('• $fix');
+      }
+      buf.writeln();
+    }
+
+    // Key competencies — from top 3 improvements (reframed as requirements)
+    if (result.top3Improvements.isNotEmpty) {
+      buf.writeln('Key Competencies & Responsibilities:');
+      for (final imp in result.top3Improvements) {
+        buf.writeln('• Experience with: $imp');
+      }
+      buf.writeln();
+    }
+
+    // Required technical skills — the exact missing keywords
+    if (result.missingKeywords.isNotEmpty) {
+      buf.writeln('Required Technical Skills:');
+      buf.writeln(result.missingKeywords.take(20).join(', '));
+      buf.writeln();
+    }
+
+    // Preferred qualifications — from wins (reinforce what's working)
+    if (result.top3Wins.isNotEmpty) {
+      buf.writeln('Preferred Qualifications:');
+      for (final win in result.top3Wins) {
+        buf.writeln('• Demonstrated strength in: $win');
+      }
+    }
+
+    return buf.toString().trim();
+  }
+
+  Future<void> _optimiseResume() async {
+    if (_result == null || _optimising) return;
+
+    // Capture messenger before async gap
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Ad gate (same as ATS check)
+    final adOk = await _showAdAndProceed();
+    if (!adOk || !mounted) return;
+
+    // Snapshot the original sections before any changes
+    final resume = ref.read(resumeNotifierProvider(widget.resumeId));
+    if (resume == null) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Resume not loaded. Please go back and try again.'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    _originalSections = Map<String, dynamic>.from(resume.sections);
+
+    setState(() => _optimising = true);
+
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      final brief = _buildOptimisationBrief(_result!);
+
+      // Pass 1 — dry-run tailor (local state only, no Firestore write)
+      await ref
+          .read(resumeNotifierProvider(widget.resumeId).notifier)
+          .tailorToJD(brief, aiService, dryRun: true);
+
+      // Show keyword picker if there are missing keywords
+      List<String> selectedKeywords = [];
+      if (mounted && _result!.missingKeywords.isNotEmpty) {
+        selectedKeywords = await _showKeywordPicker(_result!.missingKeywords);
+      }
+
+      // Pass 2 — dry-run inject selected keywords (local state only)
+      if (selectedKeywords.isNotEmpty && mounted) {
+        await ref
+            .read(resumeNotifierProvider(widget.resumeId).notifier)
+            .injectKeywords(selectedKeywords, dryRun: true);
+      }
+
+      if (mounted) {
+        setState(() {
+          _optimising = false;
+          _hasPendingChanges = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _optimising = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Optimisation failed: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.scoreRed,
+        ));
+        // Revert local state on error
+        _revertChanges();
+      }
+    }
+  }
+
+  /// Shows a bottom sheet where the user picks which missing keywords to add.
+  /// All chips start unselected — user must explicitly choose.
+  Future<List<String>> _showKeywordPicker(List<String> keywords) async {
+    final selected = await showModalBottomSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _KeywordPickerSheet(keywords: keywords),
+    );
+    return selected ?? [];
+  }
+
+  /// Saves the dry-run changes to Firestore and re-runs ATS analysis.
+  Future<void> _keepChanges() async {
+    if (!_hasPendingChanges) return;
+    try {
+      // Take version snapshot then save to Firestore
+      final uid = ref.read(authStateProvider).value?.uid;
+      final resume = ref.read(resumeNotifierProvider(widget.resumeId));
+      if (uid != null && resume != null && _originalSections != null) {
+        // Backup original before overwriting
+        await ref.read(firestoreServiceProvider).saveVersionSnapshot(
+          uid,
+          widget.resumeId,
+          {...resume.toJson(), 'sections': _originalSections!}
+            ..remove('versions'),
+        );
+      }
+      await ref
+          .read(resumeNotifierProvider(widget.resumeId).notifier)
+          .save();
+      if (mounted) {
+        setState(() {
+          _hasPendingChanges = false;
+          _originalSections = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✅ Changes saved! Re-running analysis...'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ));
+        // Re-run ATS check to show updated score
+        _run();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to save: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.scoreRed,
+        ));
+      }
+    }
+  }
+
+  /// Restores the original resume sections without touching Firestore.
+  void _revertChanges() {
+    if (_originalSections == null) return;
+    final current = ref.read(resumeNotifierProvider(widget.resumeId));
+    if (current == null) return;
+
+    ref.read(resumeNotifierProvider(widget.resumeId).notifier).seed(
+      ResumeModel(
+        id: current.id,
+        title: current.title,
+        templateId: current.templateId,
+        colorTheme: current.colorTheme,
+        atsScore: current.atsScore,
+        sections: _originalSections!,
+        targetRole: current.targetRole,
+        targetJD: current.targetJD,
+        lastEdited: current.lastEdited,
+        downloadCount: current.downloadCount,
+      ),
+    );
+    setState(() {
+      _hasPendingChanges = false;
+      _originalSections = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('↩ Changes discarded. Original resume restored.'),
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
 
@@ -893,6 +1105,135 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
             ),
           ],
           SizedBox(height: 24),
+
+          // ─── Pending-changes preview banner ───
+          if (_hasPendingChanges) ...[
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.scoreGreen.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.scoreGreen.withValues(alpha: 0.35),
+                  width: 1,
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('🎯', style: TextStyle(fontSize: 16)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Optimisation Preview — Not Yet Saved',
+                          style: TextStyle(
+                            color: AppColors.scoreGreen,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'Review your resume in the editor, then confirm below. Your original is safely preserved.',
+                    style: TextStyle(
+                      color: context.appColors.textSecondary,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                  SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GradientButton(
+                          label: 'Keep Changes',
+                          color: AppColors.scoreGreen,
+                          icon: Icon(
+                            Icons.check_circle_outline_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          onPressed: _keepChanges,
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: GradientButton(
+                          label: 'Revert',
+                          color: context.appColors.textSecondary,
+                          icon: Icon(
+                            Icons.undo_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          onPressed: _revertChanges,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16),
+          ],
+
+          // ─── Optimize Resume button (only when score < 80 and no pending changes) ───
+          if (_result!.score < 80 && !_hasPendingChanges) ...[
+            GlassCard(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('⚡', style: TextStyle(fontSize: 18)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Optimize Resume',
+                          style: TextStyle(
+                            color: context.appColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'AI will fix the issues above and improve your score. You review changes before saving.',
+                    style: TextStyle(
+                      color: context.appColors.textSecondary,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                  SizedBox(height: 14),
+                  GradientButton(
+                    label: _optimising ? 'Optimising...' : 'Optimize My Resume',
+                    isLoading: _optimising,
+                    color: AppColors.accent,
+                    icon: _optimising
+                        ? null
+                        : Icon(
+                            Icons.auto_fix_high_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                    onPressed: _optimising ? null : _optimiseResume,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16),
+          ],
+
           OutlinedButton.icon(
             onPressed: () => showAiReportDialog(
               context: context,
@@ -982,6 +1323,175 @@ class _StatCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Keyword Picker Sheet ─────────────────────────────────────────────────────
+/// Bottom sheet showing all missing keywords as toggleable chips.
+/// All chips start UNSELECTED — user must explicitly pick what they have.
+class _KeywordPickerSheet extends StatefulWidget {
+  final List<String> keywords;
+  const _KeywordPickerSheet({required this.keywords});
+
+  @override
+  State<_KeywordPickerSheet> createState() => _KeywordPickerSheetState();
+}
+
+class _KeywordPickerSheetState extends State<_KeywordPickerSheet> {
+  late final Set<String> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = {}; // none pre-selected — user chooses what they actually have
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedCount = _selected.length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.appColors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        20 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.appColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          SizedBox(height: 20),
+
+          Text(
+            'Add Missing Keywords to Skills',
+            style: TextStyle(
+              color: context.appColors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Only select skills you genuinely have. Unselected = not added.',
+            style: TextStyle(
+              color: context.appColors.textSecondary,
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+          SizedBox(height: 16),
+
+          // Chip grid
+          Flexible(
+            child: SingleChildScrollView(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: widget.keywords.map((kw) {
+                  final isSelected = _selected.contains(kw);
+                  return FilterChip(
+                    label: Text(
+                      kw,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? Colors.white
+                            : context.appColors.textPrimary,
+                      ),
+                    ),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      setState(() {
+                        if (isSelected) {
+                          _selected.remove(kw);
+                        } else {
+                          _selected.add(kw);
+                        }
+                      });
+                    },
+                    selectedColor: AppColors.primary,
+                    backgroundColor: context.appColors.card,
+                    checkmarkColor: Colors.white,
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppColors.primary
+                          : context.appColors.border,
+                      width: 1,
+                    ),
+                    showCheckmark: true,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          SizedBox(height: 20),
+
+          // Selection count
+          Text(
+            '$selectedCount of ${widget.keywords.length} selected',
+            style: TextStyle(
+              color: selectedCount > 0
+                  ? AppColors.primary
+                  : context.appColors.textMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 12),
+
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: GradientButton(
+                  label: selectedCount == 0
+                      ? 'Add Keywords'
+                      : 'Add $selectedCount Keyword${selectedCount == 1 ? '' : 's'}',
+                  color: selectedCount == 0
+                      ? context.appColors.textMuted
+                      : AppColors.primary,
+                  onPressed: selectedCount == 0
+                      ? null
+                      : () => Navigator.pop(context, _selected.toList()),
+                ),
+              ),
+              SizedBox(width: 10),
+              TextButton(
+                onPressed: () => Navigator.pop(context, <String>[]),
+                child: Text(
+                  'Skip',
+                  style: TextStyle(
+                    color: context.appColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -310,8 +310,9 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
 
   Future<TailoredResumeResult> tailorToJD(
     String jd,
-    AIService aiService,
-  ) async {
+    AIService aiService, {
+    bool dryRun = false,
+  }) async {
     final original = await _ensureResumeLoaded();
     final result = await aiService.tailorResume(
       resumeSections: original.sections,
@@ -319,7 +320,8 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
     );
 
     final user = ref.read(authStateProvider).value;
-    if (user != null && original.id.isNotEmpty) {
+    // Only take a version snapshot when actually saving (not in dry-run preview)
+    if (!dryRun && user != null && original.id.isNotEmpty) {
       try {
         final snapshot = original.toJson()..remove('versions');
         await ref
@@ -464,7 +466,7 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       downloadCount: original.downloadCount,
     );
 
-    await save();
+    if (!dryRun) await save();
     return result;
   }
 
@@ -473,7 +475,10 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
   /// Takes the [missingKeywords] list from the matchJD result and injects
   /// any that are not already in the resume's skills section.
   /// Returns the count of newly added keywords.
-  Future<int> injectKeywords(List<String> missingKeywords) async {
+  Future<int> injectKeywords(
+    List<String> missingKeywords, {
+    bool dryRun = false,
+  }) async {
     final current = await _ensureResumeLoaded();
     final existingSkills = (current.sections['skills'] as List? ?? [])
         .map((s) => s.toString().trim())
@@ -509,7 +514,7 @@ class ResumeNotifier extends Notifier<ResumeModel?> {
       downloadCount: current.downloadCount,
     );
 
-    await save();
+    if (!dryRun) await save();
     return newKeywords.length;
   }
 }
