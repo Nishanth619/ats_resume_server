@@ -74,19 +74,18 @@ class PDFService {
               children: [
                 pw.Padding(
                   padding: const pw.EdgeInsets.only(
-                    top: 2,
+                    top: 4,
                     right: 6,
                     left: 2,
                   ),
-                  // Use a plain Unicode bullet — circle pw.Container renders
-                  // as an X/cross on many PDF renderers.
-                  child: pw.Text(
-                    '•',
-                    style: pw.TextStyle(
-                      fontSize: 10,
-                      color: bulletColor,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
+                  // Small filled square — renders correctly on ALL PDF viewers.
+                  // Do NOT use pw.Text('•') — U+2022 is outside WinAnsi and
+                  // renders as a cross/X on Helvetica/Times. Do NOT use
+                  // pw.BoxShape.circle — it can also render as X on some viewers.
+                  child: pw.Container(
+                    width: 4,
+                    height: 4,
+                    color: bulletColor,
                   ),
                 ),
                 pw.Expanded(
@@ -1776,17 +1775,15 @@ class PDFService {
                   children: [
                     pw.Padding(
                       padding: const pw.EdgeInsets.only(
-                        top: 3.5,
+                        top: 4,
                         right: 6,
                         left: 4,
                       ),
+                      // Small filled square — same fix as _bullets().
                       child: pw.Container(
                         width: 3,
                         height: 3,
-                        decoration: const pw.BoxDecoration(
-                          color: PdfColors.black,
-                          shape: pw.BoxShape.circle,
-                        ),
+                        color: PdfColors.black,
                       ),
                     ),
                     pw.Expanded(
