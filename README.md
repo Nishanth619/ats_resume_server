@@ -15,6 +15,12 @@
 ---
 
 <div align="center">
+  <img src="docs/featured_graphic.png" width="800" alt="Featured Graphic" />
+</div>
+
+<br/>
+
+<div align="center">
   <img src="docs/image1.png" width="180" alt="App Screenshot 1" />
   <img src="docs/image2.png" width="180" alt="App Screenshot 2" />
   <img src="docs/image3.png" width="180" alt="App Screenshot 3" />
