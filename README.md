@@ -3,6 +3,10 @@
   <h1>Ats.Ai – AI-Powered Resume Builder</h1>
   <p><em>Build, Tailor, Score, and Export ATS-friendly resumes that win interviews.</em></p>
 
+  <a href="https://play.google.com/store/apps/details?id=site.nexaaradhya.atsai">
+    <img alt="Get it on Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" height="60" />
+  </a>
+
   <p>
     <img src="https://img.shields.io/badge/Flutter-3.24-02569B?logo=flutter" alt="Flutter Version" />
     <img src="https://img.shields.io/badge/Dart-3.5-0175C2?logo=dart" alt="Dart Version" />
