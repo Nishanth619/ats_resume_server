@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="legal/logo_resume_flat.png" width="120" alt="Ats.Ai Logo" />
+  <img src="legal/logo_resume.png" width="120" alt="Ats.Ai Logo" />
   <h1>Ats.Ai – AI-Powered Resume Builder</h1>
   <p><em>Build, Tailor, Score, and Export ATS-friendly resumes that win interviews.</em></p>
 
@@ -13,6 +13,10 @@
 </div>
 
 ---
+
+<div align="center">
+  <img src="docs/screenshot_1.png" width="250" alt="App Screenshot" />
+</div>
 
 Ats.Ai is a production-ready mobile application built with **Flutter** and **Firebase**, designed to help job seekers bypass Applicant Tracking Systems (ATS). By leveraging Google's **Gemini AI**, the app deeply analyzes resumes against target Job Descriptions (JD) and provides actionable, metric-driven optimization strategies.
 
