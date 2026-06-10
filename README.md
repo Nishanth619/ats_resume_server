@@ -15,7 +15,16 @@
 ---
 
 <div align="center">
-  <img src="docs/screenshot_1.png" width="250" alt="App Screenshot" />
+  <img src="docs/image1.png" width="180" alt="App Screenshot 1" />
+  <img src="docs/image2.png" width="180" alt="App Screenshot 2" />
+  <img src="docs/image3.png" width="180" alt="App Screenshot 3" />
+  <img src="docs/image4.png" width="180" alt="App Screenshot 4" />
+</div>
+<div align="center">
+  <img src="docs/image5.png" width="180" alt="App Screenshot 5" />
+  <img src="docs/image6.png" width="180" alt="App Screenshot 6" />
+  <img src="docs/image7.png" width="180" alt="App Screenshot 7" />
+  <img src="docs/image8.png" width="180" alt="App Screenshot 8" />
 </div>
 
 Ats.Ai is a production-ready mobile application built with **Flutter** and **Firebase**, designed to help job seekers bypass Applicant Tracking Systems (ATS). By leveraging Google's **Gemini AI**, the app deeply analyzes resumes against target Job Descriptions (JD) and provides actionable, metric-driven optimization strategies.
