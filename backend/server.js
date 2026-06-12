@@ -12,6 +12,10 @@ const multer = require('multer');
 const axios = require('axios');
 const helmet = require('helmet');
 const { Document, Packer, Paragraph, TextRun, HeadingLevel } = require('docx');
+// pdf-parse is used ONLY for scanned-PDF detection (pre-flight text extraction check).
+// If the package is not installed this feature degrades gracefully.
+let pdfParse;
+try { pdfParse = require('pdf-parse'); } catch (_) { pdfParse = null; }
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -93,29 +97,55 @@ function cacheSet(key, data) {
 }
 
 // ─── 3. ATS Scoring Rubric ────────────────────────────────────────────────────
-// FIX: date system note moved here into the rubric preamble, NOT injected into
-// resume text where the model treats it as candidate content.
+// IMPROVEMENTS applied:
+//  • temperature is set to 0 on the model call → deterministic, repeatable scores
+//  • SCORING_RUBRIC now includes section-weighted keywords (Fix 3)
+//  • SCORING_RUBRIC now includes recency decay (Fix 4)
+//  • SCORING_RUBRIC now includes a 3-tier anchor table for Impact Language (Fix 6)
+//  • SCORING_RUBRIC now instructs the model to infer industry/domain (Fix 9)
 const SCORING_RUBRIC = `
 You are a strict ATS and recruiter-quality reviewer. Score only from evidence in the resume and optional job description.
 Today's date is ${new Date().toISOString().split('T')[0]}. Do NOT flag any dates before today as future dates. Graduation years, job start dates, and certification dates in the past are valid.
 
-Rules:
+=== CORE SCORING RULES ===
 - Do not reward vague, unsupported, or unrelated claims.
 - Do not invent missing keywords, achievements, employers, degrees, dates, metrics, tools, or certifications.
 - If a target job description is provided, weigh must-have responsibilities and tools above generic keywords.
 - Keep category reasoning concise and evidence-based. Mention exact evidence or the exact gap.
 - Scores must be integers. Each category is 0-20 and total_score must equal the sum of the five categories.
 
+=== SECTION KEYWORD WEIGHTING (Fix 3) ===
+A keyword found in the Professional Summary or Job Title carries 2x the weight of the same keyword found only in a skills list, bullet point, or project description. Award maximum points only if must-have JD keywords appear prominently in the summary or title — not buried in a list.
+
+=== RECENCY DECAY (Fix 4) ===
+For each skill or technology explicitly required by the job description:
+- Check the most recent role that mentions it and compare its end date to today.
+- If a required skill last appears in a role that ended MORE than 5 years ago, flag it as "stale" in the reasoning and deduct points from RELEVANCE (not Keyword Match). A stale required skill is more misleading than a missing one.
+- Skills listed in a general skills section with no date context are treated as current.
+
+=== INDUSTRY INFERENCE (Fix 9) ===
+Before scoring, identify the candidate's likely industry domain from the resume (e.g., "FinTech", "DevOps/Cloud", "Healthcare IT", "Mobile Development", "Data Science"). State the inferred domain in the evidence field. Tune your keyword expectations accordingly — e.g., for DevOps, weight Kubernetes/Terraform/CI-CD heavily; for FinTech, weight regulatory compliance and risk management terms.
+
+=== IMPACT LANGUAGE — 3-TIER ANCHOR TABLE (Fix 6) ===
+Use these concrete anchors to grade consistently. Do NOT extrapolate beyond this scale.
+
+| Band | Score (out of 20) | Resume line examples |
+|------|-------------------|------|
+| POOR | 0 – 7 | "Responsible for testing", "Helped with deployments", "Worked on backend" — passive, vague, no ownership |
+| AVERAGE | 8 – 14 | "Developed REST API for user authentication", "Reduced bug count by improving test coverage" — active but no hard metric |
+| STRONG | 15 – 20 | "Engineered REST API reducing auth latency by 40ms (P95)", "Cut deployment failures by 62% by introducing automated smoke tests across 3 environments" — action verb + scope + quantified outcome |
+
 Categories:
-1. KEYWORD_MATCH: role-specific tools, technologies, certifications, domain terms, and must-have requirements.
-2. IMPACT_LANGUAGE: action verbs, ownership, scope, outcomes, and quantified impact already present in the resume.
-3. STRUCTURE: clear sections, consistent bullet style, readable order, no clutter.
-4. RELEVANCE: alignment of experience, skills, projects, and education to the target role.
-5. ATS_COMPATIBILITY: plain text, standard headings, minimal graphics/tables, parseable contact info.
+1. KEYWORD_MATCH (0-20): role-specific tools, technologies, certifications, domain terms, and must-have requirements. Apply section weighting rule above.
+2. IMPACT_LANGUAGE (0-20): Apply 3-tier anchor table above strictly. Do not give more than 14 if no hard metrics are present.
+3. STRUCTURE (0-20): clear sections (Summary, Experience, Education, Skills), consistent bullet style, readable order, no dense paragraphs, no clutter.
+4. RELEVANCE (0-20): alignment of experience, skills, projects, and education to the target role. Apply recency decay rule above.
+5. ATS_COMPATIBILITY (0-20): plain text, standard headings, minimal/no graphics or tables, parseable contact info, no columns.
 
 Return ONLY this exact JSON schema, no markdown:
 {
   "total_score": <sum of all 5>,
+  "inferred_domain": "<detected industry domain>",
   "categories": {
     "keyword_match":     { "score": 0, "reasoning": "..." },
     "impact_language":   { "score": 0, "reasoning": "..." },
@@ -126,6 +156,7 @@ Return ONLY this exact JSON schema, no markdown:
   "critical_issues":     [{ "issue": "...", "fix": "...", "priority": "high|medium|low" }],
   "matched_keywords":    [],
   "missing_keywords":    [],
+  "stale_keywords":      [],
   "top_3_wins":          [],
   "top_3_improvements":  [],
   "evidence":            ["short resume evidence used for scoring"]
@@ -699,6 +730,29 @@ Rules:
 RESUME:
 `;
 
+  // ── Scanned PDF detection (Fix 2 & 8) ───────────────────────────────────
+  // If a base64 PDF is provided, attempt a fast text-extraction pass using
+  // pdf-parse before sending to the AI. A scanned image PDF has zero or
+  // near-zero text — sending it to the model causes hallucinations.
+  if (pdfBase64 && pdfParse) {
+    try {
+      const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+      const pdfData = await pdfParse(pdfBuffer, { max: 0 }); // max:0 = all pages
+      const extractedText = (pdfData.text || '').trim();
+      if (extractedText.length < 150) {
+        console.warn(`[parse-resume] Scanned/image PDF detected — only ${extractedText.length} chars extracted.`);
+        return res.status(400).json({
+          error:
+            'This PDF appears to be a scanned image and has no readable text layer. ' +
+            'Please upload a text-based PDF or paste your resume text directly.',
+        });
+      }
+    } catch (pdfErr) {
+      // pdf-parse failure is non-fatal — let Gemini try anyway
+      console.warn('[parse-resume] pdf-parse pre-check failed:', pdfErr.message);
+    }
+  }
+
   try {
     let parsedResult;
 
@@ -885,9 +939,11 @@ app.post('/api/ai/ats-check', auth, validateAtsInput, async (req, res) => {
     if (genAI) {
       const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash',
-        generationConfig: { temperature: 0.2, topP: 0.8 },
+        // temperature: 0 → deterministic output so identical resume+JD always
+        // returns identical scores. Combined with the SHA-256 cache this ensures
+        // users never see score variance from model sampling (Fix 1).
+        generationConfig: { temperature: 0, topP: 1.0 },
       });
-      // FIX: increased timeout from 30s to 45s — ATS is the most complex prompt
       const result = await withTimeout(model.generateContent(prompt), 45000);
       aiResult = { text: result.response.text(), engine: 'gemini' };
     } else {
@@ -912,6 +968,8 @@ app.post('/api/ai/ats-check', auth, validateAtsInput, async (req, res) => {
           ],
           model: 'llama-3.3-70b-versatile',
           max_tokens: 2048,
+          // temperature: 0 for determinism on fallback model too (Fix 1 & 7)
+          temperature: 0,
         }),
         45000
       );
@@ -1066,7 +1124,8 @@ ${resumeText}`;
       if (genAI) {
         const model = genAI.getGenerativeModel({
           model: 'gemini-2.5-flash',
-          generationConfig: { temperature: 0.2, topP: 0.8 },
+          // temperature: 0 → deterministic keyword matching (Fix 1)
+          generationConfig: { temperature: 0, topP: 1.0 },
         });
         const result = await withTimeout(model.generateContent(prompt));
         const parsed = normalizeKeywordMatch(
@@ -1091,7 +1150,7 @@ ${resumeText}`;
             ],
             model: 'llama-3.3-70b-versatile',
             max_tokens: 1400,
-            temperature: 0.2,
+            temperature: 0,
           })
         );
         const parsed = normalizeKeywordMatch(

@@ -349,9 +349,14 @@ class ATSResult {
   final Map<String, ATSCategoryScore> categories;
   final List<ATSCriticalIssue> criticalIssues;
   final List<String> matchedKeywords;
+  final List<String> missingKeywords2; // alias kept for clarity
+  /// Keywords that exist in the resume but were last used >5 years ago (Fix 4)
+  final List<String> staleKeywords;
   final List<String> top3Wins;
   final List<String> top3Improvements;
   final String engine; // 'gemini' | 'llama3' | ''
+  /// Inferred industry domain, e.g. "Mobile Development" (Fix 9)
+  final String inferredDomain;
   final bool cached;
 
   ATSResult({
@@ -363,9 +368,12 @@ class ATSResult {
     this.categories = const {},
     this.criticalIssues = const [],
     this.matchedKeywords = const [],
+    this.missingKeywords2 = const [],
+    this.staleKeywords = const [],
     this.top3Wins = const [],
     this.top3Improvements = const [],
     this.engine = '',
+    this.inferredDomain = '',
     this.cached = false,
   });
 
@@ -402,20 +410,26 @@ class ATSResult {
         ? criticalIssues.map((e) => e.fix).toList()
         : List<String>.from(j['fixes'] ?? []);
 
+    final matched = List<String>.from(
+      j['matched_keywords'] ?? j['keywords'] ?? [],
+    );
+    final missing = List<String>.from(j['missing_keywords'] ?? []);
+
     return ATSResult(
       score: score,
       issues: legacyIssues,
       fixes: legacyFixes,
-      keywords: List<String>.from(j['matched_keywords'] ?? j['keywords'] ?? []),
-      missingKeywords: List<String>.from(j['missing_keywords'] ?? []),
+      keywords: matched,
+      missingKeywords: missing,
       categories: categories,
       criticalIssues: criticalIssues,
-      matchedKeywords: List<String>.from(
-        j['matched_keywords'] ?? j['keywords'] ?? [],
-      ),
+      matchedKeywords: matched,
+      missingKeywords2: missing,
+      staleKeywords: List<String>.from(j['stale_keywords'] ?? []),
       top3Wins: List<String>.from(j['top_3_wins'] ?? []),
       top3Improvements: List<String>.from(j['top_3_improvements'] ?? []),
       engine: j['_engine'] ?? '',
+      inferredDomain: (j['inferred_domain'] as String?) ?? '',
       cached: j['_cached'] == true,
     );
   }

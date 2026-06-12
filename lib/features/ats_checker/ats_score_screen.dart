@@ -618,7 +618,44 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                             : '🧠 Llama 3',
                         AppColors.primary,
                       ),
+                      // Show domain badge when available (Fix 9)
+                      if (_result!.inferredDomain.isNotEmpty) ...[
+                        SizedBox(width: 8),
+                        _badge('🏭 ${_result!.inferredDomain}', AppColors.scoreOrange),
+                      ],
                     ],
+                  ),
+                ],
+                // Fallback model disclaimer banner (Fix 7)
+                if (_result!.engine == 'llama3') ...[
+                  SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.scoreOrange.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.scoreOrange.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('⚠️', style: TextStyle(fontSize: 14)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Scored by Llama 3 (fallback). Gemini was unavailable. '
+                            'Scores may vary slightly — retry later for a Gemini score.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.scoreOrange,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ],
@@ -989,6 +1026,184 @@ class _ATSState extends ConsumerState<ATSScoreScreen>
                     ],
                   ),
                 ),
+              ),
+            ),
+          ],
+
+          // ─── Boolean Keyword Filter — Pass/Fail (Fix 5) ───────────────────────
+          // A deterministic, non-AI substring check. Simulates the hard AND filter
+          // recruiters run before they even look at a resume. No competitor shows this.
+          if (_result!.missingKeywords.isNotEmpty || _result!.matchedKeywords.isNotEmpty) ...[
+            SizedBox(height: 24),
+            SectionHeader(
+              title: '🔍 Boolean Filter Simulation',
+              subtitle: 'Would you pass the recruiter\'s keyword AND filter?',
+            ),
+            SizedBox(height: 14),
+            Builder(builder: (context) {
+              final resumeText = ref
+                  .read(resumeNotifierProvider(widget.resumeId))
+                  ?.sections
+                  .toString()
+                  .toLowerCase() ?? '';
+              // Run deterministic substring check on all required keywords
+              final allRequired = [
+                ..._result!.matchedKeywords,
+                ..._result!.missingKeywords,
+              ];
+              final passed = allRequired
+                  .where((k) => resumeText.contains(k.toLowerCase()))
+                  .toList();
+              final failed = allRequired
+                  .where((k) => !resumeText.contains(k.toLowerCase()))
+                  .toList();
+              final passRate = allRequired.isEmpty
+                  ? 100
+                  : ((passed.length / allRequired.length) * 100).round();
+              final filterPassed = failed.isEmpty;
+              return GlassCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: (filterPassed
+                                    ? AppColors.scoreGreen
+                                    : AppColors.scoreRed)
+                                .withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(50),
+                            border: Border.all(
+                              color: (filterPassed
+                                      ? AppColors.scoreGreen
+                                      : AppColors.scoreRed)
+                                  .withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Text(
+                            filterPassed
+                                ? '✅ PASSES FILTER'
+                                : '❌ BLOCKED BY FILTER',
+                            style: TextStyle(
+                              color: filterPassed
+                                  ? AppColors.scoreGreen
+                                  : AppColors.scoreRed,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '$passRate% match',
+                          style: TextStyle(
+                            color: context.appColors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (failed.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Hard-blocked by missing:',
+                        style: TextStyle(
+                          color: AppColors.scoreRed,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: failed
+                            .take(10)
+                            .map((k) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.scoreRed
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                        color: AppColors.scoreRed
+                                            .withValues(alpha: 0.3)),
+                                  ),
+                                  child: Text(
+                                    k,
+                                    style: TextStyle(
+                                      color: AppColors.scoreRed,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }),
+          ],
+
+          // ─── Stale Keywords (Fix 4) ───────────────────────────────────────────
+          if (_result!.staleKeywords.isNotEmpty) ...[
+            SizedBox(height: 24),
+            SectionHeader(
+              title: '⏳ Stale Keywords',
+              subtitle: 'Skills last used >5 years ago — may hurt Relevance score',
+              trailing: GradientBadge(
+                text: '${_result!.staleKeywords.length}',
+                gradient: AppColors.accentGradient,
+              ),
+            ),
+            SizedBox(height: 14),
+            GlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'These skills appear in your resume but were only used in older roles. '
+                    'If they are required by the JD, a recruiter may question their currency.',
+                    style: TextStyle(
+                      color: context.appColors.textSecondary,
+                      fontSize: 11,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _result!.staleKeywords
+                        .map((k) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.scoreOrange.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: AppColors.scoreOrange
+                                        .withValues(alpha: 0.3)),
+                              ),
+                              child: Text(
+                                '⏳ $k',
+                                style: TextStyle(
+                                  color: AppColors.scoreOrange,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ],
               ),
             ),
           ],
