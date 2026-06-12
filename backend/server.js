@@ -298,6 +298,8 @@ function normalizeAtsResponse(raw) {
   const total = Object.values(categories).reduce((sum, c) => sum + c.score, 0);
   return {
     total_score: total,
+    // inferred_domain — new field (Fix 9). Pass through raw value, default ''.
+    inferred_domain: toText(raw.inferred_domain).slice(0, 80),
     categories,
     critical_issues: (
       Array.isArray(raw.critical_issues) ? raw.critical_issues : []
@@ -313,6 +315,8 @@ function normalizeAtsResponse(raw) {
       .slice(0, 5),
     matched_keywords: toArray(raw.matched_keywords || raw.keywords, 30),
     missing_keywords: toArray(raw.missing_keywords, 30),
+    // stale_keywords — new field (Fix 4). Skills last used >5 years ago.
+    stale_keywords: toArray(raw.stale_keywords, 20),
     top_3_wins: toArray(raw.top_3_wins, 3),
     top_3_improvements: toArray(raw.top_3_improvements, 3),
     evidence: toArray(raw.evidence, 5),
